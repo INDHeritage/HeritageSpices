@@ -692,6 +692,57 @@
   }
 </script>
 
+<!-- ✅ Bootstrap + AOS Scripts (if you have not added already) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+<script>
+  AOS.init();
+</script>
+
+<!-- ✅ Custom JavaScript to interact with Flask backend -->
+<script>
+   // ✅ Check if user is logged in on Flask backend
+  function checkUser() {
+    fetch("https://heritage-flask-app.onrender.com/", {
+      method: "GET",
+      credentials: "include"
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.email) {
+        alert(`Logged in as: ${data.name} (${data.email})`);
+      } else {
+        alert("User not logged in");
+      }
+    })
+    .catch(error => {
+      console.error("Error fetching user info:", error);
+    });
+  }
+
+  // ✅ Send additional customer details
+  function sendDetails() {
+    fetch("https://heritage-flask-app.onrender.com/collect-details", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        phone: "9876543210",
+        location: "Nagpur",
+        interest: "Organic Spices"
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert("Details submitted successfully!");
+    })
+    .catch(error => {
+      console.error("Error sending details:", error);
+    });
+  }
+</script>
 
 
 </body>
