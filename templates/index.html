@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+
+  <!-- ✅ SEO Meta Tags -->
+  <meta name="title" content="Buy Authentic Indian Spices | Indian Heritage Spices" />
+  <meta name="description" content="Buy 100% organic Indian spices like Garam Masala, Goda Masala, Sindewahi Heritage Masala, Chicken Masala, and more. Directly sourced from Kerala farmers. Pure, authentic, and full of flavor." />
+  <meta name="keywords" content="Garam Masala, Heritage Spices, Sindewahi Masala, Goda Masala, Chicken Masala, Mutton Masala, Sabji Masala, Fish Masala, Egg Masala, Organic Spices, Indian Spices, Kerala Spices, Buy Masala Online, Authentic Indian Masala, Heritage Garam Masala, Premium Indian Spices" />
+  <meta name="author" content="Indian Heritage Spices" />
+  <meta name="robots" content="index, follow" />
+  <meta name="language" content="English" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:title" content="Indian Heritage Spices - Buy Premium Indian Masalas Online" />
+  <meta property="og:description" content="Authentic Garam Masala, Chicken Masala, Goda Masala, and more. Sourced from Kerala farmers. 100% Pure and Organic." />
+  <meta property="og:image" content="{{ url_for('static', filename='images/logo.jpg') }}" />
+  <meta property="og:url" content="https://yourdomain.com/" />
+  <meta property="og:type" content="website" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Buy Authentic Indian Spices - Indian Heritage Spices" />
+  <meta name="twitter:description" content="Shop Garam Masala, Sindewahi Masala, Goda Masala, and more. 100% Organic and Authentic." />
+  <meta name="twitter:image" content="{{ url_for('static', filename='images/logo.jpg') }}" />
+
+  <title>Indian Heritage Spices | Garam Masala, Goda Masala, Sindewahi & More</title>
+
+  <!-- ✅ Styles & Fonts -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet" />
+</head>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      font-family: 'Poppins', sans-serif;
+      scroll-behavior: smooth;
+      background: linear-gradient(180deg, #fffef3, #fffaf0);
+      position: relative;
+      z-index: 0;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    header {
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .navbar-brand {
+      font-weight: bold;
+      color: #4caf50;
+    }
+
+    .navbar-nav .nav-link {
+      font-weight: 500;
+      color: #333;
+    }
+
+    .navbar-nav .nav-link:hover {
+      color: #4caf50;
+    }
+
+    .section-title {
+      text-align: center;
+      margin: 60px 0 30px;
+      font-weight: 600;
+      color: #d4a76a;
+      border-bottom: 2px solid #d4a76a;
+      display: inline-block;
+      padding-bottom: 8px;
+      font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+    }
+
+    .carousel-caption {
+      bottom: 20%;
+    }
+
+    .carousel-caption h1,
+    .carousel-caption h2 {
+      font-weight: 700;
+      font-size: clamp(1.5rem, 4vw, 3rem);
+    }
+
+    .card img {
+      height: 180px;
+      object-fit: contain;
+    }
+
+    .card:hover {
+      background: linear-gradient(145deg, #fff5e6, #ffe0b2);
+      box-shadow: 0 8px 25px rgba(212, 167, 106, 0.3);
+      transform: scale(1.03);
+    }
+
+    .btn-success {
+      transition: all 0.3s ease;
+    }
+
+    .btn-success:hover {
+      background-color: #388e3c;
+      transform: scale(1.05);
+    }
+
+    footer {
+      background: #4caf50;
+      color: white;
+      padding: 40px 0 20px;
+    }
+
+    .social-icons a {
+      color: white;
+      font-size: 1.5rem;
+      margin: 0 10px;
+      transition: color 0.3s;
+    }
+
+    .social-icons a:hover {
+      color: #ffd700;
+    }
+
+    #heroCarousel img {
+      width: 100%;
+      height: 90vh;
+      object-fit: cover;
+    }
+
+    @media (max-width: 576px) {
+      #heroCarousel img {
+        height: 60vh !important;
+      }
+
+      .carousel-caption {
+        bottom: 10%;
+      }
+    }
+
+    #missionCarousel img {
+      max-height: 320px;
+      width: auto;
+      object-fit: contain;
+      margin: 0 auto;
+      display: block;
+    }
+
+    #masala-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .masala-burst {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: radial-gradient(circle, rgba(255,153,51,0.8) 0%, rgba(255,87,34,0.6) 60%, transparent 100%);
+      border-radius: 50%;
+      animation: burst 0.7s ease-out forwards;
+      opacity: 0.9;
+    }
+
+    @keyframes burst {
+      0% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(3); opacity: 0.5; }
+      100% { transform: scale(4.5); opacity: 0; }
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    #preloader {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: #fffef3;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #emoji-loader {
+      font-size: 3rem;
+      animation: bounce 1.2s infinite;
+    }
+
+    #emoji-text {
+      margin-top: 10px;
+      font-size: 1rem;
+      color: #a37b34;
+    }
+
+    /* WhatsApp Floating Chat */
+    .whatsapp-float {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #25D366;
+      color: white;
+      border-radius: 50%;
+      padding: 15px;
+      font-size: 28px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      z-index: 10000;
+      transition: all 0.3s ease;
+    }
+
+    .whatsapp-float:hover {
+      background-color: #128C7E;
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+
+
+
+<body>
+
+<!-- 🔄 Preloader -->
+<div id="preloader">
+  <div id="emoji-loader">🫚</div>
+  <p id="emoji-text">Loading Spices...</p>
+</div>
+
+
+
+
+
+<!-- 🌶️ Masala Burst -->
+<div id="masala-container"></div>
+
+ <header>
+  <nav class="navbar navbar-expand-lg navbar-light container py-2">
+    <a class="navbar-brand d-flex align-items-center" href="#heroCarousel">
+      <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Logo" height="50" class="me-2" style="border-radius: 8px;">
+      <span style="font-weight: 600; color: #4caf50; font-size: 1.2rem;">Indian Heritage Spices</span>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+      <ul class="navbar-nav align-items-center">
+        <li class="nav-item"><a class="nav-link" href="#">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="#mission">Mission</a></li>
+        <li class="nav-item"><a class="nav-link" href="#products">Products</a></li>
+        <li class="nav-item"><a class="nav-link" href="#wholesale">Wholesale</a></li>
+        <li class="nav-item">
+          {% if user %}
+            <span class="nav-link text-success fw-semibold">👤 {{ user['name'] }}</span>
+          {% endif %}
+        </li>
+        <li class="nav-item">
+          {% if user %}
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
+          {% else %}
+            <a href="{{ url_for('login') }}" class="btn btn-sm btn-success ms-2">Login with Google</a>
+          {% endif %}
+        </li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+
+  <!-- Hero Carousel -->
+  <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3500">
+    <div class="carousel-inner">
+      <div class="carousel-item active">
+        <img src="{{ url_for('static', filename='images/istockphoto-965503302-612x612.jpg') }}" class="d-block w-100" style="height: 90vh; object-fit: cover;" alt="Spice 1">
+        <div class="carousel-caption d-block bg-dark bg-opacity-50 p-3 rounded text-center text-white">
+          <h1 class="text-white">UPHOLDING THE INDIAN HERITAGE</h1>
+          <p>Your Partner in Authentic, Organic Spices</p>
+        </div>
+      </div>
+      <div class="carousel-item">
+        <img src="{{ url_for('static', filename='images/close-up-picture-of-red-thai-dry-bird-eye-chilli-photo.jpg') }}" class="d-block w-100" style="height: 90vh; object-fit: cover;" alt="Spice 2">
+        <div class="carousel-caption d-block bg-dark bg-opacity-50 p-3 rounded text-center text-white">
+          <h2 class="text-white">Our Mission</h2>
+          <p>Delivering the finest organic spices since 2012. Sourced directly from Kerala.</p>
+        </div>
+      </div>
+      <div class="carousel-item">
+        <img src="{{ url_for('static', filename='images/istockphoto-1313868357-612x612.jpg') }}" class="d-block w-100" style="height: 90vh; object-fit: cover;" alt="Spice 3">
+        <div class="carousel-caption d-block bg-dark bg-opacity-50 p-3 rounded text-center text-white">
+          <h2 class="text-white">Our Promise</h2>
+          <p>✔ 100% Organic &nbsp; ✔ Quality Assured &nbsp; ✔ Truly Authentic</p>
+        </div>
+      </div>
+      <div class="carousel-item">
+        <img src="{{ url_for('static', filename='images/360_F_102589163_hk02O92vzEYP0rZbVyvDTbkje1GaUDk1.jpg') }}" class="d-block w-100" style="height: 90vh; object-fit: cover;" alt="Spice 4">
+        <div class="carousel-caption d-block bg-dark bg-opacity-50 p-3 rounded text-center text-white">
+          <h2 class="text-white">🌱 Featured Products</h2>
+          <p>Garam Masala, Turmeric, Cardamom – Organically Yours</p>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+      <span class="carousel-control-prev-icon"></span>
+      <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+      <span class="carousel-control-next-icon"></span>
+      <span class="visually-hidden">Next</span>
+    </button>
+  </div>
+
+<!-- Mission & Promise Carousel -->
+<section id="mission-promise-carousel" class="container mt-5" data-aos="fade-up" data-aos-duration="1000">
+  <h2 class="section-title text-center">Our Mission & Promise</h2>
+
+  <div id="missionCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel">
+    <div class="carousel-inner">
+
+      <!-- Slide 1: Kerala Farmers -->
+      <div class="carousel-item active">
+        <div class="row align-items-center">
+          <div class="col-md-6 p-4 text-start">
+            <h5>Our Mission</h5>
+            <p>Reviving India’s spice legacy with ethical, organic farming directly from Kerala's trusted farmers since 2012.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/kerala-farmers.jpg.jpg') }}" class="img-fluid rounded" alt="Kerala Farmers" style="max-height: 350px; object-fit: cover;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 2: 100% Organic -->
+      <div class="carousel-item">
+        <div class="row align-items-center">
+          <div class="col-md-6 p-4 text-start">
+            <h5>100% Organic</h5>
+            <p>Every spice is grown without chemicals, preserving health & flavor—naturally.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/organic.png.jpg') }}" class="img-fluid" alt="100% Organic" style="max-height: 250px; object-fit: contain;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 3: Quality Assured -->
+      <div class="carousel-item">
+        <div class="row align-items-center">
+          <div class="col-md-6 p-4 text-start">
+            <h5>Quality Assured</h5>
+            <p>Each batch is tested to meet international purity standards for your peace of mind.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/quality.png.jpg') }}" class="img-fluid" alt="Quality Assurance" style="max-height: 250px; object-fit: contain;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 4: Truly Authentic -->
+      <div class="carousel-item">
+        <div class="row align-items-center">
+          <div class="col-md-6 p-4 text-start">
+            <h5>Truly Authentic</h5>
+            <p>We bring you the original flavors of India—preserved and packed with care.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/authentic.png.jpg') }}" class="img-fluid" alt="Authentic Spices" style="max-height: 250px; object-fit: contain;">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Controls -->
+    <button class="carousel-control-prev" type="button" data-bs-target="#missionCarousel" data-bs-slide="prev">
+      <span class="carousel-control-prev-icon"></span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#missionCarousel" data-bs-slide="next">
+      <span class="carousel-control-next-icon"></span>
+    </button>
+  </div>
+</section>
+
+
+
+
+ <!-- Products -->
+<section id="products" class="container mt-5" data-aos="zoom-in" data-aos-duration="1000">
+  <h3 class="section-title">🌱 Featured Products</h3>
+  <div class="row text-center">
+    <!-- Garam Masala 50g -->
+    <div class="col-md-6 col-lg-4 mb-4">
+      <div class="card p-3 h-100">
+        <img src="{{ url_for('static', filename='images/20230616_104925-removebg-fotor-bg-remover-20230616122511.png') }}"
+             class="img-fluid mx-auto d-block"
+             style="height: 160px; object-fit: contain;" 
+             alt="Garam Masala 50g">
+        <h5 class="mt-2">Organic Garam Masala – 50g</h5>
+        <p>Bold, aromatic blend of organic spices. Perfect for everyday cooking.</p>
+        <a href="https://www.meesho.com/garam-masala/p/979axy?ms=2&source=Meri+Shop" target="_blank" class="btn btn-sm btn-success mt-2">Buy 50g</a>
+      </div>
+    </div>
+
+    <!-- Garam Masala 100g -->
+    <div class="col-md-6 col-lg-4 mb-4">
+      <div class="card p-3 h-100">
+        <img src="{{ url_for('static', filename='images/20230616_104925-removebg-fotor-bg-remover-20230616122119.png') }}"
+             class="img-fluid mx-auto d-block"
+             style="height: 160px; object-fit: contain;" 
+             alt="Garam Masala 100g">
+        <h5 class="mt-2">Organic Garam Masala – 100g</h5>
+        <p>Same great blend, double the quantity. Perfect for families and foodies.</p>
+        <a href="https://www.meesho.com/heritage-garam-masala/p/979d6r?ms=2&source=Meri+Shop" target="_blank" class="btn btn-sm btn-success mt-2">Buy 100g</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+  <!-- Wholesale -->
+  <section id="wholesale" class="container mt-5 text-center" data-aos="fade-left" data-aos-duration="1000">
+    <h3 class="section-title">Join Our Wholesale Distribution Network</h3>
+    <p>
+      Are you a retailer or distributor looking to source premium organic spices? Join our growing network and bring authentic flavors to your customers!
+    </p>
+    <ul class="list-unstyled mb-3">
+      <li>🔹 High-quality organic spices at competitive prices</li>
+      <li>🔹 Reliable supply chain and bulk purchasing options</li>
+      <li>🔹 Direct sourcing from trusted farms</li>
+    </ul>
+    <p>
+      👉 <a href="https://docs.google.com/forms/d/1EosUK8AONAQb_uV4ZhfORcIQkU_cf8VfR9GRhvAFzik/preview" class="btn btn-success" target="_blank">Apply for Wholesale Partnership</a>
+    </p>
+    <p>Simply fill out the Google Form with your basic details, and our team will get in touch with you soon!</p>
+  </section>
+
+ 
+
+ <!-- Footer -->
+<footer class="text-center">
+  <p>📲 Follow Us</p>
+  <div class="social-icons">
+    <a href="https://instagram.com/yourpage" class="login-required"><i class="fab fa-instagram"></i></a>
+    <a href="https://twitter.com/yourpage" class="login-required"><i class="fab fa-twitter"></i></a>
+    <a href="mailto:heritage@spices.com" class="login-required"><i class="fas fa-envelope"></i></a>
+  </div>
+  <p class="mt-3">🌿 Heritage Spices Pvt. Ltd. – Bringing Authentic Organic Spices Since 2012</p>
+  <p>&copy; 2024 Heritage Spices Pvt. Ltd. | All Rights Reserved 🌱</p>
+</footer>
+
+
+
+<!-- 🧠 Interactive MCQ Modal -->
+<div class="modal fade" id="quizModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Spice Quiz 🎯</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Which of these is highest in antioxidants?</p>
+        <div class="form-check text-start">
+          <input class="form-check-input" type="radio" name="interest" value="Turmeric" id="turmeric" required>
+          <label class="form-check-label" for="turmeric">Turmeric</label>
+        </div>
+        <div class="form-check text-start">
+          <input class="form-check-input" type="radio" name="interest" value="Cumin" id="cumin">
+          <label class="form-check-label" for="cumin">Cumin</label>
+        </div>
+        <div class="form-check text-start">
+          <input class="form-check-input" type="radio" name="interest" value="Pepper" id="pepper">
+          <label class="form-check-label" for="pepper">Black Pepper</label>
+        </div>
+        <div id="quiz-feedback" class="mt-3 fw-semibold"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="submitAnswer" class="btn btn-success">Submit Answer</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Skip</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+  window.addEventListener('load', function () {
+    if (!localStorage.getItem("quizShown")) {
+      var modal = new bootstrap.Modal(document.getElementById('quizModal'));
+      modal.show();
+      localStorage.setItem("quizShown", "true");
+    }
+  });
+</script>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+
+<!-- ✅ Firebase config script goes here -->
+<script type="module" src="{{ url_for('static', filename='firebaseConfig.js') }}"></script>
+
+
+<script>
+  AOS.init();
+
+  const emojis = ['🫚', '🌶️', '🍂', '🧂', '🪷', '📦', '🧵', '🍽️'];
+  const emojiTexts = [
+    "Grinding fresh ginger...",
+    "Selecting red chilies...",
+    "Collecting dry herbs...",
+    "Blending salts & spices...",
+    "Infusing with purity...",
+    "Packing with care...",
+    "Sealing in tradition...",
+    "Ready to serve flavor!"
+  ];
+
+  const emojiElement = document.getElementById("emoji-loader");
+  const textElement = document.getElementById("emoji-text");
+  const preloader = document.getElementById("preloader");
+
+  let emojiIndex = 0;
+
+  function showNextEmoji() {
+  if (emojiIndex < emojis.length) {
+    emojiElement.textContent = emojis[emojiIndex];
+    textElement.textContent = emojiTexts[emojiIndex];
+    emojiIndex++;
+    setTimeout(showNextEmoji, 250);
+  } else {
+    preloader.style.transition = "opacity 0.6s ease";
+    preloader.style.opacity = "0";
+    setTimeout(() => {
+      preloader.style.display = "none";
+
+      // ✅ Show login popup after preloader finishes
+      {% if not user %}
+      const loginPrompt = new bootstrap.Modal(document.getElementById("loginPrompt"));
+      loginPrompt.show();
+      {% endif %}
+    }, 600);
+  }
+}
+
+  window.addEventListener('load', () => {
+    showNextEmoji();
+
+    for (let i = 0; i < 10; i++) {
+      setTimeout(() => {
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * window.innerHeight;
+        const burst = document.createElement('div');
+        burst.className = 'masala-burst';
+        burst.style.left = `${x}px`;
+        burst.style.top = `${y}px`;
+        document.getElementById('masala-container').appendChild(burst);
+        setTimeout(() => burst.remove(), 700);
+      }, i * 100);
+    }
+
+    document.addEventListener('click', function(e) {
+      const burst = document.createElement('div');
+      burst.className = 'masala-burst';
+      burst.style.left = `${e.clientX - 15}px`;
+      burst.style.top = `${e.clientY - 15}px`;
+      document.getElementById('masala-container').appendChild(burst);
+      setTimeout(() => burst.remove(), 700);
+    });
+
+
+
+    // 🟢 Show Quiz after 10 seconds
+    setTimeout(() => {
+      if (!sessionStorage.getItem("quizShown") && Math.random() < 0.7) {
+        const quizModal = new bootstrap.Modal(document.getElementById('quizModal'));
+        quizModal.show();
+        sessionStorage.setItem("quizShown", "true");
+      }
+    }, 10000);
+  });
+
+    // 🔐 Prevent WhatsApp links unless logged in
+  document.querySelectorAll('.login-required').forEach(link => {
+    link.addEventListener('click', function (e) {
+      const userLoggedIn = {{ 'true' if user else 'false' }};
+      if (!userLoggedIn) {
+        e.preventDefault();
+        const loginModal = new bootstrap.Modal(document.getElementById('loginPrompt'));
+        loginModal.show();
+      }
+    });
+  });
+</script>
+
+
+<!-- ✅ WhatsApp Floating Chat -->
+<a href="https://wa.me/918999449765" target="_blank" class="whatsapp-float login-required" title="Chat with us on WhatsApp">
+  <i class="fab fa-whatsapp"></i>
+</a>
+
+
+<!-- 🔐 Google Login Prompt -->
+<div class="modal fade" id="loginPrompt" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title">Please Log In</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>You need to log in with Google to access full features.</p>
+        <button onclick="googleLogin()" class="btn btn-success">Login with Google</button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="skipLogin" data-bs-dismiss="modal">Skip</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.login-required').forEach(link => {
+    link.addEventListener('click', function (e) {
+      const userLoggedIn = {{ 'true' if user else 'false' }};  // Flask context for login check
+
+      if (!userLoggedIn) {
+        e.preventDefault();  // Stop the default link click
+        const loginModal = new bootstrap.Modal(document.getElementById('loginPrompt'));
+        loginModal.show();   // Show login modal instead
+      }
+    });
+  });
+</script>
+
+
+<!-- 🔐 Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "heritage-web.firebaseapp.com",
+    projectId: "heritage-web",
+    storageBucket: "heritage-web.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  // Google Login
+  function googleLogin() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider)
+      .then((result) => {
+        const user = result.user;
+        alert(`Welcome, ${user.displayName}!`);
+
+        // Store basic user info
+        db.collection("users").doc(user.uid).set({
+          name: user.displayName,
+          email: user.email,
+          photo: user.photoURL,
+          lastLogin: new Date()
+        });
+
+        // Hide modal after login
+        const modal = bootstrap.Modal.getInstance(document.getElementById("loginPrompt"));
+        modal.hide();
+
+        // Optionally: reload to update UI via Flask session
+        window.location.reload();
+      })
+      .catch((error) => {
+        console.error("Login Failed:", error);
+        alert("Login failed. Please try again.");
+      });
+  }
+</script>
+
+
+
+</body>
+
+
+
+</html>
