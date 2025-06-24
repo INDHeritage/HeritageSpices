@@ -1,16 +1,20 @@
-from flask import Flask, redirect, url_for, session, render_template, request
+from flask import Flask, redirect, url_for, session, request, jsonify
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
+from flask_cors import CORS
 import os
 import pandas as pd
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# OAuth Config
+# CORS: Allow frontend to communicate
+CORS(app, supports_credentials=True)
+
+# OAuth config for Google
 app.config['GOOGLE_CLIENT_ID'] = os.getenv("GOOGLE_CLIENT_ID")
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv("GOOGLE_CLIENT_SECRET")
 app.config['GOOGLE_DISCOVERY_URL'] = "https://accounts.google.com/.well-known/openid-configuration"
@@ -24,7 +28,7 @@ google = oauth.register(
     client_kwargs={'scope': 'openid email profile'},
 )
 
-# Save user info to users.csv
+# Save user to CSV
 def save_user(user_info):
     file = 'users.csv'
     new_entry = {
@@ -42,16 +46,21 @@ def save_user(user_info):
         df = pd.DataFrame([new_entry])
         df.to_csv(file, index=False)
 
+# Main route
 @app.route('/')
 def index():
     user = session.get('user')
-    return render_template('index.html', user=user)
+    if user:
+        return jsonify(user)
+    return jsonify({'message': 'User not logged in'}), 401
 
+# Google login
 @app.route('/login')
 def login():
     redirect_uri = url_for('auth', _external=True)
     return google.authorize_redirect(redirect_uri)
 
+# Google OAuth callback
 @app.route('/auth')
 def auth():
     token = google.authorize_access_token()
@@ -60,12 +69,12 @@ def auth():
     session['user'] = {
         'name': user_info['name'],
         'email': user_info['email'],
-        'picture': user_info['picture']
+        'picture': user_info.get('picture')
     }
 
     save_user(user_info)
 
-    # Redirect if customer details not saved
+    # Check if details exist
     details_file = 'customer_details.csv'
     if os.path.exists(details_file):
         df = pd.read_csv(details_file)
@@ -76,43 +85,51 @@ def auth():
 
     return redirect('/')
 
+# Collect additional customer details
 @app.route('/collect-details', methods=['GET', 'POST'])
 def collect_details():
     if 'user' not in session:
-        return redirect(url_for('login'))
+        return jsonify({'error': 'Login required'}), 401
+
+    details_file = 'customer_details.csv'
+    email = session['user']['email']
 
     if request.method == 'POST':
-        details_file = 'customer_details.csv'
-        data = {
-            'email': session['user']['email'],
-            'phone': request.form['phone'],
-            'location': request.form['location'],
-            'interest': request.form['interest']
+        data = request.get_json()
+        record = {
+            'email': email,
+            'phone': data.get('phone'),
+            'location': data.get('location'),
+            'interest': data.get('interest')
         }
 
         if os.path.exists(details_file):
             df = pd.read_csv(details_file)
-            if data['email'] not in df['email'].values:
-                df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
+            if email not in df['email'].values:
+                df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
                 df.to_csv(details_file, index=False)
         else:
-            df = pd.DataFrame([data])
+            df = pd.DataFrame([record])
             df.to_csv(details_file, index=False)
 
-        return redirect('/')
+        return jsonify({'message': 'Details saved successfully'})
 
-    return render_template('collect_details.html', user=session['user'])
+    return jsonify({'message': 'Send details using POST method'}), 200
 
+# Admin: View all users
 @app.route('/admin/users')
 def view_users():
-    df = pd.read_csv('users.csv')
-    return df.to_html(classes='table table-bordered', index=False)
+    if os.path.exists('users.csv'):
+        df = pd.read_csv('users.csv')
+        return df.to_json(orient='records')
+    return jsonify([])
 
+# Logout
 @app.route('/logout')
 def logout():
     session.pop('user', None)
-    return redirect('/')
+    return jsonify({'message': 'Logged out'})
 
+# Start app
 if __name__ == '__main__':
-    from waitress import serve  # optional: gunicorn is also fine
-    serve(app, host='0.0.0.0', port=8080)
+    app.run(debug=True)
