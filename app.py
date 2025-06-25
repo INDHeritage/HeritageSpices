@@ -1,25 +1,25 @@
-from flask import render_template
-from flask import Flask, redirect, url_for, session, request, jsonify
+from flask import Flask, render_template, redirect, url_for, session, request, jsonify
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 from flask_cors import CORS
 import os
 import pandas as pd
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# CORS: Allow frontend to communicate
+# Enable CORS for frontend communication
 CORS(app, supports_credentials=True)
 
-# OAuth config for Google
+# Google OAuth2 Configuration
 app.config['GOOGLE_CLIENT_ID'] = os.getenv("GOOGLE_CLIENT_ID")
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv("GOOGLE_CLIENT_SECRET")
 app.config['GOOGLE_DISCOVERY_URL'] = "https://accounts.google.com/.well-known/openid-configuration"
 
+# Register Google OAuth client
 oauth = OAuth(app)
 google = oauth.register(
     name='google',
@@ -29,39 +29,37 @@ google = oauth.register(
     client_kwargs={'scope': 'openid email profile'},
 )
 
-# Save user to CSV
-def save_user(user_info):
-    file = 'users.csv'
-    new_entry = {
+# Utility function to save user data
+def save_user_info(user_info):
+    path = 'users.csv'
+    new_user = {
         'name': user_info['name'],
         'email': user_info['email'],
         'picture': user_info.get('picture')
     }
 
-    if os.path.exists(file):
-        df = pd.read_csv(file)
-        if new_entry['email'] not in df['email'].values:
-            df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-            df.to_csv(file, index=False)
+    if os.path.exists(path):
+        df = pd.read_csv(path)
+        if new_user['email'] not in df['email'].values:
+            df = pd.concat([df, pd.DataFrame([new_user])], ignore_index=True)
+            df.to_csv(path, index=False)
     else:
-        df = pd.DataFrame([new_entry])
-        df.to_csv(file, index=False)
+        pd.DataFrame([new_user]).to_csv(path, index=False)
 
-# Main route
+# Home route
 @app.route('/')
-def index():
-    user = session.get('user')
-    return render_template("index.html", user=user)
+def home():
+    return render_template("index.html", user=session.get('user'))
 
-# Google login
+# Login route
 @app.route('/login')
 def login():
-    redirect_uri = url_for('auth', _external=True)
+    redirect_uri = url_for('auth_callback', _external=True)
     return google.authorize_redirect(redirect_uri)
 
 # Google OAuth callback
 @app.route('/auth')
-def auth():
+def auth_callback():
     token = google.authorize_access_token()
     user_info = google.parse_id_token(token, nonce=token.get('nonce'))
 
@@ -71,64 +69,59 @@ def auth():
         'picture': user_info.get('picture')
     }
 
-    save_user(user_info)
+    save_user_info(user_info)
 
-    # Check if details exist
-    details_file = 'customer_details.csv'
-    if os.path.exists(details_file):
-        df = pd.read_csv(details_file)
-        if user_info['email'] not in df['email'].values:
-            return redirect('/collect-details')
-    else:
+    # Check if customer details exist
+    detail_path = 'customer_details.csv'
+    if not os.path.exists(detail_path) or session['user']['email'] not in pd.read_csv(detail_path)['email'].values:
         return redirect('/collect-details')
 
     return redirect('/')
 
-# Collect additional customer details
+# Route to collect additional customer details
 @app.route('/collect-details', methods=['GET', 'POST'])
 def collect_details():
     if 'user' not in session:
-        return jsonify({'error': 'Login required'}), 401
+        return redirect('/')
 
-    details_file = 'customer_details.csv'
     email = session['user']['email']
+    file_path = 'customer_details.csv'
 
     if request.method == 'POST':
-        data = request.get_json()
-        record = {
+        form_data = request.get_json(silent=True) or request.form
+        new_record = {
             'email': email,
-            'phone': data.get('phone'),
-            'location': data.get('location'),
-            'interest': data.get('interest')
+            'phone': form_data.get('phone'),
+            'location': form_data.get('location'),
+            'interest': form_data.get('interest')
         }
 
-        if os.path.exists(details_file):
-            df = pd.read_csv(details_file)
+        if os.path.exists(file_path):
+            df = pd.read_csv(file_path)
             if email not in df['email'].values:
-                df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
-                df.to_csv(details_file, index=False)
+                df = pd.concat([df, pd.DataFrame([new_record])], ignore_index=True)
+                df.to_csv(file_path, index=False)
         else:
-            df = pd.DataFrame([record])
-            df.to_csv(details_file, index=False)
+            pd.DataFrame([new_record]).to_csv(file_path, index=False)
 
-        return jsonify({'message': 'Details saved successfully'})
+        return redirect('/')
 
-    return jsonify({'message': 'Send details using POST method'}), 200
+    return render_template("collect_details.html", user=session['user'])
 
-# Admin: View all users
+# Admin route to view all registered users
 @app.route('/admin/users')
-def view_users():
+def admin_users():
     if os.path.exists('users.csv'):
         df = pd.read_csv('users.csv')
-        return df.to_json(orient='records')
+        return jsonify(df.to_dict(orient='records'))
     return jsonify([])
 
-# Logout
+# Logout route
 @app.route('/logout')
 def logout():
-    session.pop('user', None)
-    return jsonify({'message': 'Logged out'})
+    session.clear()
+    return redirect('/')
 
-# Start app
+# Run the app
 if __name__ == '__main__':
     app.run(debug=True)
