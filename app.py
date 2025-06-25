@@ -1,3 +1,4 @@
+from flask import render_template
 from flask import Flask, redirect, url_for, session, request, jsonify
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
@@ -50,9 +51,7 @@ def save_user(user_info):
 @app.route('/')
 def index():
     user = session.get('user')
-    if user:
-        return jsonify(user)
-    return jsonify({'message': 'User not logged in'}), 401
+    return render_template("index.html", user=user)
 
 # Google login
 @app.route('/login')
