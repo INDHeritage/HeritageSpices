@@ -1,0 +1,135 @@
+<!-- 🌟 Hero Carousel -->
+<div id="heroCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel">
+  <div class="carousel-inner">
+
+    <!-- Slide 1 -->
+    <div class="carousel-item active">
+      <img src="{{ url_for('static', filename='images/istockphoto-965503302-612x612.jpg') }}" class="d-block w-100" alt="Traditional Spices">
+      <div class="carousel-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
+        <h2 class="fw-bold text-warning">Upholding Indian Heritage</h2>
+        <p class="text-light">Bringing 100% organic and authentic spices from Kerala farms.</p>
+        <a href="#products" class="btn btn-warning mt-2 shadow">Shop Now</a>
+      </div>
+    </div>
+
+    <!-- Slide 2 -->
+    <div class="carousel-item">
+      <img src="{{ url_for('static', filename='images/close-up-picture-of-red-thai-dry-bird-eye-chilli-photo.jpg') }}" class="d-block w-100" alt="Red Chillies">
+      <div class="carousel-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">  
+        <h2 class="fw-bold text-warning">Spice Up Your Kitchen</h2>
+        <p class="text-light">Enjoy our premium range: Garam Masala, Goda Masala & more.</p>
+        <a href="#products" class="btn btn-outline-light mt-2 shadow-sm">View Products</a>
+      </div>
+    </div>
+
+    <!-- Slide 3 -->
+    <div class="carousel-item">
+      <img src="{{ url_for('static', filename='images/istockphoto-1313868357-612x612.jpg') }}" class="d-block w-100" alt="Spice Collection">
+      <div class="carousel-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
+        <h2 class="fw-bold text-warning">Pure. Ethical. Trusted.</h2>
+        <p class="text-light">Directly sourced from farms. No middlemen. No chemicals.</p>
+        <a href="#mission" class="btn btn-success mt-2 shadow-sm">Our Mission</a>
+      </div>
+    </div>
+
+    <!-- Slide 4 -->
+    <div class="carousel-item">
+      <img src="{{ url_for('static', filename='images/360_F_102589163_hk02O92vzEYP0rZbVyvDTbkje1GaUDk1.jpg') }}" class="d-block w-100" alt="Authentic Indian Flavors">
+      <div class="carousel-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
+        <h2 class="fw-bold text-warning">Sealed with Authenticity</h2>
+        <p class="text-light">Taste the real flavor of India, straight from the source.</p>
+        <a href="#wholesale" class="btn btn-outline-warning mt-2 shadow-sm">Wholesale Inquiry</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Carousel Controls -->
+  <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+    <span class="carousel-control-prev-icon"></span>
+  </button>
+  <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+    <span class="carousel-control-next-icon"></span>
+  </button>
+
+  <!-- Optional Indicators -->
+  <div class="carousel-indicators">
+    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
+    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
+    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="3"></button>
+  </div>
+</div>
+
+<!-- Optional Style for Captions -->
+<style>
+  .carousel-caption {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    max-width: 90%;
+    margin: auto;
+    text-align: center;
+    transition: all 0.4s ease-in-out;
+    bottom: 15%;
+  }
+
+  .carousel-caption h2 {
+    font-size: 2.2rem;
+    color: #ffc107;
+    font-weight: 700;
+    text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.6);
+  }
+
+  .carousel-caption p {
+    font-size: 1.2rem;
+    color: #fff;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .carousel-caption .btn {
+    padding: 0.5rem 1.2rem;
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+  }
+
+  .carousel-caption .btn:hover {
+    transform: scale(1.05);
+  }
+
+  @media (max-width: 768px) {
+    .carousel-caption {
+      bottom: 10%;
+      padding: 1rem;
+    }
+
+    .carousel-caption h2 {
+      font-size: 1.5rem;
+    }
+
+    .carousel-caption p {
+      font-size: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .carousel-caption {
+      padding: 0.75rem;
+      bottom: 8%;
+    }
+
+    .carousel-caption h2 {
+      font-size: 1.25rem;
+    }
+
+    .carousel-caption p {
+      font-size: 0.9rem;
+    }
+
+    .carousel-caption .btn {
+      font-size: 0.9rem;
+      padding: 0.4rem 1rem;
+    }
+  }
+</style>

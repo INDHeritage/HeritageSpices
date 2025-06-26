@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>{% block title %}Indian Heritage Spices{% endblock %}</title>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="{% block meta_description %}Premium organic Indian spices delivered globally.{% endblock %}" />
+  <meta name="author" content="Indian Heritage Spices" />
+  <meta name="keywords" content="Indian Spices, Organic Masala, Garam Masala, Kerala Spices" />
+  <meta name="robots" content="index, follow" />
+  <meta name="language" content="English" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="{% block og_title %}Indian Heritage Spices{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}Shop 100% organic spices like Garam Masala, Goda Masala, and more.{% endblock %}" />
+  <meta property="og:image" content="{{ url_for('static', filename='images/logo.jpg') }}" />
+  <meta property="og:type" content="website" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{% block twitter_title %}Indian Heritage Spices{% endblock %}" />
+  <meta name="twitter:description" content="{% block twitter_description %}Authentic organic spices from trusted Indian farmers.{% endblock %}" />
+  <meta name="twitter:image" content="{{ url_for('static', filename='images/logo.jpg') }}" />
+
+  <!-- Stylesheets -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Global CSS -->
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(180deg, #fffef3, #fffaf0);
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .navbar-brand {
+      font-weight: bold;
+      color: #4caf50;
+      text-decoration: none;
+    }
+
+    .navbar-brand:hover {
+      color: #388e3c;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-info img {
+      border-radius: 50%;
+      height: 32px;
+      width: 32px;
+    }
+
+    footer {
+      background-color: #f8f9fa;
+      color: #333;
+      padding: 30px 0;
+    }
+
+    footer a {
+      color: #4caf50;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .whatsapp-float {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      background-color: #25d366;
+      color: white;
+      border-radius: 50%;
+      padding: 14px;
+      font-size: 24px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .whatsapp-float:hover {
+      background-color: #128c7e;
+    }
+
+
+    .social-icons a:hover {
+  color: #4caf50;
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+}
+
+
+    
+    .fade-in {
+  animation: fadeIn 1s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+  </style>
+
+  {% block head %}{% endblock %}
+</head>
+
+<body>
+
+
+
+<!-- ✅ Fullscreen Preloader (Emoji + Love theme) -->
+<div id="preloader" style="position:fixed; inset:0; background:#fffef3; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+  <div id="emoji-loader" style="font-size:48px;">🫚</div>
+  <p id="emoji-text" style="margin-top:10px; font-weight:600;">Loading Spices...</p>
+  <p id="made-with-love" style="margin-top:10px; font-weight:500; display:none;">Crafted with ❤️ for spice lovers</p>
+</div>
+
+
+
+<!-- ✅ Header with Branding and Navigation -->
+<header>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm py-2">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center" href="/">
+        <img src="{{ url_for('static', filename='images/logo.jpg') }}" height="40" alt="Heritage Spices Logo">
+        <span class="ms-2 fw-semibold text-success" style="font-size: 1.2rem;">
+          🌿 Indian Heritage Spices
+        </span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav align-items-center">
+          <li class="nav-item"><a class="nav-link" href="/">🏠 Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="#mission">🎯 Mission</a></li>
+          <li class="nav-item"><a class="nav-link" href="#products">🛒 Products</a></li>
+          <li class="nav-item"><a class="nav-link" href="#wholesale">📦 Wholesale</a></li>
+          <li class="nav-item ms-2">
+            {% if not user %}
+              <a href="{{ url_for('login') }}" class="btn btn-sm btn-success">🔐 Login with Google</a>
+            {% else %}
+              <span class="me-2 text-success fw-semibold">👋 Hi, {{ user.name }}</span>
+              <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger">Logout</a>
+            {% endif %}
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- ✅ Main Content Area -->
+<main class="py-4">
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<!-- ✅ Footer Section with Social Icons -->
+<footer class="text-center bg-light text-dark py-4 mt-5 border-top">
+  <div class="container">
+    <p class="mb-1 fw-semibold">📲 Connect With Us</p>
+    <div class="social-icons mb-3">
+      <a href="https://www.instagram.com/heritage.spices.in/" 
+         class="text-dark me-3 login-required" 
+         target="_blank" 
+         title="Follow us on Instagram">
+        <i class="fab fa-instagram fa-lg"></i>
+      </a>
+      <a href="https://twitter.com/search?q=%23Heritagespices&src=hashtag_click" 
+         class="text-dark me-3 login-required" 
+         target="_blank" 
+         title="Join the #HeritageSpices trend">
+        <i class="fab fa-twitter fa-lg"></i>
+      </a>
+      <a href="mailto:heritage.spices.pvtltd@gmail.com" 
+         class="text-dark login-required" 
+         title="Email Us">
+        <i class="fas fa-envelope fa-lg"></i>
+      </a>
+    </div>
+
+    <p class="mb-1">🌿 Heritage Spices Pvt. Ltd. – Bringing Authentic Organic Spices Since 2012</p>
+    <p class="mb-0">
+      &copy; {{ year | default(2025) }} Heritage Spices Pvt. Ltd. |
+      <a href="/privacy" class="text-decoration-none text-primary">Privacy Policy</a>
+    </p>
+  </div>
+</footer>
+
+
+
+
+  <!-- ✅ WhatsApp Chat Button (Login Protected) -->
+<a href="https://wa.me/918999449765" class="whatsapp-float login-required" target="_blank" title="Chat with us on WhatsApp">
+  <i class="fab fa-whatsapp"></i>
+</a>
+
+
+  <!-- ✅ Cookie Consent -->
+  <div id="cookie-banner" class="alert alert-warning fixed-bottom text-center m-0 rounded-0" style="display: none; z-index: 9999;">
+    We use cookies to enhance your browsing experience. By continuing, you agree to our 
+    <a href="/privacy" class="text-primary fw-semibold">Privacy Policy</a>.
+    <button id="accept-cookies" class="btn btn-sm btn-primary ms-2">Accept</button>
+  </div>
+
+  <!-- ✅ Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const emojis = ['🫚', '🌶️', '🍂', '☘️', '🧂', '🍃', '🥣', '📦', '🔥'];
+    const emojiTexts = [
+      "Grinding fresh ginger...",
+      "Choosing fiery red chilies...",
+      "Collecting dry herbs...",
+      "Picking minty leaves...",
+      "Sprinkling pure salt...",
+      "Blending with love...",
+      "Infusing in tradition...",
+      "Packing your order...",
+      "Igniting your taste buds..."
+    ];
+
+    const emojiEl = document.getElementById("emoji-loader");
+    const textEl = document.getElementById("emoji-text");
+    const preloader = document.getElementById("preloader");
+    const loveEl = document.getElementById("made-with-love");
+
+    let index = 0;
+
+    function animateEmoji() {
+      if (!emojiEl || !textEl || !preloader) return;
+
+      emojiEl.textContent = emojis[index];
+      textEl.textContent = emojiTexts[index];
+      index++;
+
+      if (index < emojis.length) {
+        setTimeout(animateEmoji, 400);
+      } else {
+        loveEl.style.display = 'block';
+        loveEl.classList.add('fade-in');
+        setTimeout(hidePreloader, 1500);
+      }
+    }
+
+    function hidePreloader() {
+      preloader.style.transition = "opacity 0.6s ease";
+      preloader.style.opacity = "0";
+      preloader.style.pointerEvents = "none";
+      preloader.style.visibility = "hidden";
+      setTimeout(() => {
+        preloader.style.display = "none";
+      }, 400);
+    }
+
+    animateEmoji();
+
+    // Backup hide after 9s
+    setTimeout(hidePreloader, 9000);
+
+    // 🍪 Cookie Consent
+    const banner = document.getElementById("cookie-banner");
+    const acceptBtn = document.getElementById("accept-cookies");
+
+    if (!localStorage.getItem("cookiesAccepted")) {
+      banner.style.display = "block";
+    }
+
+    acceptBtn?.addEventListener("click", () => {
+      localStorage.setItem("cookiesAccepted", "true");
+      banner.style.display = "none";
+    });
+  });
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const isLoggedIn = localStorage.getItem("userLoggedIn") === "true";
+
+    document.querySelectorAll('.login-required').forEach(link => {
+      link.addEventListener('click', function (e) {
+        if (!isLoggedIn) {
+          e.preventDefault();
+          const loginModal = new bootstrap.Modal(document.getElementById('loginPrompt'));
+          loginModal.show();
+        }
+      });
+    });
+
+    // ✅ Handle modal cleanup on Skip and Close
+    const cleanupModal = () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+
+      const backdrop = document.querySelector('.modal-backdrop');
+      if (backdrop) backdrop.remove();
+    };
+
+    const skipBtn = document.getElementById('skipLogin');
+    if (skipBtn) {
+      skipBtn.addEventListener('click', () => {
+        sessionStorage.setItem("loginPromptSkipped", "true");
+        cleanupModal();
+      });
+    }
+
+    const closeBtn = document.querySelector('#loginPrompt .btn-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', cleanupModal);
+    }
+
+    // Optional: if someone presses Esc key
+    document.getElementById('loginPrompt').addEventListener('hidden.bs.modal', cleanupModal);
+  });
+</script>
+
+
+
+
+<!-- 🔐 Google Login Modal -->
+<div class="modal fade" id="loginPrompt" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title">Login Required</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Please log in with Google to access this feature.</p>
+        <a href="{{ url_for('login') }}" class="btn btn-success">Login with Google</a>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="skipLogin">Skip</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const isLoggedIn = {{ 'true' if is_logged_in else 'false' }}; // 👈 Now it's a string
+    const loginSkipped = sessionStorage.getItem("loginPromptSkipped") === "true";
+
+    if (isLoggedIn !== "true" && !loginSkipped) {
+      const loginModal = new bootstrap.Modal(document.getElementById('loginPrompt'));
+      loginModal.show();
+    }
+
+    // Store login status in localStorage
+    if (isLoggedIn === "true") {
+      localStorage.setItem("userLoggedIn", "true");
+    } else {
+      localStorage.removeItem("userLoggedIn");
+    }
+  });
+</script>
+
+
+<!-- Debug -->
+<script>
+  console.log("Is Logged In (from Jinja):", "{{ is_logged_in }}");
+</script>
+
+
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
