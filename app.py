@@ -8,6 +8,8 @@ import pandas as pd
 import csv
 from functools import wraps
 from flask import abort, request
+import json
+import uuid
 
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
@@ -159,6 +161,192 @@ def collect_details():
 
     return render_template("collect_details.html", user=session['user'])
 
+
+@app.route('/about')
+def about():
+    return render_template('about.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
+
+@app.route('/robots.txt')
+def robots():
+    return (
+        "User-agent: *\n"
+        "Disallow: /admin/\n"
+        "Allow: /\n"
+        "Sitemap: https://heritage-flask-app.onrender.com/sitemap.xml\n",
+        200,
+        {'Content-Type': 'text/plain'}
+    )
+
+@app.route('/sitemap.xml')
+def sitemap():
+    urls = [
+        '/', '/about', '/contact', '/privacy'
+    ]
+    sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+
+    for url in urls:
+        sitemap_xml += f"  <url><loc>https://heritage-flask-app.onrender.com{url}</loc></url>\n"
+
+    sitemap_xml += '</urlset>'
+    return sitemap_xml, 200, {'Content-Type': 'application/xml'}
+
+@app.route("/subscribe", methods=["POST"])
+def subscribe():
+    email = request.form.get("email")
+    # Save to database or send to Mailchimp, etc.
+    flash("Thanks for subscribing!", "success")
+    return redirect("/")
+
+BLOG_FILE = 'blogs.json'
+
+def load_blogs():
+    if os.path.exists(BLOG_FILE):
+        with open(BLOG_FILE, 'r') as f:
+            return json.load(f)
+    return []
+
+def save_blogs(blog_list):
+    with open(BLOG_FILE, 'w') as f:
+        json.dump(blog_list, f, indent=2)
+
+@app.route('/admin/blogs', methods=['GET', 'POST'])
+@admin_required
+def manage_blogs():
+    if session.get('user', {}).get('email') != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    blogs = load_blogs()
+
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form['content']
+        category = request.form.get('category', 'General')
+        slug = title.lower().replace(' ', '-').replace(',', '').replace('.', '')
+
+        # 🖼️ Handle image upload
+        image_url = None
+        image = request.files.get('image')
+        if image and image.filename:
+            filename = f"{uuid.uuid4().hex}_{image.filename}"
+            image.save(os.path.join('static/uploads', filename))
+            image_url = f"/static/uploads/{filename}"
+
+        # If image was uploaded, inject it into content
+        if image_url:
+            content = f'<img src="{image_url}" class="img-fluid mb-3" alt="blog image">\n' + content
+
+        new_blog = {
+            "id": uuid.uuid4().hex,
+            "title": title,
+            "slug": slug,
+            "author": session.get('user', {}).get('name', 'Admin'),
+            "category": category,
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "content": content
+        }
+        blogs.insert(0, new_blog)
+        save_blogs(blogs)
+        return redirect('/admin/blogs?password=' + os.getenv("ADMIN_PASSWORD"))
+
+    return render_template("admin_blog.html", blogs=blogs, user=session.get('user'))
+
+
+
+
+# 📝 Blog Post Data
+blogs = [
+    {
+        "id": 1,
+        "title": "How to Use Garam Masala in Everyday Cooking",
+        "slug": "use-garam-masala-everyday",
+        "author": "Team Heritage",
+        "date": "June 25, 2025",
+        "content": """
+            <p>Garam masala adds rich aroma and warmth to Indian curries, soups, and even roasted vegetables. 
+            Just sprinkle a teaspoon near the end of cooking for best flavor.</p>
+            <p>You can also use it in lentils, scrambled eggs, or even roasted nuts.</p>
+        """
+    },
+    {
+        "id": 2,
+        "title": "5 Homemade Spice Mixes You Can Make at Home",
+        "slug": "homemade-spice-mixes",
+        "author": "Chef Meera",
+        "date": "June 20, 2025",
+        "content": """
+            <p>Want to skip the store? Try mixing your own chaat masala, pav bhaji masala, or sambar powder with fresh ground spices.</p>
+            <p>Store them in airtight jars and enjoy real flavor!</p>
+        """
+    }
+]
+
+
+@app.route("/blog")
+def blog():
+    blogs = load_blogs()
+    query = request.args.get("q", "").lower()
+    category = request.args.get("category", "")
+    user = session.get('user')
+    is_logged_in = bool(user)
+
+    filtered = [
+        b for b in blogs
+        if (query in b["title"].lower() or query in b["content"].lower())
+        and (category == "" or b["category"].lower() == category.lower())
+    ]
+    categories = sorted(set(b["category"] for b in blogs))
+
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    return render_template(
+        "blog_list.html",
+        blogs=filtered,
+        categories=categories,
+        query=query,
+        selected_category=category,
+        user=session.get('user'),
+        is_logged_in=bool(session.get('user')),
+        admin_password=admin_password
+    )
+
+
+
+
+@app.route("/blog/<slug>")
+def blog_detail(slug):
+    blogs = load_blogs()
+    post = next((b for b in blogs if b["slug"] == slug), None)
+    user = session.get('user')
+    is_logged_in = bool(user)
+
+    if post:
+        return render_template("blog_detail.html", post=post, user=user, is_logged_in=is_logged_in)
+    else:
+        return "Post not found", 404
+
+
+@app.route('/admin/blogs/delete/<id>', methods=['POST'])
+def delete_blog(id):
+    # ✅ Only allow admin user
+    if session.get('user', {}).get('email') != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    password = request.form.get('password')
+    if password != ADMIN_PASSWORD:
+        abort(403)
+
+    blogs = load_blogs()
+    blogs = [b for b in blogs if b['id'] != id]
+    save_blogs(blogs)
+    return redirect('/blog')
+
+
+
+
 # ✅ Logout
 @app.route('/logout')
 def logout():
@@ -213,6 +401,9 @@ def inject_year():
 
 @app.route('/')
 def home():
+    user = session.get('user')
+    is_logged_in = bool(user)
+    track_visit(user)
     featured_products = [
         {
             'id': 1,
@@ -228,9 +419,40 @@ def home():
             'price': 79,
             'image': 'turmeric100.png'
         }
-        # Add more as needed
     ]
-    return render_template('home.html', featured_products=featured_products)
+    return render_template('home.html', user=user, is_logged_in=is_logged_in, featured_products=featured_products)
+
+@app.route('/product/<int:product_id>')
+def product_detail(product_id):
+    featured_products = [
+        {
+            'id': 1,
+            'name': 'Garam Masala – 50g',
+            'description': 'Bold and aromatic blend of Indian spices.',
+            'price': 99,
+            'image': 'garam50.png',
+            'meesho_link': 'https://www.meesho.com/s/p/98mug4?utm_source=s_cc'
+        },
+        {
+            'id': 2,
+            'name': 'Turmeric Powder – 100g',
+            'description': 'Pure turmeric from Kerala farms.',
+            'price': 79,
+            'image': 'turmeric100.png',
+            'meesho_link': 'https://www.meesho.com/s/p/98mxwl?utm_source=s_cc'
+        }
+    ]
+    
+    product = next((p for p in featured_products if p['id'] == product_id), None)
+    if not product:
+        return "Product not found", 404
+
+    # Generate WhatsApp message URL
+    msg = f"Hi Heritage Spices, I want to order {product['name']}."
+    whatsapp_url = f"https://wa.me/918999449765?text={msg.replace(' ', '%20')}"
+
+    return render_template("product_detail.html", product=product, whatsapp_url=whatsapp_url)
+
 
 
 @app.template_filter()

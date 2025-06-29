@@ -36,8 +36,9 @@
       font-family: 'Poppins', sans-serif;
       background: linear-gradient(180deg, #fffef3, #fffaf0);
       margin: 0;
-      padding: 0;
+      padding: 70px 0 0 0; /* Add this line to push content below navbar */
     }
+
 
     header {
       background-color: #fff;
@@ -136,7 +137,7 @@
 
 <!-- ✅ Header with Branding and Navigation -->
 <header>
-  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm py-2">
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm py-2 fixed-top">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center" href="/">
         <img src="{{ url_for('static', filename='images/logo.jpg') }}" height="40" alt="Heritage Spices Logo">
@@ -151,9 +152,12 @@
       <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
         <ul class="navbar-nav align-items-center">
           <li class="nav-item"><a class="nav-link" href="/">🏠 Home</a></li>
-          <li class="nav-item"><a class="nav-link" href="#mission">🎯 Mission</a></li>
-          <li class="nav-item"><a class="nav-link" href="#products">🛒 Products</a></li>
-          <li class="nav-item"><a class="nav-link" href="#wholesale">📦 Wholesale</a></li>
+          <li class="nav-item"><a class="nav-link" href="/#mission">🎯 Mission</a></li>
+          <li class="nav-item"><a class="nav-link" href="/#products">🛒 Products</a></li>
+          <li class="nav-item"><a class="nav-link" href="/about">📖 About</a></li>
+          <li class="nav-item"><a class="nav-link" href="/contact">📬 Contact</a></li>
+          <li class="nav-item"><a class="nav-link" href="/#wholesale">📦 Wholesale</a></li>
+          <li class="nav-item"><a class="nav-link" href="/blog">📝 Blog</a></li>
           <li class="nav-item ms-2">
             {% if not user %}
               <a href="{{ url_for('login') }}" class="btn btn-sm btn-success">🔐 Login with Google</a>
@@ -211,9 +215,13 @@
 
 
   <!-- ✅ WhatsApp Chat Button (Login Protected) -->
-<a href="https://wa.me/918999449765" class="whatsapp-float login-required" target="_blank" title="Chat with us on WhatsApp">
+<a href="https://wa.me/918999449765?text=Hi%20Heritage%20Spices%2C%20I%20have%20a%20question%20about%20your%20products." 
+   class="whatsapp-float login-required" 
+   target="_blank" 
+   title="Chat with us on WhatsApp">
   <i class="fab fa-whatsapp"></i>
 </a>
+
 
 
   <!-- ✅ Cookie Consent -->
@@ -226,7 +234,7 @@
   <!-- ✅ Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
+  window.addEventListener("load", () => {
     const emojis = ['🫚', '🌶️', '🍂', '☘️', '🧂', '🍃', '🥣', '📦', '🔥'];
     const emojiTexts = [
       "Grinding fresh ginger...",
@@ -273,7 +281,13 @@
       }, 400);
     }
 
-    animateEmoji();
+    if (!sessionStorage.getItem("preloaderShown")) {
+      animateEmoji();
+      sessionStorage.setItem("preloaderShown", "true");
+    } else {
+      hidePreloader();
+    }
+
 
     // Backup hide after 9s
     setTimeout(hidePreloader, 9000);
@@ -383,7 +397,41 @@
 </script>
 
 
+{% block scripts %}{% endblock %}
 
-  {% block scripts %}{% endblock %}
+<!-- ✅ Bootstrap JS Bundle (ONLY ONCE) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-BqVgD0FUMU8f+oG5P0nZrK6GQDH6vnfh6eK2pL+v5V6XokUMVBgpXmUuI8P8fCqx"
+        crossorigin="anonymous"></script>
+
+<!-- ✅ Collapse navbar on mobile link click -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggler = document.querySelector('.navbar-toggler');
+    const navCollapse = document.getElementById('navbarNav');
+
+    if (toggler && navCollapse) {
+      toggler.addEventListener('click', () => {
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(navCollapse);
+        bsCollapse.toggle();
+      });
+
+      // Optional: close navbar when any nav link is clicked (on mobile)
+      const navLinks = document.querySelectorAll('.nav-link');
+      navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          const bsCollapse = bootstrap.Collapse.getInstance(navCollapse);
+          if (bsCollapse && navCollapse.classList.contains('show')) {
+            bsCollapse.hide();
+          }
+        });
+      });
+    }
+  });
+</script>
+
+
+
 </body>
 </html>
+

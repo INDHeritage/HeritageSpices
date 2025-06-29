@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} | Indian Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <h1 class="text-success mb-3">{{ post.title }}</h1>
+  <p class="text-muted small mb-2">📅 {{ post.date }} | ✍️ {{ post.author }}</p>
+
+  <hr class="mb-4" />
+
+  <!-- ✅ Blog Content -->
+  <div class="blog-content">
+    {{ post.content | safe }}
+  </div>
+
+  <!-- ✅ Admin Delete Button -->
+  {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
+  <form method="POST" action="/admin/blogs/delete/{{ post.id }}" class="mt-4"
+        onsubmit="return confirm('Are you sure you want to delete this blog post?');">
+    <input type="hidden" name="password" value="{{ admin_password }}">
+    <button type="submit" class="btn btn-danger">🗑 Delete This Post</button>
+  </form>
+  {% endif %}
+
+  <!-- 🔙 Back Link -->
+  <a href="/blog" class="btn btn-outline-success mt-3">⬅️ Back to Blog</a>
+</div>
+{% endblock %}

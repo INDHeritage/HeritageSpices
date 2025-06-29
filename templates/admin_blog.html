@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Admin - Write Blog | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <h1 class="text-success mb-4">✍️ Write a New Blog Post</h1>
+
+  <!-- ✅ Blog Form -->
+  <form method="POST" enctype="multipart/form-data" class="border p-4 rounded shadow-sm bg-light">
+    <div class="mb-3">
+      <label class="form-label">Blog Title</label>
+      <input type="text" class="form-control" name="title" placeholder="Enter blog title" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Category</label>
+      <input type="text" class="form-control" name="category" placeholder="e.g., Recipes, Health, Tips">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Blog Content</label>
+      <textarea class="form-control" name="content" rows="6" placeholder="Write blog content (HTML supported)" required></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Optional Image Upload</label>
+      <input type="file" class="form-control" name="image">
+    </div>
+
+    <button type="submit" class="btn btn-success w-100">✅ Publish Blog</button>
+  </form>
+
+  <!-- 📝 Existing Blogs -->
+  <hr class="my-5" />
+  <h3 class="mb-3">📚 Existing Blog Posts</h3>
+
+  {% if blogs %}
+  <ul class="list-group shadow-sm">
+    {% for blog in blogs %}
+    <li class="list-group-item d-flex justify-content-between align-items-start flex-wrap">
+      <div class="flex-grow-1">
+        <h5 class="mb-1">{{ blog.title }}</h5>
+        <p class="mb-0 text-muted small">📅 {{ blog.date }} | 📂 {{ blog.category }}</p>
+      </div>
+      <div class="mt-2 mt-md-0 text-end">
+        <a href="/blog/{{ blog.slug }}" class="btn btn-sm btn-outline-primary me-2">🔍 View</a>
+        <form method="POST" action="/admin/blogs/delete/{{ blog.id }}" class="d-inline"
+              onsubmit="return confirm('Are you sure you want to delete this blog post?');">
+          <input type="hidden" name="password" value="{{ admin_password }}">
+          <button type="submit" class="btn btn-sm btn-danger">🗑 Delete</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="alert alert-info">No blog posts added yet. Start writing one above! ✍️</div>
+  {% endif %}
+</div>
+{% endblock %}

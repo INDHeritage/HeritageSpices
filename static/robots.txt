@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://heritage-flask-app.onrender.com/static/sitemap.xml
