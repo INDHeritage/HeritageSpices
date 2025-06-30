@@ -10,7 +10,7 @@ from functools import wraps
 from flask import abort, request
 import json
 import uuid
-
+from flask import send_from_directory
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -33,6 +33,14 @@ load_dotenv()
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 CORS(app, supports_credentials=True)
+
+# ✅ Serve ads.txt
+# -------------------------
+
+
+@app.route('/ads.txt')
+def ads_txt():
+    return send_from_directory('.', 'ads.txt', mimetype='text/plain')
 
 # -------------------------
 # 🌐 Google OAuth Config
