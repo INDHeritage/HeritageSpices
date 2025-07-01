@@ -3,10 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="google-site-verification" content="NlIeXs7-FpoKpO6a-WIsiZ8591p7NhTEejVYmm8wtn8" />
-  
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3397469549805305"
-     crossorigin="anonymous"></script>
 
   <title>{% block title %}Indian Heritage Spices{% endblock %}</title>
 
@@ -28,6 +24,29 @@
   <meta name="twitter:title" content="{% block twitter_title %}Indian Heritage Spices{% endblock %}" />
   <meta name="twitter:description" content="{% block twitter_description %}Authentic organic spices from trusted Indian farmers.{% endblock %}" />
   <meta name="twitter:image" content="{{ url_for('static', filename='images/logo.jpg') }}" />
+  
+  <!-- ✅ Structured Data for Google Brand Knowledge Panel -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Heritage Spices",
+  "url": "https://www.heritagespices.shop/",
+  "logo": "https://www.heritagespices.shop/static/images/logo.jpg",
+  "sameAs": [
+    "https://www.instagram.com/heritage.spices.in/",
+    "https://twitter.com/search?q=%23Heritagespices"
+  ],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+91-8999449765",
+    "contactType": "Customer Service",
+    "areaServed": "IN",
+    "availableLanguage": ["English", "Hindi"]
+  }
+}
+</script>
+
 
   <!-- Stylesheets -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
