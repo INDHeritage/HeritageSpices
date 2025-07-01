@@ -8,18 +8,18 @@
 
   <hr class="mb-4" />
 
-  <!-- ✅ Blog Content -->
-  <div class="blog-content">
+  <!-- ✅ Blog Content (Safe Render with UTF-8 Content) -->
+  <div class="blog-content" style="font-size: 1.1rem; line-height: 1.8; font-family: 'Segoe UI', 'Noto Sans', sans-serif;">
     {{ post.content | safe }}
   </div>
 
   <!-- ✅ Admin Delete Button -->
   {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
-  <form method="POST" action="/admin/blogs/delete/{{ post.id }}" class="mt-4"
-        onsubmit="return confirm('Are you sure you want to delete this blog post?');">
-    <input type="hidden" name="password" value="{{ admin_password }}">
-    <button type="submit" class="btn btn-danger">🗑 Delete This Post</button>
-  </form>
+    <form method="POST" action="/admin/blogs/delete/{{ post.id }}" class="mt-4"
+          onsubmit="return confirm('Are you sure you want to delete this blog post?');">
+      <input type="hidden" name="password" value="{{ admin_password }}">
+      <button type="submit" class="btn btn-danger">🗑 Delete This Post</button>
+    </form>
   {% endif %}
 
   <!-- 🔙 Back Link -->

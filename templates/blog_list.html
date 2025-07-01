@@ -7,13 +7,13 @@
 
   <!-- ✅ Admin Only: Add Post Button -->
   {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
-    <div class="text-end mb-3">
+    <div class="text-end mb-4">
       <a href="/admin/blogs?password={{ admin_password }}" class="btn btn-success">➕ Add Blog Post</a>
     </div>
   {% endif %}
 
   <!-- 🔍 Search + Category -->
-  <form class="row mb-4">
+  <form class="row g-2 mb-4">
     <div class="col-md-6">
       <input name="q" class="form-control" placeholder="Search blog..." value="{{ query }}">
     </div>
@@ -21,7 +21,7 @@
       <select name="category" class="form-select">
         <option value="">All Categories</option>
         {% for cat in categories %}
-        <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+          <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
         {% endfor %}
       </select>
     </div>
@@ -31,23 +31,28 @@
   </form>
 
   <!-- 📝 Blog List -->
-  {% for blog in blogs %}
-    <div class="mb-4 p-3 border rounded">
-      <h3><a href="/blog/{{ blog.slug }}" class="text-success">{{ blog.title }}</a></h3>
-      <p class="text-muted small">📅 {{ blog.date }} | {{ blog.category }}</p>
-      <a href="/blog/{{ blog.slug }}" class="btn btn-outline-success btn-sm">Read More</a>
+  {% if blogs %}
+    {% for blog in blogs %}
+      <div class="mb-4 p-4 border rounded shadow-sm bg-white">
+        <h3>
+          <a href="/blog/{{ blog.slug }}" class="text-success text-decoration-none">{{ blog.title }}</a>
+        </h3>
+        <p class="text-muted small mb-2">📅 {{ blog.date }} | 📂 {{ blog.category }}</p>
 
-      <!-- ✅ Admin Only: Delete Button -->
-      {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
-        <form method="post" action="/admin/blogs/delete/{{ blog.id }}" class="d-inline ms-2"
-            onsubmit="return confirm('Are you sure you want to delete this blog post?');">
-        <input type="hidden" name="password" value="{{ admin_password }}">
-        <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
-        </form>
-      {% endif %}
-    </div>
+        <a href="/blog/{{ blog.slug }}" class="btn btn-outline-success btn-sm">📖 Read More</a>
+
+        <!-- ✅ Admin Delete -->
+        {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
+          <form method="post" action="/admin/blogs/delete/{{ blog.id }}" class="d-inline ms-2"
+                onsubmit="return confirm('Are you sure you want to delete this blog post?');">
+            <input type="hidden" name="password" value="{{ admin_password }}">
+            <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endfor %}
   {% else %}
-    <p class="text-muted">No blog found for your search.</p>
-  {% endfor %}
+    <div class="alert alert-warning">No blog posts found for your search. Try different keywords or categories.</div>
+  {% endif %}
 </div>
 {% endblock %}
