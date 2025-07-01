@@ -10,7 +10,9 @@ from functools import wraps
 from flask import abort, request
 import json
 import uuid
-from flask import send_from_directory
+import requests
+import html
+
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -33,14 +35,6 @@ load_dotenv()
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 CORS(app, supports_credentials=True)
-
-# ✅ Serve ads.txt
-# -------------------------
-
-
-@app.route('/ads.txt')
-def ads_txt():
-    return send_from_directory('.', 'ads.txt', mimetype='text/plain')
 
 # -------------------------
 # 🌐 Google OAuth Config
@@ -184,24 +178,28 @@ def robots():
         "User-agent: *\n"
         "Disallow: /admin/\n"
         "Allow: /\n"
-        "Sitemap: https://heritage-flask-app.onrender.com/sitemap.xml\n",
+        "Sitemap: https://www.heritagespices.shop/sitemap.xml\n",
         200,
         {'Content-Type': 'text/plain'}
     )
 
 @app.route('/sitemap.xml')
 def sitemap():
-    urls = [
-        '/', '/about', '/contact', '/privacy'
-    ]
+    base = "https://www.heritagespices.shop"
+    static_urls = ['/', '/about', '/contact', '/privacy', '/blog']
+    
+    blogs = load_blogs()
+    blog_urls = [f"/blog/{b['slug']}" for b in blogs]
+
     sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
-    for url in urls:
-        sitemap_xml += f"  <url><loc>https://heritage-flask-app.onrender.com{url}</loc></url>\n"
+    for url in static_urls + blog_urls:
+        sitemap_xml += f"  <url><loc>{base}{url}</loc></url>\n"
 
     sitemap_xml += '</urlset>'
     return sitemap_xml, 200, {'Content-Type': 'application/xml'}
+
 
 @app.route("/subscribe", methods=["POST"])
 def subscribe():
@@ -210,18 +208,32 @@ def subscribe():
     flash("Thanks for subscribing!", "success")
     return redirect("/")
 
-BLOG_FILE = 'blogs.json'
+
+BLOG_DRIVE_URL = "https://drive.google.com/uc?export=download&id=1SqjuYdwGnPIMbzMMtb5oMmUgrF8YXC_B"  # your new file
 
 def load_blogs():
-    if os.path.exists(BLOG_FILE):
-        with open(BLOG_FILE, 'r') as f:
-            return json.load(f)
-    return []
+    try:
+        response = requests.get(BLOG_DRIVE_URL)
+        response.raise_for_status()
 
+        # Fix encoding: decode the wrong bytes (Latin-1), re-encode to proper UTF-8
+        raw_bytes = response.content
+        step1 = raw_bytes.decode('latin1')                # Step 1: Decode from Latin-1
+        fixed_text = step1.encode('utf-8').decode('utf-8')  # Step 2: Re-decode to clean UTF-8
+
+        # ✅ Parse clean JSON
+        return json.loads(fixed_text)
+    except Exception as e:
+        print(f"⚠️ Error loading blogs: {e}")
+        return []
+
+    
+'''
 def save_blogs(blog_list):
     with open(BLOG_FILE, 'w') as f:
         json.dump(blog_list, f, indent=2)
-
+'''        
+'''
 @app.route('/admin/blogs', methods=['GET', 'POST'])
 @admin_required
 def manage_blogs():
@@ -263,7 +275,7 @@ def manage_blogs():
 
     return render_template("admin_blog.html", blogs=blogs, user=session.get('user'))
 
-
+'''
 
 
 # 📝 Blog Post Data
@@ -332,9 +344,11 @@ def blog_detail(slug):
     is_logged_in = bool(user)
 
     if post:
+        post["content"] = html.unescape(post["content"])  # ✅ Decode emojis & symbols properly
         return render_template("blog_detail.html", post=post, user=user, is_logged_in=is_logged_in)
     else:
         return "Post not found", 404
+
 
 
 @app.route('/admin/blogs/delete/<id>', methods=['POST'])
@@ -478,3 +492,4 @@ def forbidden(e):
 # -------------------------
 if __name__ == '__main__':
     app.run(debug=True)
+    
