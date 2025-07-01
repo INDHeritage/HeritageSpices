@@ -12,7 +12,7 @@ import json
 import uuid
 import requests
 import html
-
+from flask import send_from_directory
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -171,6 +171,10 @@ def about():
 @app.route('/contact')
 def contact():
     return render_template('contact.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
+
+@app.route('/ads.txt')
+def ads_txt():
+    return send_from_directory('static', 'ads.txt')
 
 @app.route('/robots.txt')
 def robots():
