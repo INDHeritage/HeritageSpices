@@ -1,4 +1,3 @@
 User-agent: *
-Disallow:
-
-Sitemap: https://heritage-flask-app.onrender.com/static/sitemap.xml
+Allow: /
+Sitemap: https://www.heritagespices.shop/sitemap.xml
