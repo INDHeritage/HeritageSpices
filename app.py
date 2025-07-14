@@ -100,7 +100,12 @@ def index():
     user = session.get('user')
     is_logged_in = bool(user)
     track_visit(user)
-    return render_template("index.html", user=user, is_logged_in=is_logged_in)
+    return render_template(
+        "index.html",
+        user=user,
+        is_logged_in=is_logged_in,
+        canonical_url="https://www.heritagespices.shop/"
+    )
 
 # ✅ Login via Google
 @app.route('/login')
@@ -166,11 +171,23 @@ def collect_details():
 
 @app.route('/about')
 def about():
-    return render_template('about.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
+    return render_template(
+        'about.html',
+        user=session.get('user'),
+        is_logged_in=bool(session.get('user')),
+        canonical_url="https://www.heritagespices.shop/about"
+    )
+
 
 @app.route('/contact')
 def contact():
-    return render_template('contact.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
+    return render_template(
+        'contact.html',
+        user=session.get('user'),
+        is_logged_in=bool(session.get('user')),
+        canonical_url="https://www.heritagespices.shop/contact"
+    )
+
 
 @app.route('/ads.txt')
 def ads_txt():
