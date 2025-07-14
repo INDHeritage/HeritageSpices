@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <title>{% block title %}Indian Heritage Spices{% endblock %}</title>
+  <link rel="canonical" href="{{ canonical_url | default(request.url) }}">
+
 
   <!-- SEO Meta Tags -->
   <meta name="description" content="{% block meta_description %}Premium organic Indian spices delivered globally.{% endblock %}" />
