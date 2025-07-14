@@ -204,11 +204,12 @@ def robots():
         {'Content-Type': 'text/plain'}
     )
 
+
 @app.route('/sitemap.xml')
 def sitemap():
     base = "https://www.heritagespices.shop"
     static_urls = ['/', '/about', '/contact', '/privacy', '/blog']
-    
+
     blogs = load_blogs()
     blog_urls = [f"/blog/{b['slug']}" for b in blogs]
 
@@ -216,10 +217,11 @@ def sitemap():
     sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
     for url in static_urls + blog_urls:
-        sitemap_xml += f"  <url><loc>{base}{url}</loc></url>\n"
+        sitemap_xml += f"  <url>\n    <loc>{base}{url}</loc>\n  </url>\n"
 
     sitemap_xml += '</urlset>'
     return sitemap_xml, 200, {'Content-Type': 'application/xml'}
+
 
 
 @app.route("/subscribe", methods=["POST"])
