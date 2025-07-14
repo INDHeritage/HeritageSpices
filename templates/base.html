@@ -6,6 +6,10 @@
 
   <title>{% block title %}Indian Heritage Spices{% endblock %}</title>
   <link rel="canonical" href="{{ canonical_url | default(request.url) }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='images/favicon.png') }}">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon.png') }}">
+
 
 
   <!-- SEO Meta Tags -->
@@ -34,7 +38,7 @@
   "@type": "Organization",
   "name": "Heritage Spices",
   "url": "https://www.heritagespices.shop/",
-  "logo": "https://www.heritagespices.shop/static/images/logo.jpg",
+  "logo": "https://www.heritagespices.shop/static/images/favicon.png",
   "sameAs": [
     "https://www.instagram.com/heritage.spices.in/",
     "https://twitter.com/search?q=%23Heritagespices"
