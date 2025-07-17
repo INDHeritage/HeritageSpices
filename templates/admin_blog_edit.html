@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Edit Blog | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <h1 class="text-success mb-4">✏️ Edit Blog Post</h1>
+  <form method="POST" enctype="multipart/form-data" class="border p-4 rounded shadow-sm bg-light">
+    <div class="mb-3">
+      <label class="form-label">Title</label>
+      <input type="text" class="form-control" name="title" value="{{ blog.title }}" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Content (HTML supported)</label>
+      <textarea class="form-control" name="content" rows="8" required>{{ blog.content }}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Image (optional)</label>
+      {% if blog.image_url %}
+        <div class="mb-2">
+          <img src="{{ url_for('static', filename='uploads/' ~ blog.image_url) }}" alt="Current Image" style="max-width: 200px;" class="rounded shadow-sm">
+        </div>
+      {% endif %}
+      <input type="file" class="form-control" name="image">
+    </div>
+    <button type="submit" class="btn btn-success">💾 Save Changes</button>
+    <a href="{{ url_for('blog_detail', slug=blog.slug) }}" class="btn btn-secondary ms-2">Cancel</a>
+  </form>
+</div>
+{% endblock %} 

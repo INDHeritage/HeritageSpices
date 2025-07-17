@@ -23,13 +23,14 @@
 {% include "partials/quiz_modal.html" %}
 
 <!-- 💬 WhatsApp Button (Login Required) -->
-<a href="https://wa.me/918999449765" target="_blank" class="whatsapp-float login-required" title="Chat with us on WhatsApp">
+{# <a href="https://wa.me/918999449765" target="_blank" class="whatsapp-float login-required" title="Chat with us on WhatsApp">
   <i class="fab fa-whatsapp"></i>
-</a>
+</a> #}
 
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
 
@@ -41,6 +42,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     // 🔐 Show login modal on first visit if not logged in
+    /*
     if (!isLoggedIn && !sessionStorage.getItem("loginPromptSkipped")) {
       const modal = new bootstrap.Modal(document.getElementById("loginPrompt"));
       modal.show();
@@ -49,6 +51,7 @@
         sessionStorage.setItem("loginPromptSkipped", "true");
       });
     }
+    */
 
     // 🌶️ Masala Burst Animation on Load
     for (let i = 0; i < 10; i++) {

@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Flask, render_template, redirect, url_for, session, request, jsonify
+from flask import Flask, render_template, redirect, url_for, session, request, jsonify, flash
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 from flask_cors import CORS
@@ -13,6 +13,8 @@ import uuid
 import requests
 import html
 from flask import send_from_directory
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -35,6 +37,27 @@ load_dotenv()
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 CORS(app, supports_credentials=True)
+
+# --- SQLAlchemy Setup ---
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
+db = SQLAlchemy(app)
+
+# --- Blog Model ---
+class Blog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(200), unique=True, nullable=False)
+    author = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(100), nullable=False)
+    date = db.Column(db.String(50), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    image_url = db.Column(db.String(300))
+
+# --- DB Initialization Command ---
+@app.cli.command("init-db")
+def init_db():
+    db.create_all()
+    print("Database initialized!")
 
 # -------------------------
 # 🌐 Google OAuth Config
@@ -100,12 +123,7 @@ def index():
     user = session.get('user')
     is_logged_in = bool(user)
     track_visit(user)
-    return render_template(
-        "index.html",
-        user=user,
-        is_logged_in=is_logged_in,
-        canonical_url="https://www.heritagespices.shop/"
-    )
+    return render_template("index.html", user=user, is_logged_in=is_logged_in)
 
 # ✅ Login via Google
 @app.route('/login')
@@ -171,23 +189,11 @@ def collect_details():
 
 @app.route('/about')
 def about():
-    return render_template(
-        'about.html',
-        user=session.get('user'),
-        is_logged_in=bool(session.get('user')),
-        canonical_url="https://www.heritagespices.shop/about"
-    )
-
+    return render_template('about.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
 
 @app.route('/contact')
 def contact():
-    return render_template(
-        'contact.html',
-        user=session.get('user'),
-        is_logged_in=bool(session.get('user')),
-        canonical_url="https://www.heritagespices.shop/contact"
-    )
-
+    return render_template('contact.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
 
 @app.route('/ads.txt')
 def ads_txt():
@@ -204,24 +210,22 @@ def robots():
         {'Content-Type': 'text/plain'}
     )
 
-
 @app.route('/sitemap.xml')
 def sitemap():
     base = "https://www.heritagespices.shop"
     static_urls = ['/', '/about', '/contact', '/privacy', '/blog']
-
-    blogs = load_blogs()
-    blog_urls = [f"/blog/{b['slug']}" for b in blogs]
+    
+    blogs = get_all_blogs()
+    blog_urls = [f"/blog/{b.slug}" for b in blogs]
 
     sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
     for url in static_urls + blog_urls:
-        sitemap_xml += f"  <url>\n    <loc>{base}{url}</loc>\n  </url>\n"
+        sitemap_xml += f"  <url><loc>{base}{url}</loc></url>\n"
 
     sitemap_xml += '</urlset>'
     return sitemap_xml, 200, {'Content-Type': 'application/xml'}
-
 
 
 @app.route("/subscribe", methods=["POST"])
@@ -234,115 +238,31 @@ def subscribe():
 
 BLOG_DRIVE_URL = "https://drive.google.com/uc?export=download&id=1SqjuYdwGnPIMbzMMtb5oMmUgrF8YXC_B"  # your new file
 
-def load_blogs():
-    try:
-        response = requests.get(BLOG_DRIVE_URL)
-        response.raise_for_status()
+# --- Blog CRUD Helpers ---
+def get_all_blogs():
+    return Blog.query.order_by(Blog.id.desc()).all()
 
-        # Fix encoding: decode the wrong bytes (Latin-1), re-encode to proper UTF-8
-        raw_bytes = response.content
-        step1 = raw_bytes.decode('latin1')                # Step 1: Decode from Latin-1
-        fixed_text = step1.encode('utf-8').decode('utf-8')  # Step 2: Re-decode to clean UTF-8
+def get_blog_by_slug(slug):
+    return Blog.query.filter_by(slug=slug).first()
 
-        # ✅ Parse clean JSON
-        return json.loads(fixed_text)
-    except Exception as e:
-        print(f"⚠️ Error loading blogs: {e}")
-        return []
+def get_blog_by_id(blog_id):
+    return Blog.query.filter_by(id=blog_id).first()
 
-    
-'''
-def save_blogs(blog_list):
-    with open(BLOG_FILE, 'w') as f:
-        json.dump(blog_list, f, indent=2)
-'''        
-'''
-@app.route('/admin/blogs', methods=['GET', 'POST'])
-@admin_required
-def manage_blogs():
-    if session.get('user', {}).get('email') != 'heritage.spices.pvtltd@gmail.com':
-        abort(403)
-
-    blogs = load_blogs()
-
-    if request.method == 'POST':
-        title = request.form['title']
-        content = request.form['content']
-        category = request.form.get('category', 'General')
-        slug = title.lower().replace(' ', '-').replace(',', '').replace('.', '')
-
-        # 🖼️ Handle image upload
-        image_url = None
-        image = request.files.get('image')
-        if image and image.filename:
-            filename = f"{uuid.uuid4().hex}_{image.filename}"
-            image.save(os.path.join('static/uploads', filename))
-            image_url = f"/static/uploads/{filename}"
-
-        # If image was uploaded, inject it into content
-        if image_url:
-            content = f'<img src="{image_url}" class="img-fluid mb-3" alt="blog image">\n' + content
-
-        new_blog = {
-            "id": uuid.uuid4().hex,
-            "title": title,
-            "slug": slug,
-            "author": session.get('user', {}).get('name', 'Admin'),
-            "category": category,
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "content": content
-        }
-        blogs.insert(0, new_blog)
-        save_blogs(blogs)
-        return redirect('/admin/blogs?password=' + os.getenv("ADMIN_PASSWORD"))
-
-    return render_template("admin_blog.html", blogs=blogs, user=session.get('user'))
-
-'''
-
-
-# 📝 Blog Post Data
-blogs = [
-    {
-        "id": 1,
-        "title": "How to Use Garam Masala in Everyday Cooking",
-        "slug": "use-garam-masala-everyday",
-        "author": "Team Heritage",
-        "date": "June 25, 2025",
-        "content": """
-            <p>Garam masala adds rich aroma and warmth to Indian curries, soups, and even roasted vegetables. 
-            Just sprinkle a teaspoon near the end of cooking for best flavor.</p>
-            <p>You can also use it in lentils, scrambled eggs, or even roasted nuts.</p>
-        """
-    },
-    {
-        "id": 2,
-        "title": "5 Homemade Spice Mixes You Can Make at Home",
-        "slug": "homemade-spice-mixes",
-        "author": "Chef Meera",
-        "date": "June 20, 2025",
-        "content": """
-            <p>Want to skip the store? Try mixing your own chaat masala, pav bhaji masala, or sambar powder with fresh ground spices.</p>
-            <p>Store them in airtight jars and enjoy real flavor!</p>
-        """
-    }
-]
-
-
+# --- Blog List Route ---
 @app.route("/blog")
 def blog():
-    blogs = load_blogs()
     query = request.args.get("q", "").lower()
     category = request.args.get("category", "")
     user = session.get('user')
     is_logged_in = bool(user)
 
+    blogs = get_all_blogs()
     filtered = [
         b for b in blogs
-        if (query in b["title"].lower() or query in b["content"].lower())
-        and (category == "" or b["category"].lower() == category.lower())
+        if (query in b.title.lower() or query in b.content.lower())
+        and (category == "" or b.category.lower() == category.lower())
     ]
-    categories = sorted(set(b["category"] for b in blogs))
+    categories = sorted(set(b.category for b in blogs))
 
     admin_password = os.getenv("ADMIN_PASSWORD")
     return render_template(
@@ -351,45 +271,97 @@ def blog():
         categories=categories,
         query=query,
         selected_category=category,
-        user=session.get('user'),
-        is_logged_in=bool(session.get('user')),
+        user=user,
+        is_logged_in=is_logged_in,
         admin_password=admin_password
     )
 
-
-
-
+# --- Blog Detail Route ---
 @app.route("/blog/<slug>")
 def blog_detail(slug):
-    blogs = load_blogs()
-    post = next((b for b in blogs if b["slug"] == slug), None)
+    post = get_blog_by_slug(slug)
     user = session.get('user')
     is_logged_in = bool(user)
 
     if post:
-        post["content"] = html.unescape(post["content"])  # ✅ Decode emojis & symbols properly
         return render_template("blog_detail.html", post=post, user=user, is_logged_in=is_logged_in)
     else:
         return "Post not found", 404
 
-
-
-@app.route('/admin/blogs/delete/<id>', methods=['POST'])
-def delete_blog(id):
-    # ✅ Only allow admin user
+# --- Admin Add Blog Route ---
+@app.route('/admin/blogs', methods=['GET', 'POST'])
+def manage_blogs():
     if session.get('user', {}).get('email') != 'heritage.spices.pvtltd@gmail.com':
         abort(403)
 
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form['content']
+        category = request.form.get('category', 'General')
+        slug = title.lower().replace(' ', '-').replace(',', '').replace('.', '')
+        author = session.get('user', {}).get('name', 'Admin')
+        date = datetime.now().strftime("%Y-%m-%d")
+
+        # Handle image upload
+        image_url = None
+        image = request.files.get('image')
+        if image and image.filename:
+            filename = f"{uuid.uuid4().hex}_{image.filename}"
+            upload_path = os.path.join('static/uploads', filename)
+            image.save(upload_path)
+            image_url = f"/static/uploads/{filename}"
+
+        new_blog = Blog(
+            title=title,
+            slug=slug,
+            author=author,
+            category=category,
+            date=date,
+            content=content,
+            image_url=image_url
+        )
+        db.session.add(new_blog)
+        db.session.commit()
+        return redirect('/admin/blogs')
+
+    blogs = get_all_blogs()
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    return render_template("admin_blog.html", blogs=blogs, user=session.get('user'), admin_password=admin_password)
+
+# --- Admin Delete Blog Route ---
+@app.route('/admin/blogs/delete/<int:id>', methods=['POST'])
+def delete_blog(id):
+    if session.get('user', {}).get('email') != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
     password = request.form.get('password')
     if password != ADMIN_PASSWORD:
         abort(403)
-
-    blogs = load_blogs()
-    blogs = [b for b in blogs if b['id'] != id]
-    save_blogs(blogs)
+    blog = get_blog_by_id(id)
+    if blog:
+        db.session.delete(blog)
+        db.session.commit()
     return redirect('/blog')
 
 
+@app.route('/admin/blogs/edit/<int:blog_id>', methods=['GET', 'POST'])
+def edit_blog(blog_id):
+    user = session.get('user')
+    if not user or user['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+    blog = Blog.query.get_or_404(blog_id)
+    if request.method == 'POST':
+        blog.title = request.form['title']
+        blog.content = request.form['content']
+        # Handle image upload
+        if 'image' in request.files and request.files['image'].filename:
+            image = request.files['image']
+            image_filename = secure_filename(image.filename)
+            image.save(os.path.join(app.static_folder, 'uploads', image_filename))
+            blog.image_url = image_filename
+        db.session.commit()
+        flash('Blog updated successfully!')
+        return redirect(url_for('blog_detail', slug=blog.slug))
+    return render_template('admin_blog_edit.html', blog=blog)
 
 
 # ✅ Logout
@@ -498,6 +470,42 @@ def product_detail(product_id):
 
     return render_template("product_detail.html", product=product, whatsapp_url=whatsapp_url)
 
+# --- Products Page Route ---
+@app.route('/products')
+def products():
+    # Use the same featured_products as in product_detail for now
+    featured_products = [
+        {
+            'id': 1,
+            'name': 'Garam Masala – 50g',
+            'description': 'Bold and aromatic blend of Indian spices.',
+            'price': 99,
+            'image': 'garam50.png',
+            'meesho_link': 'https://www.meesho.com/s/p/98mug4?utm_source=s_cc'
+        },
+        {
+            'id': 2,
+            'name': 'Turmeric Powder – 100g',
+            'description': 'Pure turmeric from Kerala farms.',
+            'price': 79,
+            'image': 'turmeric100.png',
+            'meesho_link': 'https://www.meesho.com/s/p/98mxwl?utm_source=s_cc'
+        }
+    ]
+    return render_template('products.html', products=featured_products, user=session.get('user'), is_logged_in=bool(session.get('user')))
+
+# --- Legal Pages Routes ---
+@app.route('/terms')
+def terms():
+    return render_template('terms.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
+
+@app.route('/disclaimer')
+def disclaimer():
+    return render_template('disclaimer.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
+
+@app.route('/refund')
+def refund():
+    return render_template('refund.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
 
 
 @app.template_filter()
@@ -514,5 +522,9 @@ def forbidden(e):
 # 🚀 Run App
 # -------------------------
 if __name__ == '__main__':
+    # --- TEMP: Create DB tables if missing ---
+    with app.app_context():
+        db.create_all()
+        print("Database tables created!")
     app.run(debug=True)
     

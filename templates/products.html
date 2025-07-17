@@ -1,83 +1,99 @@
-<!-- 🌶️ Products Section -->
-<section id="products" class="container mt-5" data-aos="zoom-in">
-  <h3 class="section-title text-center mb-4">Featured Products</h3>
+{% extends "base.html" %}
+
+{% block title %}Products | Indian Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <h1 class="text-center fw-bold mb-5 text-success">🛒 Our Products</h1>
   <div class="row justify-content-center">
-
     <!-- Garam Masala 50g -->
-    <div class="col-md-6 col-lg-4 mb-4">
-      <div class="card product-card h-100 text-center">
-        <div class="product-image-container">
-          <img src="{{ url_for('static', filename='images/garam50.png') }}" class="product-image" alt="Garam Masala 50g">
+    <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+      <div class="card h-100 shadow-sm">
+        <!-- Bootstrap Carousel for 50g -->
+        <div id="carousel50g" class="carousel slide" data-bs-ride="carousel">
+          <div class="carousel-inner">
+            <div class="carousel-item active">
+              <img src="{{ url_for('static', filename='images/garam50.png') }}" class="d-block w-100" alt="Garam Masala 50g">
+            </div>
+            <div class="carousel-item">
+              <img src="{{ url_for('static', filename='images/20250704_120139_1__1_-removebg-preview.png') }}" class="d-block w-100" alt="Garam Masala 50g Extra 1">
+            </div>
+          </div>
+          <button class="carousel-control-prev" type="button" data-bs-target="#carousel50g" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon"></span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#carousel50g" data-bs-slide="next">
+            <span class="carousel-control-next-icon"></span>
+          </button>
         </div>
         <div class="card-body">
-          <h5 class="card-title">Organic Garam Masala – 50g</h5>
-          <p class="card-text">Fresh, aromatic, and chemical-free – ideal for daily use.</p>
-          <a href="https://www.meesho.com/s/p/98mug4?utm_source=s_cc" class="btn btn-outline-success btn-sm mt-2" target="_blank">Buy 50g</a>
+          <h5 class="card-title">Garam Masala 50g 🌿</h5>
+          <!-- Collapsible details -->
+          <p>
+            <a class="btn btn-link p-0" data-bs-toggle="collapse" href="#details50g" role="button" aria-expanded="false" aria-controls="details50g">
+              View Details
+            </a>
+          </p>
+          <div class="collapse" id="details50g">
+            <p class="card-text small">
+              <strong>Ingredients:</strong> Black/Green Cardamom, Black Stone Flower, Nutmeg, Cinnamon, Black Pepper, Fenugreek Seed, Coriander Seed, Clove, Cumin Seed, Salt (Iodized), Red Chilli, Bay Leaf, Star Anise, Dry Mace<br>
+              <strong>Suggested Use:</strong> 1 Tbsp per 1 kg of Vegetarian food<br>2 Tbsp per 1 kg of Non-Vegetarian food<br>
+              <strong>Storage:</strong> Reseal bag after opening. Store in a cool, dry, and hygienic place.<br>
+              <strong>Certifications:</strong> FSSAI Lic No.: 21521175000514<br>Batch No.: 0460021<br>
+              <strong>Shelf Life:</strong> 24 months<br>
+              <strong>Weight:</strong> 50g
+            </p>
+          </div>
+          <p class="fw-bold text-success">₹45.00</p>
+          <a href="https://wa.me/918999449765?text=Hi%20Heritage%20Spices%2C%20I%20want%20to%20order%20Garam%20Masala%2050g" class="btn btn-success btn-sm mt-2" target="_blank">🟢 Order on WhatsApp</a>
+          <a href="https://www.meesho.com/heritage-garam-masala/p/9790za?ms=2&source=Meri+Shop" class="btn btn-outline-primary btn-sm mt-2" target="_blank">🛒 Buy on Meesho</a>
         </div>
       </div>
     </div>
-
     <!-- Garam Masala 100g -->
-    <div class="col-md-6 col-lg-4 mb-4">
-      <div class="card product-card h-100 text-center">
-        <div class="product-image-container">
-          <img src="{{ url_for('static', filename='images/garam100.png') }}" class="product-image" alt="Garam Masala 100g">
+    <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+      <div class="card h-100 shadow-sm">
+        <!-- Bootstrap Carousel for 100g -->
+        <div id="carousel100g" class="carousel slide" data-bs-ride="carousel">
+          <div class="carousel-inner">
+            <div class="carousel-item active">
+              <img src="{{ url_for('static', filename='images/garam100.png') }}" class="d-block w-100" alt="Garam Masala 100g">
+            </div>
+            <div class="carousel-item">
+              <img src="{{ url_for('static', filename='images/20250704_120215_1__1_-removebg-preview.png') }}" class="d-block w-100" alt="Garam Masala 100g Extra 1">
+            </div>
+          </div>
+          <button class="carousel-control-prev" type="button" data-bs-target="#carousel100g" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon"></span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#carousel100g" data-bs-slide="next">
+            <span class="carousel-control-next-icon"></span>
+          </button>
         </div>
         <div class="card-body">
-          <h5 class="card-title">Organic Garam Masala – 100g</h5>
-          <p class="card-text">The same bold flavor in a larger pack. Perfect for families.</p>
-          <a href="https://www.meesho.com/s/p/98mxwl?utm_source=s_cc" class="btn btn-outline-success btn-sm mt-2" target="_blank">Buy 100g</a>
+          <h5 class="card-title">Garam Masala 100g 🌿</h5>
+          <!-- Collapsible details -->
+          <p>
+            <a class="btn btn-link p-0" data-bs-toggle="collapse" href="#details100g" role="button" aria-expanded="false" aria-controls="details100g">
+              View Details
+            </a>
+          </p>
+          <div class="collapse" id="details100g">
+            <p class="card-text small">
+              <strong>Ingredients:</strong> Black/Green Cardamom, Black Stone Flower, Nutmeg, Cinnamon, Black Pepper, Fenugreek Seed, Coriander Seed, Clove, Cumin Seed, Salt (Iodized), Red Chilli, Bay Leaf, Star Anise, Dry Mace<br>
+              <strong>Suggested Use:</strong> 1 Tbsp per 1 kg of Vegetarian food<br>2 Tbsp per 1 kg of Non-Vegetarian food<br>
+              <strong>Storage:</strong> Reseal bag after opening. Store in a cool, dry, and hygienic place.<br>
+              <strong>Certifications:</strong> FSSAI Lic No.: 21521175000514<br>Batch No.: 0460021<br>
+              <strong>Shelf Life:</strong> 24 months<br>
+              <strong>Weight:</strong> 100g
+            </p>
+          </div>
+          <p class="fw-bold text-success">₹95.00</p>
+          <a href="https://wa.me/918999449765?text=Hi%20Heritage%20Spices%2C%20I%20want%20to%20order%20Garam%20Masala%20100g" class="btn btn-success btn-sm mt-2" target="_blank">🟢 Order on WhatsApp</a>
+          <a href="https://www.meesho.com/heritage-garam-masala/p/98mxwl?ms=2&source=Meri+Shop" class="btn btn-outline-primary btn-sm mt-2" target="_blank">🛒 Buy on Meesho</a>
         </div>
       </div>
     </div>
-
   </div>
-</section>
-
-
-<!-- ✅ Custom Styles -->
-<style>
-  .product-card {
-    border: 1px solid #eee;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .product-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  }
-
-  .product-image-container {
-    padding: 10px;
-    height: 220px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  .product-image {
-    max-height: 100%;
-    max-width: 100%;
-    object-fit: contain;
-    transition: transform 0.3s ease;
-  }
-
-  .product-image-container:hover .product-image {
-    transform: scale(1.1);
-  }
-
-  .section-title {
-    font-weight: 600;
-    font-size: 1.8rem;
-    color: #4caf50;
-  }
-
-  @media (max-width: 576px) {
-    .product-image-container {
-      height: 180px;
-    }
-  }
-</style>
+</div>
+{% endblock %} 

@@ -3,6 +3,11 @@
 
 {% block content %}
 <div class="container py-5">
+  {% if post.image_url %}
+    <div class="text-center mb-4">
+      <img src="{{ url_for('static', filename='uploads/' ~ post.image_url) }}" alt="{{ post.title }}" class="img-fluid rounded shadow-sm" style="max-height: 350px;" />
+    </div>
+  {% endif %}
   <h1 class="text-success mb-3">{{ post.title }}</h1>
   <p class="text-muted small mb-2">📅 {{ post.date }} | ✍️ {{ post.author }}</p>
 
@@ -13,8 +18,8 @@
     {{ post.content | safe }}
   </div>
 
-  <!-- ✅ Admin Delete Button -->
   {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
+    <a href="/admin/blogs/edit/{{ post.id }}" class="btn btn-warning mt-2">✏️ Edit This Post</a>
     <form method="POST" action="/admin/blogs/delete/{{ post.id }}" class="mt-4"
           onsubmit="return confirm('Are you sure you want to delete this blog post?');">
       <input type="hidden" name="password" value="{{ admin_password }}">
