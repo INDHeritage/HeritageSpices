@@ -309,11 +309,16 @@
       }, 400);
     }
 
-    if (!sessionStorage.getItem("preloaderShown")) {
+    const isInternalNavigation = document.referrer && document.referrer.includes(window.location.hostname);
+
+    if (!isInternalNavigation) {
+      // Only show preloader if NOT coming from an internal page
       animateEmoji();
-      sessionStorage.setItem("preloaderShown", "true");
     } else {
-      hidePreloader();
+      // Instantly hide preloader on internal navigation
+      if (preloader) {
+        preloader.style.display = "none";
+      }
     }
 
 
