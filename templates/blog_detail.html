@@ -5,7 +5,7 @@
 <div class="container py-5">
   {% if post.image_url %}
     <div class="text-center mb-4">
-      <img src="{{ url_for('static', filename='uploads/' ~ post.image_url) }}" alt="{{ post.title }}" class="img-fluid rounded shadow-sm" style="max-height: 350px;" />
+      <img src="{{ post.image_url }}" alt="{{ post.title }}" class="img-fluid rounded shadow-sm" style="max-height: 350px;" />
     </div>
   {% endif %}
   <h1 class="text-success mb-3">{{ post.title }}</h1>

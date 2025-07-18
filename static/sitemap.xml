@@ -16,4 +16,28 @@
     <loc>https://www.heritagespices.shop/privacy</loc>
     <priority>0.60</priority>
   </url>
+  <url>
+    <loc>https://www.heritagespices.shop/products</loc>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://www.heritagespices.shop/blog</loc>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.heritagespices.shop/faq</loc>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://www.heritagespices.shop/terms</loc>
+    <priority>0.50</priority>
+  </url>
+  <url>
+    <loc>https://www.heritagespices.shop/disclaimer</loc>
+    <priority>0.50</priority>
+  </url>
+  <url>
+    <loc>https://www.heritagespices.shop/refund</loc>
+    <priority>0.50</priority>
+  </url>
 </urlset>

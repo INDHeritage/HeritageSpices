@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>{% block title %}Indian Heritage Spices{% endblock %}</title>
+  <title>{% block title %}Indian Heritage Spices – Authentic Kerala Spices Online{% endblock %}</title>
 
   <!-- SEO Meta Tags -->
-  <meta name="description" content="{% block meta_description %}Premium organic Indian spices delivered globally.{% endblock %}" />
+  <meta name="description" content="{% block meta_description %}Discover the finest organic spices from Kerala, handpicked and delivered to your door. Shop Indian Heritage Spices for purity, freshness, and authentic flavor.{% endblock %}" />
   <meta name="author" content="Indian Heritage Spices" />
   <meta name="keywords" content="Indian Spices, Organic Masala, Garam Masala, Kerala Spices" />
   <meta name="robots" content="index, follow" />
@@ -159,29 +159,29 @@
 
 
 
-<!-- ✅ Header with Branding and Navigation -->
+<!-- Sticky, animated header with search and dark mode toggle -->
 <header>
-  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm py-2 fixed-top">
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm py-2 fixed-top animate__animated animate__fadeInDown">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center" href="/">
-        <img src="{{ url_for('static', filename='images/logo.png') }}" height="40" alt="Heritage Spices Logo" />
-        <span class="ms-2 fw-semibold text-success" style="font-size: 1.2rem;">
-          🌿 Indian Heritage Spices
-        </span>
+        <img src="{{ url_for('static', filename='images/logo.png') }}" height="40" alt="Heritage Spices Logo" class="me-2 animate__animated animate__pulse animate__infinite" />
+        <!-- Removed: <span class="fw-semibold text-success" style="font-size: 1.2rem;">🌿 Indian Heritage Spices</span> -->
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
-
       <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
         <ul class="navbar-nav align-items-center">
           <li class="nav-item"><a class="nav-link" href="/">🏠 Home</a></li>
           <li class="nav-item"><a class="nav-link" href="/products">🛒 Products</a></li>
           <li class="nav-item"><a class="nav-link" href="/#wholesale">📦 Wholesale</a></li>
-          <li class="nav-item"><a class="nav-link" href="/blog">📝 Blog</a></li><li>
+          <li class="nav-item"><a class="nav-link" href="/blog">📝 Blog</a></li>
           <li class="nav-item ms-2">
             {% if not user %}
-              <a href="{{ url_for('login') }}" class="btn btn-sm btn-success">🔐 Login with Google</a>
+              <a href="{{ url_for('login') }}" class="btn btn-sm btn-success d-flex align-items-center" style="gap: 6px;">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" style="height: 20px; width: 20px; background: #fff; border-radius: 50%; padding: 2px; box-shadow: 0 1px 3px rgba(60,60,60,0.08);"> 
+                <span>Login with Google</span>
+              </a>
             {% else %}
               <span class="me-2 text-success fw-semibold">👋 Hi, {{ user.name }}</span>
               <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger">Logout</a>
@@ -201,41 +201,76 @@
 </main>
 
 <!-- ✅ Footer Section with Social Icons -->
-<footer class="text-center bg-light text-dark py-4 mt-5 border-top">
+<footer class="bg-light text-dark pt-5 pb-3 border-top mt-5 animate__animated animate__fadeInUp">
   <div class="container">
-    <p class="mb-1 fw-semibold">📲 Connect With Us</p>
-    <div class="social-icons mb-3">
-      <a href="https://www.instagram.com/heritage.spices.in/" 
-         class="text-dark me-3 login-required" 
-         target="_blank" 
-         title="Follow us on Instagram">
-        <i class="fab fa-instagram fa-lg"></i>
-      </a>
-      <a href="https://twitter.com/search?q=%23Heritagespices&src=hashtag_click" 
-         class="text-dark me-3 login-required" 
-         target="_blank" 
-         title="Join the #HeritageSpices trend">
-        <i class="fab fa-twitter fa-lg"></i>
-      </a>
-      <a href="mailto:heritage.spices.pvtltd@gmail.com" 
-         class="text-dark login-required" 
-         title="Email Us">
-        <i class="fas fa-envelope fa-lg"></i>
-      </a>
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <h5 class="fw-bold text-success">Heritage Spices</h5>
+        <p>Bringing Authentic Organic Spices Since 2012</p>
+        <div class="social-icons">
+          <a href="https://www.instagram.com/heritage.spices.in/" class="me-2 text-dark social-anim" target="_blank"><i class="fab fa-instagram fa-lg"></i></a>
+          <a href="https://twitter.com/search?q=%23Heritagespices" class="me-2 text-dark social-anim" target="_blank"><i class="fab fa-twitter fa-lg"></i></a>
+          <a href="mailto:heritage.spices.pvtltd@gmail.com" class="text-dark social-anim"><i class="fas fa-envelope fa-lg"></i></a>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <h6 class="fw-bold mb-3">Quick Links</h6>
+        <ul class="list-group list-group-flush footer-links">
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/about" class="footer-link"><i class="fas fa-info-circle me-2"></i>About Us</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/contact" class="footer-link"><i class="fas fa-envelope-open-text me-2"></i>Contact</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/products" class="footer-link"><i class="fas fa-box-open me-2"></i>Products</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/blog" class="footer-link"><i class="fas fa-blog me-2"></i>Blog</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/faq" class="footer-link"><i class="fas fa-question-circle me-2"></i>FAQ</a></li>
+        </ul>
+      </div>
+      <div class="col-md-3 mb-3">
+        <h6 class="fw-bold mb-3">Legal</h6>
+        <ul class="list-group list-group-flush footer-links">
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/privacy" class="footer-link"><i class="fas fa-user-shield me-2"></i>Privacy Policy</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/terms" class="footer-link"><i class="fas fa-file-contract me-2"></i>Terms of Service</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/disclaimer" class="footer-link"><i class="fas fa-exclamation-circle me-2"></i>Disclaimer</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/refund" class="footer-link"><i class="fas fa-undo-alt me-2"></i>Refund/Shipping Policy</a></li>
+        </ul>
+      </div>
+      <div class="col-md-3 mb-3">
+        <h6 class="fw-bold">Newsletter</h6>
+        <form method="POST" action="/subscribe">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="input-group">
+            <input type="email" name="email" class="form-control" placeholder="Your email" required>
+            <button class="btn btn-success" type="submit">Subscribe</button>
+          </div>
+        </form>
+        <small class="text-muted">Get updates on new products and offers.</small>
+      </div>
     </div>
-
-    <p class="mb-1">🌿 Heritage Spices Pvt. Ltd. – Bringing Authentic Organic Spices Since 2012</p>
-    <p class="mb-0">
-      &copy; {{ year | default(2025) }} Heritage Spices Pvt. Ltd. |
-      <a href="/about" class="text-decoration-none text-primary">About Us</a> |
-      <a href="/contact" class="text-decoration-none text-primary">Contact</a> |
-      <a href="/privacy" class="text-decoration-none text-primary">Privacy Policy</a> |
-      <a href="/terms" class="text-decoration-none text-primary">Terms of Service</a> |
-      <a href="/disclaimer" class="text-decoration-none text-primary">Disclaimer</a> |
-      <a href="/refund" class="text-decoration-none text-primary">Refund/Shipping Policy</a>
-    </p>
+    <hr>
+    <div class="text-center small">
+      &copy; {{ year | default(2025) }} Heritage Spices Pvt. Ltd. All rights reserved.
+    </div>
   </div>
+  <!-- Back to Top Button -->
+  <button id="backToTop" class="btn btn-success position-fixed" style="bottom: 30px; right: 30px; display: none; z-index: 1050; border-radius: 50%;"><i class="fas fa-arrow-up"></i></button>
 </footer>
+<style>
+  .footer-link {
+    color: #333;
+    text-decoration: none;
+    transition: color 0.2s, padding-left 0.2s;
+    font-weight: 500;
+    display: flex; align-items: center;
+  }
+  .footer-link:hover {
+    color: #4caf50;
+    padding-left: 8px;
+    text-decoration: underline;
+  }
+  .footer-links .list-group-item {
+    background: transparent;
+    border: none;
+    padding-left: 0;
+  }
+</style>
 
 
 
@@ -481,6 +516,41 @@ s0.parentNode.insertBefore(s1,s0);
   });
 </script>
 
+<style>
+  .social-anim:hover {
+    color: #4caf50 !important;
+    transform: scale(1.2);
+    transition: all 0.3s;
+  }
+  #backToTop {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    width: 48px; height: 48px; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+  }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<script>
+  // Back to Top Button
+  const backToTopBtn = document.getElementById('backToTop');
+  window.addEventListener('scroll', function() {
+    if (window.scrollY > 300) {
+      backToTopBtn.style.display = 'flex';
+    } else {
+      backToTopBtn.style.display = 'none';
+    }
+  });
+  backToTopBtn.onclick = () => window.scrollTo({top:0, behavior:'smooth'});
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      document.querySelector(this.getAttribute('href')).scrollIntoView({
+        behavior: 'smooth'
+      });
+    });
+  });
+</script>
 
 
 </body>

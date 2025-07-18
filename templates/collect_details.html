@@ -50,6 +50,7 @@
     <p class="text-muted">We’d love to know more about you. Please fill out a few details below 👇</p>
 
     <form method="POST" novalidate class="needs-validation">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="mb-3">
         <label for="phone" class="form-label">Phone Number</label>
         <input type="tel" class="form-control" id="phone" name="phone" required pattern="[0-9]{10}" placeholder="Enter 10-digit number" />

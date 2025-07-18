@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}FAQ | Heritage Spices{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="mb-4 text-center">
+    <h1 class="fw-bold text-success"><i class="fas fa-question-circle me-2"></i>Frequently Asked Questions</h1>
+    <p class="lead">Find answers to common questions about our products, shipping, and more.</p>
+  </div>
+  <div class="accordion" id="faqAccordion">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqOne">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqOne" aria-expanded="true" aria-controls="collapseFaqOne">
+          Are your spices really 100% organic?
+        </button>
+      </h2>
+      <div id="collapseFaqOne" class="accordion-collapse collapse show" aria-labelledby="faqOne" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          Yes! All our spices are certified organic and sourced directly from trusted farmers.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqTwo">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqTwo" aria-expanded="false" aria-controls="collapseFaqTwo">
+          How long does shipping take?
+        </button>
+      </h2>
+      <div id="collapseFaqTwo" class="accordion-collapse collapse" aria-labelledby="faqTwo" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          Orders are shipped within 2 business days. Delivery usually takes 3-7 days depending on your location.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqThree">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqThree" aria-expanded="false" aria-controls="collapseFaqThree">
+          Can I order in bulk or for wholesale?
+        </button>
+      </h2>
+      <div id="collapseFaqThree" class="accordion-collapse collapse" aria-labelledby="faqThree" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          Absolutely! Please <a href="/contact">contact us</a> for bulk or wholesale inquiries and special pricing.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqFour">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqFour" aria-expanded="false" aria-controls="collapseFaqFour">
+          How do I store your spices for maximum freshness?
+        </button>
+      </h2>
+      <div id="collapseFaqFour" class="accordion-collapse collapse" aria-labelledby="faqFour" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          Store spices in a cool, dry place away from sunlight. Keep them sealed in their original packaging or in airtight containers.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

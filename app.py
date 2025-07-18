@@ -15,6 +15,8 @@ import html
 from flask import send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
+from flask_migrate import Migrate
+from flask_wtf import CSRFProtect
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -37,10 +39,13 @@ load_dotenv()
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 CORS(app, supports_credentials=True)
+csrf = CSRFProtect(app)
 
 # --- SQLAlchemy Setup ---
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # --- Blog Model ---
 class Blog(db.Model):
@@ -52,6 +57,30 @@ class Blog(db.Model):
     date = db.Column(db.String(50), nullable=False)
     content = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(300))
+
+# --- Subscriber Model ---
+class Subscriber(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(200), unique=True, nullable=False)
+
+# --- Contact Message Model ---
+class ContactMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+
+# --- Product Model ---
+class Product(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    price = db.Column(db.Float, nullable=True)
+    image_url = db.Column(db.String(300), nullable=True)
+    category = db.Column(db.String(100), nullable=True)
+    stock = db.Column(db.Integer, nullable=True)
+    meesho_link = db.Column(db.String(300), nullable=True)
 
 # --- DB Initialization Command ---
 @app.cli.command("init-db")
@@ -191,9 +220,19 @@ def collect_details():
 def about():
     return render_template('about.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
 
-@app.route('/contact')
+@app.route('/contact', methods=['GET', 'POST'])
 def contact():
-    return render_template('contact.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        message = request.form.get('message')
+        if name and email and message:
+            new_msg = ContactMessage(name=name, email=email, message=message)
+            db.session.add(new_msg)
+            db.session.commit()
+        flash('Thank you for contacting us! We will get back to you soon.', 'success')
+        return redirect('/contact')
+    return render_template('contact.html')
 
 @app.route('/ads.txt')
 def ads_txt():
@@ -231,7 +270,10 @@ def sitemap():
 @app.route("/subscribe", methods=["POST"])
 def subscribe():
     email = request.form.get("email")
-    # Save to database or send to Mailchimp, etc.
+    if email and not Subscriber.query.filter_by(email=email).first():
+        new_sub = Subscriber(email=email)
+        db.session.add(new_sub)
+        db.session.commit()
     flash("Thanks for subscribing!", "success")
     return redirect("/")
 
@@ -302,14 +344,20 @@ def manage_blogs():
         author = session.get('user', {}).get('name', 'Admin')
         date = datetime.now().strftime("%Y-%m-%d")
 
-        # Handle image upload
+        # Handle image upload to imgbb
         image_url = None
         image = request.files.get('image')
         if image and image.filename:
-            filename = f"{uuid.uuid4().hex}_{image.filename}"
-            upload_path = os.path.join('static/uploads', filename)
-            image.save(upload_path)
-            image_url = f"/static/uploads/{filename}"
+            import base64
+            imgbb_api_key = os.getenv('IMGBB_API_KEY')
+            image_data = base64.b64encode(image.read()).decode('utf-8')
+            payload = {
+                'key': imgbb_api_key,
+                'image': image_data
+            }
+            response = requests.post('https://api.imgbb.com/1/upload', data=payload)
+            if response.status_code == 200:
+                image_url = response.json()['data']['url']
 
         new_blog = Blog(
             title=title,
@@ -352,12 +400,19 @@ def edit_blog(blog_id):
     if request.method == 'POST':
         blog.title = request.form['title']
         blog.content = request.form['content']
-        # Handle image upload
+        # Handle image upload to imgbb
         if 'image' in request.files and request.files['image'].filename:
             image = request.files['image']
-            image_filename = secure_filename(image.filename)
-            image.save(os.path.join(app.static_folder, 'uploads', image_filename))
-            blog.image_url = image_filename
+            import base64
+            imgbb_api_key = os.getenv('IMGBB_API_KEY')
+            image_data = base64.b64encode(image.read()).decode('utf-8')
+            payload = {
+                'key': imgbb_api_key,
+                'image': image_data
+            }
+            response = requests.post('https://api.imgbb.com/1/upload', data=payload)
+            if response.status_code == 200:
+                blog.image_url = response.json()['data']['url']
         db.session.commit()
         flash('Blog updated successfully!')
         return redirect(url_for('blog_detail', slug=blog.slug))
@@ -473,26 +528,72 @@ def product_detail(product_id):
 # --- Products Page Route ---
 @app.route('/products')
 def products():
-    # Use the same featured_products as in product_detail for now
-    featured_products = [
-        {
-            'id': 1,
-            'name': 'Garam Masala – 50g',
-            'description': 'Bold and aromatic blend of Indian spices.',
-            'price': 99,
-            'image': 'garam50.png',
-            'meesho_link': 'https://www.meesho.com/s/p/98mug4?utm_source=s_cc'
-        },
-        {
-            'id': 2,
-            'name': 'Turmeric Powder – 100g',
-            'description': 'Pure turmeric from Kerala farms.',
-            'price': 79,
-            'image': 'turmeric100.png',
-            'meesho_link': 'https://www.meesho.com/s/p/98mxwl?utm_source=s_cc'
-        }
-    ]
-    return render_template('products.html', products=featured_products, user=session.get('user'), is_logged_in=bool(session.get('user')))
+    products = Product.query.all()
+    user = session.get('user')
+    return render_template('products.html', products=products, user=user)
+
+# --- Admin Add Product Route ---
+@app.route('/admin/products/add', methods=['GET', 'POST'])
+def add_product():
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+    if request.method == 'POST':
+        name = request.form['name']
+        description = request.form['description']
+        price = request.form.get('price', type=float)
+        category = request.form.get('category')
+        stock = request.form.get('stock', type=int)
+        meesho_link = request.form.get('meesho_link')
+        image = request.files.get('image')
+        image_url = None
+        if image and image.filename:
+            import base64
+            imgbb_api_key = os.getenv('IMGBB_API_KEY')
+            image_data = base64.b64encode(image.read()).decode('utf-8')
+            payload = {'key': imgbb_api_key, 'image': image_data}
+            response = requests.post('https://api.imgbb.com/1/upload', data=payload)
+            if response.status_code == 200:
+                image_url = response.json()['data']['url']
+        new_product = Product(
+            name=name,
+            description=description,
+            price=price,
+            category=category,
+            stock=stock,
+            meesho_link=meesho_link,
+            image_url=image_url
+        )
+        db.session.add(new_product)
+        db.session.commit()
+        flash('Product added!', 'success')
+        return redirect('/products')
+    return render_template('admin_product_add.html')
+
+@app.route('/admin/products/edit/<int:product_id>', methods=['GET', 'POST'])
+def edit_product(product_id):
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+    product = Product.query.get_or_404(product_id)
+    if request.method == 'POST':
+        product.name = request.form['name']
+        product.description = request.form['description']
+        product.price = request.form.get('price', type=float)
+        product.category = request.form.get('category')
+        product.stock = request.form.get('stock', type=int)
+        product.meesho_link = request.form.get('meesho_link')
+        image = request.files.get('image')
+        if image and image.filename:
+            import base64
+            imgbb_api_key = os.getenv('IMGBB_API_KEY')
+            image_data = base64.b64encode(image.read()).decode('utf-8')
+            payload = {'key': imgbb_api_key, 'image': image_data}
+            response = requests.post('https://api.imgbb.com/1/upload', data=payload)
+            if response.status_code == 200:
+                product.image_url = response.json()['data']['url']
+        db.session.commit()
+        flash('Product updated!', 'success')
+        return redirect('/products')
+    return render_template('admin_product_edit.html', product=product)
 
 # --- Legal Pages Routes ---
 @app.route('/terms')
@@ -507,6 +608,10 @@ def disclaimer():
 def refund():
     return render_template('refund.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
 
+@app.route('/faq')
+def faq():
+    return render_template('faq.html')
+
 
 @app.template_filter()
 def truncate(s, length=100):
@@ -517,6 +622,25 @@ def truncate(s, length=100):
 @app.errorhandler(403)
 def forbidden(e):
     return render_template("403.html"), 403
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template("404.html"), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return render_template("500.html"), 500
+
+@app.route('/test-csrf')
+def test_csrf():
+    from flask import render_template_string
+    return render_template_string('''
+        <form method="POST">
+            {{ csrf_token() }}
+            <input type="email" name="email">
+            <button type="submit">Test</button>
+        </form>
+    ''')
 
 # -------------------------
 # 🚀 Run App

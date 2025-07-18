@@ -5,6 +5,7 @@
 <div class="container py-5">
   <h1 class="text-success mb-4">✏️ Edit Blog Post</h1>
   <form method="POST" enctype="multipart/form-data" class="border p-4 rounded shadow-sm bg-light">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
       <label class="form-label">Title</label>
       <input type="text" class="form-control" name="title" value="{{ blog.title }}" required>
@@ -17,7 +18,7 @@
       <label class="form-label">Image (optional)</label>
       {% if blog.image_url %}
         <div class="mb-2">
-          <img src="{{ url_for('static', filename='uploads/' ~ blog.image_url) }}" alt="Current Image" style="max-width: 200px;" class="rounded shadow-sm">
+          <img src="{{ blog.image_url }}" alt="Current Image" style="max-width: 200px;" class="rounded shadow-sm">
         </div>
       {% endif %}
       <input type="file" class="form-control" name="image">
