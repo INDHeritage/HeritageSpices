@@ -1,54 +1,34 @@
 {% extends "base.html" %}
-
-{% block title %}Contact Us | Indian Heritage Spices{% endblock %}
-
+{% block title %}Contact | Heritage Spices{% endblock %}
 {% block content %}
-<div class="container py-5" data-aos="fade-up">
-  <h1 class="text-success text-center mb-3">📞 Get in Touch</h1>
-  <p class="text-center lead mb-4">
-    We'd love to hear from you — whether it's a question, feedback, or a custom spice request!
-  </p>
-
-  <div class="row justify-content-center">
-    <div class="col-md-6">
-      <div class="list-group shadow rounded">
-
-        <!-- Email -->
-        <a href="mailto:heritage.spices.pvtltd@gmail.com" class="list-group-item list-group-item-action d-flex align-items-center">
-          <i class="fas fa-envelope fa-lg text-success me-3"></i>
-          <div>
-            <strong>Email Us:</strong><br>
-            heritage.spices.pvtltd@gmail.com
-          </div>
-        </a>
-
-        <!-- Address -->
-        <div class="list-group-item d-flex align-items-center">
-          <i class="fas fa-map-marker-alt fa-lg text-success me-3"></i>
-          <div>
-            <strong>Our Address:</strong><br>
-            Heritage Spices., Sindewahi, Maharashtra, India
-          </div>
+<div class="container py-5">
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <h1 class="fw-bold text-success mb-3"><i class="fas fa-envelope-open-text me-2"></i>Contact Us</h1>
+      <form method="POST" action="/contact">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <input type="text" class="form-control" name="name" placeholder="Your Name" required>
         </div>
-
+        <div class="mb-3">
+          <input type="email" class="form-control" name="email" placeholder="Your Email" required>
+        </div>
+        <div class="mb-3">
+          <textarea class="form-control" name="message" rows="5" placeholder="Your Message" required></textarea>
+        </div>
+        <button class="btn btn-success" type="submit">Send Message</button>
+      </form>
+    </div>
+    <div class="col-md-6 mb-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Our Address</h5>
+          <p class="card-text">India, Maharashtra, Sindewahi 441222</p>
+          <h5 class="card-title mt-4"><i class="fas fa-envelope me-2"></i>Email</h5>
+          <p class="card-text">heritage.spices.pvtltd@gmail.com</p>
+        </div>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<!--Start of Tawk.to Script-->
-<script type="text/javascript">
-var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-(function(){
-var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-s1.async=true;
-s1.src='https://embed.tawk.to/6878fb88b81148b00343df0c/1j0c9d5a9';
-s1.charset='UTF-8';
-s1.setAttribute('crossorigin','*');
-s0.parentNode.insertBefore(s1,s0);
-})();
-</script>
-<!--End of Tawk.to Script-->
 {% endblock %}

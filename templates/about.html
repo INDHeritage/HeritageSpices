@@ -1,29 +1,47 @@
 {% extends "base.html" %}
-
-{% block title %}About Us | Indian Heritage Spices{% endblock %}
-
+{% block title %}About Us | Heritage Spices{% endblock %}
 {% block content %}
-<div class="container py-5" data-aos="fade-up">
-  <h1 class="text-success text-center mb-4">🌿 About Indian Heritage Spices</h1>
-
-  <div class="row justify-content-center">
-    <div class="col-lg-10">
-      <div class="card border-0 shadow-sm p-4 bg-light">
-        <p class="lead">
-          Since <strong>2012</strong>, <strong>Heritage Spices Pvt. Ltd.</strong> has proudly delivered premium, organic Indian spices sourced directly from traditional farmers in Kerala and across India.
-        </p>
-        <p>
-          🌾 Our mission is simple: <strong>To bring authentic flavor and unmatched purity</strong> to your kitchen. Every product is grown naturally, processed in small batches, and carefully tested — ensuring top-quality spice with no artificial colors or preservatives.
-        </p>
-        <p>
-          🧑‍🌾 We believe in <strong>ethical farming</strong>, <strong>fair trade practices</strong>, and empowering rural communities. Our team works closely with farmers to support sustainable agriculture.
-        </p>
-        <p>
-          👨‍🍳 Trusted by thousands of households, chefs, and food lovers, Heritage Spices is proud to be your go-to brand for authentic masalas that celebrate India's rich culinary heritage.
-        </p>
-        <p class="mb-0">
-          Thank you for supporting Indian farmers and choosing real, pure spices 🙏
-        </p>
+<div class="container py-5">
+  <div class="row align-items-center mb-5">
+    <div class="col-md-6 mb-4 mb-md-0">
+      <img src="{{ url_for('static', filename='images/kerala-farmers.jpg') }}" class="img-fluid rounded shadow" alt="Our Story">
+    </div>
+    <div class="col-md-6">
+      <h1 class="fw-bold text-success mb-3"><i class="fas fa-leaf me-2"></i>About Heritage Spices</h1>
+      <p class="lead">We bring authentic, organic Indian spices directly from Kerala farms to your kitchen. Our mission is to deliver purity, flavor, and tradition in every pack.</p>
+      <ul class="list-unstyled mt-4">
+        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>100% Organic & Ethically Sourced</li>
+        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Trusted by thousands since 2012</li>
+        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Direct from farmers, no middlemen</li>
+      </ul>
+    </div>
+  </div>
+  <div class="row text-center">
+    <div class="col-md-4 mb-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <i class="fas fa-users fa-2x text-success mb-3"></i>
+          <h5 class="card-title">Our Team</h5>
+          <p class="card-text">A passionate group of spice lovers, foodies, and farmers.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <i class="fas fa-seedling fa-2x text-success mb-3"></i>
+          <h5 class="card-title">Our Promise</h5>
+          <p class="card-text">Pure, unadulterated spices with full traceability.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <i class="fas fa-globe-asia fa-2x text-success mb-3"></i>
+          <h5 class="card-title">Global Reach</h5>
+          <p class="card-text">Delivering Indian heritage to spice lovers worldwide.</p>
+        </div>
       </div>
     </div>
   </div>

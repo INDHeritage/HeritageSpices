@@ -1,70 +1,60 @@
 {% extends "base.html" %}
-
-{% block title %}Privacy Policy | Indian Heritage Spices{% endblock %}
-
+{% block title %}Privacy Policy | Heritage Spices{% endblock %}
 {% block content %}
-<div class="container py-4">
-  <h1 class="text-center text-success mb-4">Privacy Policy</h1>
-  <p class="text-end text-muted">Last updated: {{ now.strftime('%B %d, %Y') }}</p>
-
-  <div class="bg-white shadow-sm p-4 rounded-3">
-    
-    <h4 class="text-success">1. Introduction</h4>
-    <p>
-      At Indian Heritage Spices, we respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you visit our website or interact with our services.
-    </p>
-
-    <h4 class="text-success mt-4">2. Information We Collect</h4>
-    <ul>
-      <li><strong>Personal Information:</strong> Name, email address (via Google Login)</li>
-      <li><strong>Additional Details:</strong> Phone number, location, spice interests (via forms)</li>
-      <li><strong>Usage Data:</strong> Pages visited, IP address, browser/device information</li>
-    </ul>
-
-    <h4 class="text-success mt-4">3. How We Use Your Information</h4>
-    <ul>
-      <li>To personalize your experience on our website</li>
-      <li>To respond to inquiries or support requests</li>
-      <li>To analyze trends and improve website performance</li>
-      <li>To send promotional offers (only with consent)</li>
-    </ul>
-
-    <h4 class="text-success mt-4">4. Sharing & Disclosure</h4>
-    <p>
-      We do not sell or rent your personal information. We may share data with:
-    </p>
-    <ul>
-      <li>Trusted service providers (e.g., payment processors, analytics tools)</li>
-      <li>Legal authorities when required by law</li>
-    </ul>
-
-    <h4 class="text-success mt-4">5. Data Security</h4>
-    <p>
-      We use encryption, secure servers, and regular audits to protect your data. Despite our efforts, no system is 100% secure.
-    </p>
-
-    <h4 class="text-success mt-4">6. Your Rights</h4>
-    <ul>
-      <li>Access, update, or delete your personal data</li>
-      <li>Withdraw consent for marketing at any time</li>
-      <li>Request data portability or restriction of processing</li>
-    </ul>
-
-    <h4 class="text-success mt-4">7. Cookies & Tracking</h4>
-    <p>
-      We use cookies to enhance your browsing experience. You can choose to accept or decline cookies through your browser settings.
-    </p>
-
-    <h4 class="text-success mt-4">8. Changes to This Policy</h4>
-    <p>
-      We may update this Privacy Policy from time to time. Changes will be posted on this page with a new "Last Updated" date.
-    </p>
-
-    <h4 class="text-success mt-4">9. Contact Us</h4>
-    <p>
-      For questions about this Privacy Policy, email us at:  
-      <a href="mailto:heritage.spices.pvtltd@gmail.com">heritage.spices.pvtltd@gmail.com</a>
-    </p>
+<div class="container py-5">
+  <div class="mb-4 text-center">
+    <h1 class="fw-bold text-success"><i class="fas fa-user-shield me-2"></i>Privacy Policy</h1>
+    <p class="lead">Your privacy is important to us. Here’s how we protect your data.</p>
+  </div>
+  <div class="accordion" id="policyAccordion">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingOne">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+          What information do we collect?
+        </button>
+      </h2>
+      <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#policyAccordion">
+        <div class="accordion-body">
+          We collect your name, email, and order details to serve you better. We never sell or share your data with third parties.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingTwo">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+          How do we use your information?
+        </button>
+      </h2>
+      <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#policyAccordion">
+        <div class="accordion-body">
+          We use your information to process orders, send updates, and improve our services. You can unsubscribe from emails at any time.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingThree">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+          How do we protect your data?
+        </button>
+      </h2>
+      <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#policyAccordion">
+        <div class="accordion-body">
+          We use secure servers and encryption to keep your data safe. Only authorized staff can access your information.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingFour">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+          Contact Us
+        </button>
+      </h2>
+      <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#policyAccordion">
+        <div class="accordion-body">
+          If you have any questions about our privacy policy, please <a href="/contact">contact us</a>.
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
