@@ -37,12 +37,15 @@ def admin_required(f):
 
 
 app = Flask(__name__, template_folder='templates')
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or "default-fallback-secret-key-12345"
 CORS(app, supports_credentials=True)
 csrf = CSRFProtect(app)
 
 # --- SQLAlchemy Setup ---
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+db_url = os.getenv('DATABASE_URL')
+if not db_url:
+    db_url = "sqlite:///:memory:"
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
