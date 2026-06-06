@@ -1,0 +1,146 @@
+<!-- 🌶️ Products Section -->
+<section id="products" class="container mt-5" data-aos="zoom-in">
+  <h3 class="section-title text-center mb-4">Featured Products</h3>
+  <div class="row justify-content-center">
+
+    {% if products %}
+      {% for product in products %}
+        <div class="col-md-6 col-lg-4 mb-4 d-flex">
+          <div class="card product-card h-100 text-center w-100 d-flex flex-column">
+            <div class="product-image-container">
+              {% if product.image_url %}
+                <img src="{{ product.image_url }}" class="product-image" alt="{{ product.name }}">
+              {% else %}
+                <div class="d-flex align-items-center justify-content-center h-100 text-success" style="font-size: 3rem;">
+                  <i class="fas fa-leaf animate__animated animate__pulse animate__infinite"></i>
+                </div>
+              {% endif %}
+            </div>
+            <div class="card-body d-flex flex-column p-4">
+              <h5 class="card-title fw-bold text-dark mb-1">{{ product.name }}</h5>
+              <p class="fw-bold text-success mb-3 fs-5">₹{{ product.price }}</p>
+              <p class="card-text text-muted small mb-4" style="line-height: 1.6;">
+                {{ product.description | striptags | truncate(110) }}
+              </p>
+              <div class="mt-auto d-flex flex-column gap-2">
+                {% if product.meesho_link %}
+                  <a href="{{ product.meesho_link }}" class="btn btn-outline-success btn-sm py-2 fw-semibold" target="_blank">
+                    🛒 Buy on Meesho
+                  </a>
+                {% endif %}
+                <a href="https://api.whatsapp.com/send?phone=918999449765&text=Hi%20Heritage%20Spices%2C%20I%20want%20to%20order%20{{ product.name | urlencode }}." 
+                   class="btn btn-success btn-sm py-2 fw-semibold d-flex align-items-center justify-content-center gap-1.5" 
+                   target="_blank">
+                  <i class="fab fa-whatsapp"></i>
+                  <span>Order on WhatsApp</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <!-- Fallback: Statically Hardcoded Garam Masalas if DB is empty -->
+      <!-- Garam Masala 50g -->
+      <div class="col-md-6 col-lg-4 mb-4 d-flex">
+        <div class="card product-card h-100 text-center w-100 d-flex flex-column">
+          <div class="product-image-container">
+            <img src="{{ url_for('static', filename='images/garam50.png') }}" class="product-image" alt="Garam Masala 50g">
+          </div>
+          <div class="card-body d-flex flex-column p-4">
+            <h5 class="card-title fw-bold text-dark mb-1">Organic Garam Masala – 50g</h5>
+            <p class="fw-bold text-success mb-3 fs-5">₹Offer</p>
+            <p class="card-text text-muted small mb-4" style="line-height: 1.6;">
+              Fresh, aromatic, and chemical-free – ideal for daily culinary use. Sourced from Kerala farms.
+            </p>
+            <div class="mt-auto d-flex flex-column gap-2">
+              <a href="https://www.meesho.com/s/p/98mug4?utm_source=s_cc" class="btn btn-outline-success btn-sm py-2 fw-semibold" target="_blank">Buy 50g</a>
+              <a href="https://api.whatsapp.com/send?phone=918999449765&text=Hi%20Heritage%20Spices%2C%20I%20want%20to%20order%20Organic%20Garam%20Masala%2050g." 
+                 class="btn btn-success btn-sm py-2 fw-semibold d-flex align-items-center justify-content-center gap-1.5" 
+                 target="_blank">
+                <i class="fab fa-whatsapp"></i>
+                <span>Order on WhatsApp</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Garam Masala 100g -->
+      <div class="col-md-6 col-lg-4 mb-4 d-flex">
+        <div class="card product-card h-100 text-center w-100 d-flex flex-column">
+          <div class="product-image-container">
+            <img src="{{ url_for('static', filename='images/garam100.png') }}" class="product-image" alt="Garam Masala 100g">
+          </div>
+          <div class="card-body d-flex flex-column p-4">
+            <h5 class="card-title fw-bold text-dark mb-1">Organic Garam Masala – 100g</h5>
+            <p class="fw-bold text-success mb-3 fs-5">₹Offer</p>
+            <p class="card-text text-muted small mb-4" style="line-height: 1.6;">
+              The same bold flavor in a larger pack. Perfect for families and cooking enthusiasts.
+            </p>
+            <div class="mt-auto d-flex flex-column gap-2">
+              <a href="https://www.meesho.com/s/p/98mxwl?utm_source=s_cc" class="btn btn-outline-success btn-sm py-2 fw-semibold" target="_blank">Buy 100g</a>
+              <a href="https://api.whatsapp.com/send?phone=918999449765&text=Hi%20Heritage%20Spices%2C%20I%20want%20to%20order%20Organic%20Garam%20Masala%20100g." 
+                 class="btn btn-success btn-sm py-2 fw-semibold d-flex align-items-center justify-content-center gap-1.5" 
+                 target="_blank">
+                <i class="fab fa-whatsapp"></i>
+                <span>Order on WhatsApp</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+</section>
+
+<!-- ✅ Custom Styles -->
+<style>
+  .product-card {
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 30px rgba(46, 125, 50, 0.12);
+  }
+
+  .product-image-container {
+    padding: 15px;
+    height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+  }
+
+  .product-image {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    transition: transform 0.5s ease;
+  }
+
+  .product-card:hover .product-image {
+    transform: scale(1.06);
+  }
+
+  .section-title {
+    font-weight: bold;
+    font-size: 2rem;
+    color: #2e7d32;
+  }
+
+  @media (max-width: 576px) {
+    .product-image-container {
+      height: 190px;
+    }
+  }
+</style>

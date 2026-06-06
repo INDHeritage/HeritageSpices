@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Access Denied{% endblock %}
+
+{% block content %}
+<div class="text-center mt-5">
+  <div style="font-size: 5rem; color: #e53935;">
+    <i class="fas fa-ban"></i>
+  </div>
+  <h1 class="text-danger mt-3">403 - Forbidden</h1>
+  <p class="lead">Sorry, you do not have permission to access this page.<br>
+    If you believe this is an error, please contact support.</p>
+  <a href="/" class="btn btn-success mt-4"><i class="fas fa-home me-2"></i>Go to Homepage</a>
+</div>
+{% endblock %}

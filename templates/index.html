@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Home | Indian Heritage Spices{% endblock %}
+
+{% block content %}
+
+<!-- 🌶️ Masala Burst Container -->
+<div id="masala-container"></div>
+
+<!-- 🎠 Hero Carousel -->
+{% include "partials/hero_carousel.html" %}
+
+<!-- 🎯 Mission & Promise -->
+{% include "partials/mission_carousel.html" %}
+
+<!-- 🛒 Featured Products -->
+{% include "partials/products.html" %}
+
+<!-- 📦 Wholesale Section -->
+{% include "partials/wholesale.html" %}
+
+<!-- 🧠 Fun Quiz Modal -->
+{% include "partials/quiz_modal.html" %}
+
+<!-- 💬 WhatsApp Button (Login Required) -->
+{# <a href="https://wa.me/918999449765" target="_blank" class="whatsapp-float login-required" title="Chat with us on WhatsApp">
+  <i class="fab fa-whatsapp"></i>
+</a> #}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+
+<script>
+  AOS.init();
+
+  const isLoggedIn = {{ 'true' if is_logged_in else 'false' | safe }};
+  localStorage.setItem("userLoggedIn", isLoggedIn);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // 🔐 Show login modal on first visit if not logged in
+    /*
+    if (!isLoggedIn && !sessionStorage.getItem("loginPromptSkipped")) {
+      const modal = new bootstrap.Modal(document.getElementById("loginPrompt"));
+      modal.show();
+
+      document.getElementById("skipLogin")?.addEventListener("click", () => {
+        sessionStorage.setItem("loginPromptSkipped", "true");
+      });
+    }
+    */
+
+    // 🌶️ Masala Burst Animation on Load
+    for (let i = 0; i < 10; i++) {
+      setTimeout(() => {
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * window.innerHeight;
+        spawnBurst(x, y);
+      }, i * 100);
+    }
+
+    // 🌶️ Masala Burst on Click
+    document.addEventListener("click", (e) => {
+      spawnBurst(e.pageX - 15, e.pageY - 15);
+    });
+
+    function spawnBurst(x, y) {
+      const emojiList = ["🌶️", "🧂", "🫚", "🍃", "🔥"];
+      const el = document.createElement("div");
+      el.className = "masala-burst";
+      el.textContent = emojiList[Math.floor(Math.random() * emojiList.length)];
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.getElementById("masala-container").appendChild(el);
+      setTimeout(() => el.remove(), 700);
+    }
+
+    // 🧠 Auto-Launch Quiz (only once per session)
+    setTimeout(() => {
+      if (!sessionStorage.getItem("quizShown") && Math.random() < 0.7) {
+        const quiz = new bootstrap.Modal(document.getElementById("quizModal"));
+        quiz.show();
+        sessionStorage.setItem("quizShown", "true");
+      }
+    }, 25000);
+
+    // 🎯 Quiz Answer Handler
+    document.getElementById("submitAnswer")?.addEventListener("click", () => {
+      const selected = document.querySelector('input[name="interest"]:checked');
+      const feedback = document.getElementById("quiz-feedback");
+
+      if (!selected) {
+        feedback.textContent = "⚠️ Please select an answer first!";
+        feedback.style.color = "red";
+        return;
+      }
+
+      const correct = selected.value === "Turmeric";
+      feedback.textContent = correct
+        ? "✅ Correct! Turmeric contains curcumin, a powerful antioxidant."
+        : "❌ Not quite. The correct answer is Turmeric due to curcumin.";
+      feedback.style.color = correct ? "green" : "orange";
+
+      setTimeout(() => {
+        bootstrap.Modal.getInstance(document.getElementById("quizModal")).hide();
+      }, 3000);
+    });
+
+    // 🔐 Enforce Login on Clicks
+    document.querySelectorAll(".login-required").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        if (!isLoggedIn) {
+          e.preventDefault();
+          const modal = new bootstrap.Modal(document.getElementById("loginPrompt"));
+          modal.show();
+        }
+      });
+    });
+
+    // 🍪 Cookie Consent
+    const banner = document.getElementById("cookie-banner");
+    const acceptBtn = document.getElementById("accept-cookies");
+    if (banner && !localStorage.getItem("cookiesAccepted")) {
+      banner.style.display = "block";
+      acceptBtn?.addEventListener("click", () => {
+        localStorage.setItem("cookiesAccepted", "true");
+        banner.style.display = "none";
+      });
+    }
+  });
+</script>
+
+<style>
+  .masala-burst {
+    position: absolute;
+    font-size: 24px;
+    pointer-events: none;
+    animation: burst 0.7s ease-out;
+    z-index: 999;
+  }
+
+  @keyframes burst {
+    from {
+      transform: scale(1.3) rotate(0deg);
+      opacity: 1;
+    }
+    to {
+      transform: scale(0.6) rotate(360deg);
+      opacity: 0;
+    }
+  }
+</style>
+{% endblock %}

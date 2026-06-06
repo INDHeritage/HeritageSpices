@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>{% block title %}Indian Heritage Spices – Authentic Kerala Spices Online{% endblock %}</title>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="{% block meta_description %}Discover the finest organic spices from Kerala, handpicked and delivered to your door. Shop Indian Heritage Spices for purity, freshness, and authentic flavor.{% endblock %}" />
+  <meta name="author" content="Indian Heritage Spices" />
+  <meta name="keywords" content="Indian Spices, Organic Masala, Garam Masala, Kerala Spices" />
+  <meta name="robots" content="index, follow" />
+  <meta name="language" content="English" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="{% block og_title %}Indian Heritage Spices{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}Shop 100% organic spices like Garam Masala, Goda Masala, and more.{% endblock %}" />
+  <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='images/logo.jpg') }}{% endblock %}" />
+  <meta property="og:type" content="website" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{% block twitter_title %}Indian Heritage Spices{% endblock %}" />
+  <meta name="twitter:description" content="{% block twitter_description %}Authentic organic spices from trusted Indian farmers.{% endblock %}" />
+  <meta name="twitter:image" content="{% block twitter_image %}{{ url_for('static', filename='images/logo.jpg') }}{% endblock %}" />
+  
+  <!-- ✅ Structured Data for Google Brand Knowledge Panel -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Heritage Spices",
+  "url": "https://www.heritagespices.shop/",
+  "logo": "https://www.heritagespices.shop/static/images/logo.jpg",
+  "sameAs": [
+    "https://www.instagram.com/heritage.spices.in/",
+    "https://twitter.com/search?q=%23Heritagespices"
+  ],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+91-8999449765",
+    "contactType": "Customer Service",
+    "areaServed": "IN",
+    "availableLanguage": ["English", "Hindi"]
+  }
+}
+</script>
+
+
+  <!-- Stylesheets -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}" />
+
+  <!-- Global CSS -->
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(180deg, #fffef3, #fffaf0);
+      margin: 0;
+      padding: 70px 0 0 0; /* Add this line to push content below navbar */
+    }
+
+
+    header {
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .navbar-brand {
+      font-weight: bold;
+      color: #4caf50;
+      text-decoration: none;
+    }
+
+    .navbar-brand:hover {
+      color: #388e3c;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-info img {
+      border-radius: 50%;
+      height: 32px;
+      width: 32px;
+    }
+
+    footer {
+      background-color: #f8f9fa;
+      color: #333;
+      padding: 30px 0;
+    }
+
+    footer a {
+      color: #4caf50;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .whatsapp-float {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      background-color: #25d366;
+      color: white;
+      border-radius: 50%;
+      padding: 14px;
+      font-size: 24px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .whatsapp-float:hover {
+      background-color: #128c7e;
+    }
+
+
+    .social-icons a:hover {
+  color: #4caf50;
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+}
+
+
+    
+    .fade-in {
+  animation: fadeIn 1s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+  </style>
+
+  {% block head %}{% endblock %}
+</head>
+
+<body>
+
+
+
+<!-- ✅ Fullscreen Preloader (Emoji + Love theme) -->
+<div id="preloader" style="position:fixed; inset:0; background:#fffef3; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+  <div id="emoji-loader" style="font-size:48px;">🫚</div>
+  <p id="emoji-text" style="margin-top:10px; font-weight:600;">Loading Spices...</p>
+  <p id="made-with-love" style="margin-top:10px; font-weight:500; display:none;">Crafted with ❤️ for spice lovers</p>
+</div>
+
+<script>
+  // Failsafe: Hide preloader immediately if already shown
+  if (localStorage.getItem("preloaderShown")) {
+    var preloader = document.getElementById("preloader");
+    if (preloader) preloader.style.display = "none";
+  }
+</script>
+
+
+<!-- Sticky, animated header with search and dark mode toggle -->
+<header>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm py-2 fixed-top animate__animated animate__fadeInDown">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center" href="/">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" height="40" alt="Heritage Spices Logo" class="me-2 animate__animated animate__pulse animate__infinite" />
+        <!-- Removed: <span class="fw-semibold text-success" style="font-size: 1.2rem;">🌿 Indian Heritage Spices</span> -->
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav align-items-center">
+          <li class="nav-item"><a class="nav-link" href="/">🏠 Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="/products">🛒 Products</a></li>
+          <li class="nav-item"><a class="nav-link" href="/#wholesale">📦 Wholesale</a></li>
+          <li class="nav-item"><a class="nav-link" href="/blog">📝 Blog</a></li>
+          <li class="nav-item ms-2">
+            {% if not user %}
+              <a href="{{ url_for('login') }}" class="btn btn-sm btn-success d-flex align-items-center" style="gap: 6px;">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" style="height: 20px; width: 20px; background: #fff; border-radius: 50%; padding: 2px; box-shadow: 0 1px 3px rgba(60,60,60,0.08);"> 
+                <span>Login with Google</span>
+              </a>
+            {% else %}
+              <span class="me-2 text-success fw-semibold">👋 Hi, {{ user.name }}</span>
+              {% if user.email == 'heritage.spices.pvtltd@gmail.com' %}
+                <a href="/admin/dashboard" class="btn btn-sm btn-outline-primary me-2"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+              {% endif %}
+              <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger">Logout</a>
+            {% endif %}
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- ✅ Main Content Area -->
+<main class="py-4">
+  <div class="container">
+    <!-- ✅ Flask Flashed Message Notifications -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category in ['success', 'message'] else 'danger' }} alert-dismissible fade show shadow-sm border-0 border-start border-4 border-{{ 'success' if category in ['success', 'message'] else 'danger' }}" role="alert">
+            <i class="fas {{ 'fa-check-circle text-success' if category in ['success', 'message'] else 'fa-exclamation-circle text-danger' }} me-2"></i>
+            <strong>{{ message }}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<!-- ✅ Footer Section with Social Icons -->
+<footer class="bg-light text-dark pt-5 pb-3 border-top mt-5 animate__animated animate__fadeInUp">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <h5 class="fw-bold text-success">Heritage Spices</h5>
+        <p>Bringing Authentic Organic Spices Since 2012</p>
+        <div class="social-icons">
+          <a href="https://www.instagram.com/heritage.spices.in/" class="me-2 text-dark social-anim" target="_blank"><i class="fab fa-instagram fa-lg"></i></a>
+          <a href="https://twitter.com/search?q=%23Heritagespices" class="me-2 text-dark social-anim" target="_blank"><i class="fab fa-twitter fa-lg"></i></a>
+          <a href="mailto:heritage.spices.pvtltd@gmail.com" class="text-dark social-anim"><i class="fas fa-envelope fa-lg"></i></a>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <h6 class="fw-bold mb-3">Quick Links</h6>
+        <ul class="list-group list-group-flush footer-links">
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/about" class="footer-link"><i class="fas fa-info-circle me-2"></i>About Us</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/contact" class="footer-link"><i class="fas fa-envelope-open-text me-2"></i>Contact</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/products" class="footer-link"><i class="fas fa-box-open me-2"></i>Products</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/blog" class="footer-link"><i class="fas fa-blog me-2"></i>Blog</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/faq" class="footer-link"><i class="fas fa-question-circle me-2"></i>FAQ</a></li>
+        </ul>
+      </div>
+      <div class="col-md-3 mb-3">
+        <h6 class="fw-bold mb-3">Legal</h6>
+        <ul class="list-group list-group-flush footer-links">
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/privacy" class="footer-link"><i class="fas fa-user-shield me-2"></i>Privacy Policy</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/terms" class="footer-link"><i class="fas fa-file-contract me-2"></i>Terms of Service</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/disclaimer" class="footer-link"><i class="fas fa-exclamation-circle me-2"></i>Disclaimer</a></li>
+          <li class="list-group-item bg-light px-0 py-1 border-0"><a href="/refund" class="footer-link"><i class="fas fa-undo-alt me-2"></i>Refund/Shipping Policy</a></li>
+        </ul>
+      </div>
+      <div class="col-md-3 mb-3">
+        <h6 class="fw-bold">Newsletter</h6>
+        <form method="POST" action="/subscribe">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="input-group">
+            <input type="email" name="email" class="form-control" placeholder="Your email" required>
+            <button class="btn btn-success" type="submit">Subscribe</button>
+          </div>
+        </form>
+        <small class="text-muted">Get updates on new products and offers.</small>
+      </div>
+    </div>
+    <hr>
+    <div class="text-center small">
+      &copy; {{ year | default(2025) }} Heritage Spices Pvt. Ltd. All rights reserved.
+    </div>
+  </div>
+  <!-- Back to Top Button -->
+  <button id="backToTop" class="btn btn-success position-fixed" style="bottom: 30px; right: 30px; display: none; z-index: 1050; border-radius: 50%;"><i class="fas fa-arrow-up"></i></button>
+</footer>
+<style>
+  .footer-link {
+    color: #333;
+    text-decoration: none;
+    transition: color 0.2s, padding-left 0.2s;
+    font-weight: 500;
+    display: flex; align-items: center;
+  }
+  .footer-link:hover {
+    color: #4caf50;
+    padding-left: 8px;
+    text-decoration: underline;
+  }
+  .footer-links .list-group-item {
+    background: transparent;
+    border: none;
+    padding-left: 0;
+  }
+</style>
+
+
+
+
+  <!-- ✅ WhatsApp Chat Button (Login Protected) -->
+{#
+<a href="https://wa.me/918999449765?text=Hi%20Heritage%20Spices%2C%20I%20have%20a%20question%20about%20your%20products." 
+   class="whatsapp-float login-required" 
+   target="_blank" 
+   title="Chat with us on WhatsApp">
+  <i class="fab fa-whatsapp"></i>
+</a>
+#}
+
+
+
+  <!-- ✅ Cookie Consent -->
+  <div id="cookie-banner" class="alert alert-warning fixed-bottom text-center m-0 rounded-0" style="display: none; z-index: 9999;">
+    We use cookies to enhance your browsing experience. By continuing, you agree to our 
+    <a href="/privacy" class="text-primary fw-semibold">Privacy Policy</a>.
+    <button id="accept-cookies" class="btn btn-sm btn-primary ms-2">Accept</button>
+  </div>
+
+  <!-- ✅ Scripts -->
+<script>
+  window.addEventListener("load", () => {
+    // Only show preloader if never shown before
+    if (!localStorage.getItem("preloaderShown")) {
+      // Set the flag immediately so it never shows again, even if user navigates away early
+      localStorage.setItem("preloaderShown", "true");
+    const emojis = ['🫚', '🌶️', '🍂', '☘️', '🧂', '🍃', '🥣', '📦', '🔥'];
+    const emojiTexts = [
+      "Grinding fresh ginger...",
+      "Choosing fiery red chilies...",
+      "Collecting dry herbs...",
+      "Picking minty leaves...",
+      "Sprinkling pure salt...",
+      "Blending with love...",
+      "Infusing in tradition...",
+      "Packing your order...",
+      "Igniting your taste buds..."
+    ];
+
+    const emojiEl = document.getElementById("emoji-loader");
+    const textEl = document.getElementById("emoji-text");
+    const preloader = document.getElementById("preloader");
+    const loveEl = document.getElementById("made-with-love");
+
+    let index = 0;
+
+    function animateEmoji() {
+      if (!emojiEl || !textEl || !preloader) return;
+
+      emojiEl.textContent = emojis[index];
+      textEl.textContent = emojiTexts[index];
+      index++;
+
+      if (index < emojis.length) {
+        setTimeout(animateEmoji, 400);
+      } else {
+        loveEl.style.display = 'block';
+        loveEl.classList.add('fade-in');
+        setTimeout(hidePreloader, 1500);
+      }
+    }
+
+    function hidePreloader() {
+      preloader.style.transition = "opacity 0.6s ease";
+      preloader.style.opacity = "0";
+      preloader.style.pointerEvents = "none";
+      preloader.style.visibility = "hidden";
+      setTimeout(() => {
+        preloader.style.display = "none";
+      }, 400);
+    }
+
+      animateEmoji();
+      // Backup hide after 9s
+      setTimeout(hidePreloader, 9000);
+    } else {
+      // Instantly hide preloader if already shown
+      const preloader = document.getElementById("preloader");
+      if (preloader) {
+        preloader.style.display = "none";
+      }
+    }
+
+    // 🍪 Cookie Consent
+    const banner = document.getElementById("cookie-banner");
+    const acceptBtn = document.getElementById("accept-cookies");
+    if (!localStorage.getItem("cookiesAccepted")) {
+      banner.style.display = "block";
+    }
+    acceptBtn?.addEventListener("click", () => {
+      localStorage.setItem("cookiesAccepted", "true");
+      banner.style.display = "none";
+    });
+  });
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const isLoggedIn = localStorage.getItem("userLoggedIn") === "true";
+
+    // ✅ Handle modal cleanup on Skip and Close
+    const cleanupModal = () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+
+      const backdrop = document.querySelector('.modal-backdrop');
+      if (backdrop) backdrop.remove();
+    };
+
+    const skipBtn = document.getElementById('skipLogin');
+    if (skipBtn) {
+      skipBtn.addEventListener('click', () => {
+        sessionStorage.setItem("loginPromptSkipped", "true");
+        cleanupModal();
+      });
+    }
+
+    const closeBtn = document.querySelector('#loginPrompt .btn-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', cleanupModal);
+    }
+
+    // Optional: if someone presses Esc key
+    const loginPromptEl = document.getElementById('loginPrompt');
+    if (loginPromptEl) {
+      loginPromptEl.addEventListener('hidden.bs.modal', cleanupModal);
+    }
+  });
+</script>
+
+
+
+
+{#
+<!-- 🔐 Google Login Modal -->
+<div class="modal fade" id="loginPrompt" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title">Login Required</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Please log in with Google to access this feature.</p>
+        <a href="{{ url_for('login') }}" class="btn btn-success">Login with Google</a>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="skipLogin">Skip</button>
+      </div>
+    </div>
+  </div>
+</div>
+#}
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const isLoggedIn = "{{ 'true' if is_logged_in is defined and is_logged_in else 'false' }}";
+    const loginSkipped = sessionStorage.getItem("loginPromptSkipped") === "true";
+
+    const loginPromptEl = document.getElementById('loginPrompt');
+    if (loginPromptEl && isLoggedIn !== "true" && !loginSkipped) {
+      const loginModal = new bootstrap.Modal(loginPromptEl);
+      loginModal.show();
+    }
+
+    // Store login status in localStorage
+    if (isLoggedIn === "true") {
+      localStorage.setItem("userLoggedIn", "true");
+    } else {
+      localStorage.removeItem("userLoggedIn");
+    }
+  });
+</script>
+
+
+<!-- Debug -->
+<script>
+  console.log("Is Logged In (from Jinja):", "{{ is_logged_in if is_logged_in is defined else false }}");
+</script>
+
+
+{% block scripts %}
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/6878fb88b81148b00343df0c/1j0c9d5a9';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+{% endblock %}
+
+<!-- ✅ Bootstrap JS Bundle (ONLY ONCE) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+
+<!-- ✅ Collapse navbar on mobile link click -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggler = document.querySelector('.navbar-toggler');
+    const navCollapse = document.getElementById('navbarNav');
+
+    if (toggler && navCollapse) {
+      toggler.addEventListener('click', () => {
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(navCollapse);
+        bsCollapse.toggle();
+      });
+
+      // Optional: close navbar when any nav link is clicked (on mobile)
+      const navLinks = document.querySelectorAll('.nav-link');
+      navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          const bsCollapse = bootstrap.Collapse.getInstance(navCollapse);
+          if (bsCollapse && navCollapse.classList.contains('show')) {
+            bsCollapse.hide();
+          }
+        });
+      });
+    }
+  });
+</script>
+
+<style>
+  .social-anim:hover {
+    color: #4caf50 !important;
+    transform: scale(1.2);
+    transition: all 0.3s;
+  }
+  #backToTop {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    width: 48px; height: 48px; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+  }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<script>
+  // Back to Top Button
+  const backToTopBtn = document.getElementById('backToTop');
+  window.addEventListener('scroll', function() {
+    if (window.scrollY > 300) {
+      backToTopBtn.style.display = 'flex';
+    } else {
+      backToTopBtn.style.display = 'none';
+    }
+  });
+  backToTopBtn.onclick = () => window.scrollTo({top:0, behavior:'smooth'});
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      document.querySelector(this.getAttribute('href')).scrollIntoView({
+        behavior: 'smooth'
+      });
+    });
+  });
+</script>
+
+
+</body>
+</html>
+

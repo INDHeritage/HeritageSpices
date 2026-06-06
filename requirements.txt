@@ -1,0 +1,10 @@
+Flask==3.1.1
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-WTF
+Flask-Cors==6.0.1
+Authlib==1.6.0
+python-dotenv==1.1.0
+requests==2.32.3
+gunicorn==23.0.0
+psycopg2-binary

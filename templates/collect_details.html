@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Customer Details</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+
+  <style>
+    body {
+      background-color: #f9f9f9;
+    }
+    .form-wrapper {
+      max-width: 500px;
+      margin: auto;
+      background-color: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+  </style>
+
+  <script>
+    let skipTimer;
+
+    function startSkipTimer() {
+      skipTimer = setTimeout(() => {
+        window.location.href = "/";
+      }, 60000);
+    }
+
+    function resetSkipTimer() {
+      clearTimeout(skipTimer);
+      startSkipTimer();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      startSkipTimer();
+      document.addEventListener("mousemove", resetSkipTimer);
+      document.addEventListener("keydown", resetSkipTimer);
+      document.addEventListener("click", resetSkipTimer);
+    });
+  </script>
+</head>
+<body class="container mt-5">
+
+  <div class="form-wrapper">
+    <h2 class="mb-3">Hello, {{ user.name }} 👋</h2>
+    <p class="text-muted">We’d love to know more about you. Please fill out a few details below 👇</p>
+
+    <form method="POST" novalidate class="needs-validation">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-3">
+        <label for="phone" class="form-label">Phone Number</label>
+        <input type="tel" class="form-control" id="phone" name="phone" required pattern="[0-9]{10}" placeholder="Enter 10-digit number" />
+        <div class="invalid-feedback">Please enter a valid 10-digit phone number.</div>
+      </div>
+
+      <div class="mb-3">
+        <label for="location" class="form-label">Location</label>
+        <input type="text" class="form-control" id="location" name="location" required />
+        <div class="invalid-feedback">Location is required.</div>
+      </div>
+
+      <div class="mb-3">
+        <label for="interest" class="form-label">Interest</label>
+        <input type="text" class="form-control" id="interest" name="interest" required />
+        <div class="invalid-feedback">Please specify your interest.</div>
+      </div>
+
+      <div class="d-flex">
+        <button type="submit" class="btn btn-success me-2">Submit Details</button>
+        <a href="/" class="btn btn-secondary">Skip</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      const forms = document.querySelectorAll('.needs-validation');
+      Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+          if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+          form.classList.add('was-validated');
+        }, false);
+      });
+    })();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Edit Product | Heritage Spices{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <h1 class="text-success mb-4">✏️ Edit Product</h1>
+  <form method="POST" enctype="multipart/form-data" class="border p-4 rounded shadow-sm bg-light">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-3">
+      <label class="form-label">Product Name</label>
+      <input type="text" class="form-control" name="name" value="{{ product.name }}" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Description</label>
+      <textarea class="form-control" name="description" rows="4" required>{{ product.description }}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Price (optional)</label>
+      <input type="number" step="0.01" class="form-control" name="price" value="{{ product.price }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Category (optional)</label>
+      <input type="text" class="form-control" name="category" value="{{ product.category }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Stock (optional)</label>
+      <input type="number" class="form-control" name="stock" value="{{ product.stock }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Meesho Buy Link (optional)</label>
+      <input type="url" class="form-control" name="meesho_link" value="{{ product.meesho_link }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Image</label>
+      {% if product.image_url %}
+        <div class="mb-2">
+          <img src="{{ product.image_url }}" alt="Current Image" style="max-width: 200px;" class="rounded shadow-sm">
+        </div>
+      {% endif %}
+      <input type="file" class="form-control" name="image" accept="image/*">
+    </div>
+    <button type="submit" class="btn btn-success">Save Changes</button>
+    <a href="/products" class="btn btn-secondary ms-2">Cancel</a>
+  </form>
+</div>
+{% endblock %} 

@@ -1,0 +1,108 @@
+<!-- 🌿 Mission Carousel -->
+<section id="mission" class="container my-5" data-aos="fade-up" data-aos-duration="1000">
+  <div class="text-center mb-4">
+    <h4 class="fw-semibold text-primary" style="font-size: 1rem; color: #2e7d32 !important; background: linear-gradient(90deg, #e8f5e9 0%, #fff 100%); display: inline-block; padding: 12px 24px; border-radius: 16px; box-shadow: 0 2px 8px rgba(76,175,80,0.07); animation: fadeInUp 1.2s; line-height: 1.6;">
+      <span style="font-size:1.2em; vertical-align:middle;">🌿</span>
+      <span class="fw-bold text-success">Pure. Trusted. Direct.</span> Experience the true taste of India with spices sourced straight from our partner farmers—100% authentic, chemical-free, and freshly packed to preserve every note of flavor and nutrition. We honor tradition, support healthy living, and promise unwavering quality for your family’s table. <span style="font-size:1.2em; vertical-align:middle;">🤝</span>
+    </h4>
+  </div>
+  <style>
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseGlow {
+      from { filter: drop-shadow(0 0 0px #81c784); }
+      to { filter: drop-shadow(0 0 8px #81c784); }
+    }
+  </style>
+  <h2 class="section-title text-center mb-4">Our Mission & Promise</h2>
+
+  <div id="missionCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel">
+    <div class="carousel-inner rounded shadow-sm overflow-hidden">
+
+      <!-- Slide: Empowering Farmers -->
+      <div class="carousel-item active">
+        <div class="row align-items-center g-0">
+          <div class="col-md-6 p-4 bg-light">
+            <h4 class="fw-bold text-success">Empowering Kerala Farmers</h4>
+            <p class="text-muted">Since 2012, we’ve sourced directly from Kerala, ensuring ethical practices and fair prices for farmers.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/kerala-farmers.jpg') }}" class="img-fluid" alt="Kerala Farmers">
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide: Organic -->
+      <div class="carousel-item">
+        <div class="row align-items-center g-0">
+          <div class="col-md-6 p-4 bg-light">
+            <h4 class="fw-bold text-success">100% Organic Promise</h4>
+            <p class="text-muted">We use no chemicals or preservatives—just nature’s pure goodness in every pack.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/organic.jpg') }}" class="img-fluid" alt="Organic Spices">
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide: Quality -->
+      <div class="carousel-item">
+        <div class="row align-items-center g-0">
+          <div class="col-md-6 p-4 bg-light">
+            <h4 class="fw-bold text-success">Quality Assured</h4>
+            <p class="text-muted">Each batch is tested and certified for international standards to ensure purity and taste.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/quality.jpg') }}" class="img-fluid" alt="Quality Assurance">
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide: Authenticity -->
+      <div class="carousel-item">
+        <div class="row align-items-center g-0">
+          <div class="col-md-6 p-4 bg-light">
+            <h4 class="fw-bold text-success">Truly Authentic</h4>
+            <p class="text-muted">Our spices retain their original flavor, aroma, and tradition. No shortcuts. No compromises.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/authentic.jpg') }}" class="img-fluid" alt="Authentic Spices">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <button class="carousel-control-prev" type="button" data-bs-target="#missionCarousel" data-bs-slide="prev">
+      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#missionCarousel" data-bs-slide="next">
+      <span class="carousel-control-next-icon" aria-hidden="true"></span>
+    </button>
+
+    <!-- Indicators -->
+    <div class="carousel-indicators mt-3">
+      <button type="button" data-bs-target="#missionCarousel" data-bs-slide-to="0" class="active" aria-current="true"></button>
+      <button type="button" data-bs-target="#missionCarousel" data-bs-slide-to="1"></button>
+      <button type="button" data-bs-target="#missionCarousel" data-bs-slide-to="2"></button>
+      <button type="button" data-bs-target="#missionCarousel" data-bs-slide-to="3"></button>
+    </div>
+  </div>
+</section>
+
+<!-- Optional CSS for cleaner transitions -->
+<style>
+  .carousel-inner img {
+    object-fit: cover;
+    height: 100%;
+    width: 100%;
+  }
+  .carousel-indicators button {
+    width: 10px;
+    height: 10px;
+    background-color: #4caf50;
+    border-radius: 50%;
+  }
+</style>

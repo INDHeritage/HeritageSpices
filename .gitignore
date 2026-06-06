@@ -1,0 +1,22 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Databases & local configs
+instance/
+*.db
+*.sqlite
+
+# Temporary / Scratch directories
+scratch/
+.idea/
+.vscode/
+*.log

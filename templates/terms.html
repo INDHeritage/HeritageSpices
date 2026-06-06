@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Terms of Service | Heritage Spices{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="mb-4 text-center">
+    <h1 class="fw-bold text-success"><i class="fas fa-file-contract me-2"></i>Terms of Service</h1>
+    <p class="lead">Please read our terms carefully before using our website or services.</p>
+  </div>
+  <div class="accordion" id="termsAccordion">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingOne">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+          Acceptance of Terms
+        </button>
+      </h2>
+      <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#termsAccordion">
+        <div class="accordion-body">
+          By accessing or using our website, you agree to be bound by these Terms of Service and all applicable laws.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingTwo">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+          Use of Website
+        </button>
+      </h2>
+      <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#termsAccordion">
+        <div class="accordion-body">
+          You may use our website for lawful purposes only. You must not misuse our services or attempt to access restricted areas.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingThree">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+          Intellectual Property
+        </button>
+      </h2>
+      <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#termsAccordion">
+        <div class="accordion-body">
+          All content, trademarks, and logos on this site are the property of Heritage Spices. You may not use them without permission.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingFour">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+          Limitation of Liability
+        </button>
+      </h2>
+      <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#termsAccordion">
+        <div class="accordion-body">
+          We are not liable for any damages arising from the use of our website or products, to the fullest extent permitted by law.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingFive">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+          Changes to Terms
+        </button>
+      </h2>
+      <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#termsAccordion">
+        <div class="accordion-body">
+          We may update these Terms of Service at any time. Changes will be posted on this page.
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingSix">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="false" aria-controls="collapseSix">
+          Contact Us
+        </button>
+      </h2>
+      <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#termsAccordion">
+        <div class="accordion-body">
+          If you have any questions about these terms, please <a href="/contact">contact us</a>.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

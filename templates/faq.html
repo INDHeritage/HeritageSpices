@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}FAQ | Help Center | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- ❓ FAQ Hero Banner -->
+  <div class="faq-hero text-center mb-5 animate__animated animate__fadeIn">
+    <div class="faq-hero-overlay"></div>
+    <div class="faq-hero-content position-relative z-1 py-4">
+      <span class="badge bg-warning text-dark fw-bold mb-2 text-uppercase tracking-wider">Help Center</span>
+      <h1 class="display-4 fw-bold mb-3">Frequently Asked Questions</h1>
+      <p class="lead mx-auto" style="max-width: 600px;">
+        Have questions about our Kerala organic sourcing, delivery timelines, or wholesale partnerships? We've got answers.
+      </p>
+    </div>
+  </div>
+
+  <!-- Accordion Section -->
+  <div class="row justify-content-center mb-5 animate__animated animate__fadeInUp">
+    <div class="col-lg-9">
+      <div class="accordion custom-accordion" id="faqAccordion">
+        
+        <!-- FAQ 1 -->
+        <div class="accordion-item border-0 mb-3 shadow-sm overflow-hidden">
+          <h2 class="accordion-header" id="faqOne">
+            <button class="accordion-button fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqOne" aria-expanded="true" aria-controls="collapseFaqOne">
+              <i class="fas fa-seedling text-success me-2.5"></i> Are your spices really 100% organic and chemical-free?
+            </button>
+          </h2>
+          <div id="collapseFaqOne" class="accordion-collapse collapse show" aria-labelledby="faqOne" data-bs-parent="#faqAccordion">
+            <div class="accordion-body text-muted" style="line-height: 1.6;">
+              Yes, absolutely! All Heritage Spices products are 100% organic, chemical-free, and natural. We source directly from trusted farmers in Kerala who use traditional organic cultivation methods without harmful chemical pesticides, additives, or synthetic preservatives.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="accordion-item border-0 mb-3 shadow-sm overflow-hidden">
+          <h2 class="accordion-header" id="faqTwo">
+            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqTwo" aria-expanded="false" aria-controls="collapseFaqTwo">
+              <i class="fas fa-truck text-success me-2.5"></i> How long does shipping and delivery take?
+            </button>
+          </h2>
+          <div id="collapseFaqTwo" class="accordion-collapse collapse" aria-labelledby="faqTwo" data-bs-parent="#faqAccordion">
+            <div class="accordion-body text-muted" style="line-height: 1.6;">
+              We process and ship all orders within 2 business days of receipt. Depending on your location, shipping standard timelines are:
+              <ul class="mt-2 mb-0">
+                <li><strong>Major Indian Cities:</strong> 3 to 5 business days</li>
+                <li><strong>Regional / Rural Areas:</strong> 5 to 7 business days</li>
+              </ul>
+              Once shipped, you will receive a tracking link via email to monitor your package.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="accordion-item border-0 mb-3 shadow-sm overflow-hidden">
+          <h2 class="accordion-header" id="faqThree">
+            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqThree" aria-expanded="false" aria-controls="collapseFaqThree">
+              <i class="fas fa-handshake text-success me-2.5"></i> Can I order in bulk or apply for wholesale?
+            </button>
+          </h2>
+          <div id="collapseFaqThree" class="accordion-collapse collapse" aria-labelledby="faqThree" data-bs-parent="#faqAccordion">
+            <div class="accordion-body text-muted" style="line-height: 1.6;">
+              Yes! We offer bulk distribution options and wholesale discount pricing for retailers, restaurants, and regional distributors. 
+              Please fill out our <a href="/#wholesale" class="text-success fw-bold text-decoration-none">Wholesale Inquiry Form</a> or reach out directly on our <a href="/contact" class="text-success fw-bold text-decoration-none">Contact Us</a> page. Our distribution team will get back to you within 48 hours.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="accordion-item border-0 mb-3 shadow-sm overflow-hidden">
+          <h2 class="accordion-header" id="faqFour">
+            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqFour" aria-expanded="false" aria-controls="collapseFaqFour">
+              <i class="fas fa-mortar-pestle text-success me-2.5"></i> How do I store Heritage Spices for maximum freshness?
+            </button>
+          </h2>
+          <div id="collapseFaqFour" class="accordion-collapse collapse" aria-labelledby="faqFour" data-bs-parent="#faqAccordion">
+            <div class="accordion-body text-muted" style="line-height: 1.6;">
+              To protect the volatile natural essential oils and aromas:
+              <ul class="mt-2 mb-0">
+                <li>Store spices in a cool, dry, and hygienic place away from direct sunlight or heat sources.</li>
+                <li>Ensure the pouch is tightly resealed after every use, or transfer spices into airtight glass/ceramic containers.</li>
+                <li>Avoid using wet spoons to scoop spices as moisture can trigger spoilage.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 🎨 Stylesheet for Premium FAQ Layout -->
+<style>
+  /* FAQ Hero */
+  .faq-hero {
+    background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 60%, #4caf50 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 3.5rem 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(27, 94, 32, 0.12);
+  }
+  .faq-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at 80% 80%, rgba(255, 235, 59, 0.15) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .faq-hero .lead {
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Custom Accordion */
+  .custom-accordion .accordion-item {
+    border-radius: 12px !important;
+    background: #ffffff;
+    transition: all 0.25s ease;
+  }
+  .custom-accordion .accordion-item:hover {
+    box-shadow: 0 8px 20px rgba(46, 125, 50, 0.08) !important;
+  }
+  
+  .custom-accordion .accordion-button {
+    background: #ffffff;
+    color: #333;
+    padding: 1.2rem 1.5rem;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease;
+  }
+  .custom-accordion .accordion-button:not(.collapsed) {
+    background-color: #e8f5e9;
+    color: #1b5e20;
+    border-left: 4px solid #2e7d32;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+  
+  .custom-accordion .accordion-button::after {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%232b2b2b'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    transition: transform 0.2s ease;
+  }
+  
+  .custom-accordion .accordion-button:not(.collapsed)::after {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%231b5e20'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    transform: rotate(-180deg);
+  }
+
+  .custom-accordion .accordion-body {
+    padding: 1.5rem;
+    background: #ffffff;
+    border-top: 1px solid #f1f3f5;
+  }
+  
+  .tracking-wider {
+    letter-spacing: 1px;
+  }
+</style>
+{% endblock %}

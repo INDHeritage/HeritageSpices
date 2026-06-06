@@ -1,0 +1,29 @@
+[
+  {
+    "id": "heritage-spice-history",
+    "title": "The Healing Power of Heritage Spices",
+    "slug": "heritage-spice-history",
+    "author": "Team Heritage",
+    "category": "Wellness",
+    "date": "2025-06-30",
+    "content": "<div style=\"font-family: 'Segoe UI', 'Noto Sans', sans-serif; line-height: 1.7; font-size: 1.05rem; color: #333;\"><h2>Ã°ÂÂÂ¿ Spices of India: Ancient Wisdom in Every Pinch</h2><p>Ã¢ÂÂLet food be thy medicine, and medicine be thy food.Ã¢ÂÂ Ã¢ÂÂ Hippocrates<br>But in IndiaÃ¢ÂÂ¦ we took that to heart thousands of years ago.</p>...</div>"
+  },
+  {
+    "id": "1",
+    "title": "How to Use Garam Masala in Everyday Cooking",
+    "slug": "use-garam-masala-everyday",
+    "author": "Team Heritage",
+    "category": "Cooking Tips",
+    "date": "June 25, 2025",
+    "content": "<p>Garam masala adds rich aroma and warmth to Indian curries, soups, and even roasted vegetables. Just sprinkle a teaspoon near the end of cooking for best flavor.</p><p>You can also use it in lentils, scrambled eggs, or even roasted nuts.</p>"
+  },
+  {
+    "id": "2",
+    "title": "5 Homemade Spice Mixes You Can Make at Home",
+    "slug": "homemade-spice-mixes",
+    "author": "Chef Meera",
+    "category": "DIY Recipes",
+    "date": "June 20, 2025",
+    "content": "<p>Want to skip the store? Try mixing your own chaat masala, pav bhaji masala, or sambar powder with fresh ground spices.</p><p>Store them in airtight jars and enjoy real flavor!</p>"
+  }
+]
