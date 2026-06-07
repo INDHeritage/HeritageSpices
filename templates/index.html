@@ -19,8 +19,6 @@
 <!-- 📦 Wholesale Section -->
 {% include "partials/wholesale.html" %}
 
-<!-- 🧠 Fun Quiz Modal -->
-{% include "partials/quiz_modal.html" %}
 
 <!-- 💬 WhatsApp Button (Login Required) -->
 {# <a href="https://wa.me/918999449765" target="_blank" class="whatsapp-float login-required" title="Chat with us on WhatsApp">
@@ -53,13 +51,13 @@
     }
     */
 
-    // 🌶️ Masala Burst Animation on Load
-    for (let i = 0; i < 10; i++) {
+    // 🌶️ Masala Burst Animation on Load (spawns instantly for a fast, punchy loading feel)
+    for (let i = 0; i < 15; i++) {
       setTimeout(() => {
         const x = Math.random() * window.innerWidth;
         const y = Math.random() * window.innerHeight;
         spawnBurst(x, y);
-      }, i * 100);
+      }, i * 20);
     }
 
     // 🌶️ Masala Burst on Click
@@ -78,36 +76,6 @@
       setTimeout(() => el.remove(), 700);
     }
 
-    // 🧠 Auto-Launch Quiz (only once per session)
-    setTimeout(() => {
-      if (!sessionStorage.getItem("quizShown") && Math.random() < 0.7) {
-        const quiz = new bootstrap.Modal(document.getElementById("quizModal"));
-        quiz.show();
-        sessionStorage.setItem("quizShown", "true");
-      }
-    }, 25000);
-
-    // 🎯 Quiz Answer Handler
-    document.getElementById("submitAnswer")?.addEventListener("click", () => {
-      const selected = document.querySelector('input[name="interest"]:checked');
-      const feedback = document.getElementById("quiz-feedback");
-
-      if (!selected) {
-        feedback.textContent = "⚠️ Please select an answer first!";
-        feedback.style.color = "red";
-        return;
-      }
-
-      const correct = selected.value === "Turmeric";
-      feedback.textContent = correct
-        ? "✅ Correct! Turmeric contains curcumin, a powerful antioxidant."
-        : "❌ Not quite. The correct answer is Turmeric due to curcumin.";
-      feedback.style.color = correct ? "green" : "orange";
-
-      setTimeout(() => {
-        bootstrap.Modal.getInstance(document.getElementById("quizModal")).hide();
-      }, 3000);
-    });
 
     // 🔐 Enforce Login on Clicks
     document.querySelectorAll(".login-required").forEach((link) => {

@@ -20,3 +20,6 @@ scratch/
 .idea/
 .vscode/
 *.log
+
+# Build archives
+dist.zip

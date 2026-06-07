@@ -252,6 +252,10 @@ def contact():
 def ads_txt():
     return send_from_directory('static', 'ads.txt')
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static/images', 'favicon.png', mimetype='image/png')
+
 @app.route('/robots.txt')
 def robots():
     return (

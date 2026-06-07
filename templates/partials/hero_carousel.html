@@ -142,25 +142,41 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!video) return;
 
   const carouselEl = document.getElementById('heroCarousel');
-  const carousel = new bootstrap.Carousel(carouselEl, { ride: false }); 
+  
+  // Initialize Carousel with autoplay for the images
+  const carousel = new bootstrap.Carousel(carouselEl, { 
+    interval: 5000, // 5 seconds per image slide
+    ride: 'carousel',
+    wrap: true
+  }); 
 
   // Check if the user has already seen the cinematic intro.
-  // We use localStorage so it only happens ONCE for a new user ever.
   const hasSeenIntro = localStorage.getItem('hasSeenCinematicIntro') === 'true';
-
   let isFinished = hasSeenIntro || window.scrollY > 50;
-  
-  if (isFinished) {
-    // If returning user or already scrolled down, don't trap them.
-    // Ensure the video plays normally or is skipped, and carousel cycles normally.
+
+  if (!isFinished) {
+    // Pause carousel to let them scroll-play the video on first load
+    carousel.pause();
+  } else {
     video.play().catch(()=>{});
     carousel.cycle();
-    return;
   }
 
   let scrollTimeout;
 
   const handleScroll = (e) => {
+    // Check if the scroll event is over the carousel
+    const isOverCarousel = e.target.closest('#heroCarousel') !== null;
+
+    if (!isOverCarousel) {
+      // If they scroll on the side of the page, let the page scroll down normally
+      if (!isFinished) {
+        isFinished = true;
+        carousel.cycle();
+      }
+      return;
+    }
+
     if (isFinished) return; 
 
     const activeSlide = carouselEl.querySelector('.carousel-item.active');
@@ -168,19 +184,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!isFirstSlide) {
       isFinished = true;
+      carousel.cycle();
       return;
     }
 
     const isScrollAttempt = e.type === 'wheel' ? e.deltaY > 0 : true;
 
     if (isScrollAttempt) {
-      // Play video while actively scrolling
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => { isFinished = true; });
       }
 
-      // Stop video shortly after scrolling stops
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         if (!isFinished) {
@@ -189,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 150);
     }
 
-    // Lock screen while video is not finished
+    // Trap scroll only when over the carousel and video is not finished
     if (!isFinished) {
       e.preventDefault();
       e.stopPropagation();
@@ -202,6 +217,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   window.addEventListener('keydown', (e) => {
     if (isFinished) return;
+    const isOverCarousel = document.activeElement && document.activeElement.closest('#heroCarousel');
+    if (!isOverCarousel && window.scrollY > 100) return; // Only trap keys if near the top
+
     if (['ArrowDown', 'PageDown', 'Space'].includes(e.code)) {
       video.play().catch(()=>{ isFinished = true; });
       
@@ -217,11 +235,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, { passive: false });
 
+  // When the video ends, transition to the next slide and start auto-cycling
   video.addEventListener('ended', () => {
     isFinished = true;
     localStorage.setItem('hasSeenCinematicIntro', 'true');
-    carousel.cycle();
-    window.scrollBy({ top: 150, behavior: 'smooth' });
+    carousel.next(); // Go to slide 2
+    carousel.cycle(); // Resume auto-cycling
+  });
+
+  // Listen for slide transitions to control video play and carousel pause/resume
+  carouselEl.addEventListener('slid.bs.carousel', (e) => {
+    const activeItem = e.relatedTarget;
+    const activeVideo = activeItem.querySelector('#heroCinematicVideo');
+    
+    if (activeVideo) {
+      // We cycled back to the video slide!
+      carousel.pause(); // Pause autoplay so the video can play in full
+      activeVideo.currentTime = 0;
+      activeVideo.play().catch(()=>{});
+    }
   });
 });
 </script>
