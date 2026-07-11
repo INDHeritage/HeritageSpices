@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}Science Hub | Heritage Spices{% endblock %}
+
+{% block content %}
+<!-- Include Razorpay Checkout script -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<div class="container py-5">
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <h1 class="display-4 fw-bold text-success mb-3"><i class="fas fa-flask"></i> Science Hub</h1>
+            <p class="lead text-muted">Premium Class 10 Science Notes — Unlock your full potential with structured, easy-to-understand study materials.</p>
+        </div>
+    </div>
+
+    <!-- Check Digital Access -->
+    {% if has_digital_access %}
+    <div class="alert alert-success text-center mb-5 shadow-sm">
+        <h4 class="alert-heading fw-bold mb-2"><i class="fas fa-check-circle"></i> You Have Digital Access!</h4>
+        <p class="mb-0">You've successfully purchased the online notes.</p>
+        <hr>
+        <a href="/science-hub/viewer" class="btn btn-success fw-bold px-4 py-2"><i class="fas fa-book-open"></i> Open Notes Viewer</a>
+    </div>
+    {% endif %}
+
+    <div class="row g-4 justify-content-center">
+        <!-- Digital Access Card -->
+        <div class="col-lg-5">
+            <div class="card h-100 shadow border-0" style="border-radius: 15px; overflow: hidden; background: linear-gradient(145deg, #ffffff, #f8f9fa);">
+                <div class="card-header bg-primary text-white text-center py-4 border-0">
+                    <h3 class="mb-0"><i class="fas fa-laptop-code mb-2 fa-2x"></i><br>Online Access</h3>
+                </div>
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="text-center mb-4">
+                        <span class="fs-1 fw-bold text-primary" id="digital-price">₹100</span>
+                        <span class="text-muted d-block" id="digital-original-price">Regular Price</span>
+                    </div>
+                    
+                    <ul class="list-unstyled mb-4 text-secondary">
+                        <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Instant Access</li>
+                        <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> All 150 Pages</li>
+                        <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Secure Web Viewer</li>
+                        <li class="mb-2 text-danger"><i class="fas fa-times me-2"></i> No Download/Print</li>
+                    </ul>
+
+                    <div class="mt-auto">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="digital-upper-id" placeholder="Upper ID (Optional)">
+                            <button class="btn btn-outline-primary" type="button" onclick="validateUpperId('digital')">Apply</button>
+                        </div>
+                        <div id="digital-msg" class="small mb-3"></div>
+                        
+                        {% if not is_logged_in %}
+                        <button class="btn btn-primary w-100 py-2 fw-bold" onclick="alert('Please login first to purchase.')"><i class="fas fa-lock me-2"></i>Login to Purchase</button>
+                        {% elif has_digital_access %}
+                        <button class="btn btn-secondary w-100 py-2 fw-bold" disabled>Already Purchased</button>
+                        {% else %}
+                        <button class="btn btn-primary w-100 py-2 fw-bold" id="btn-buy-digital" onclick="initiateCheckout('digital')"><i class="fas fa-shopping-cart me-2"></i>Buy Now</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Physical Book Card -->
+        <div class="col-lg-5">
+            <div class="card h-100 shadow border-0" style="border-radius: 15px; overflow: hidden; background: linear-gradient(145deg, #ffffff, #f8f9fa);">
+                <div class="card-header bg-success text-white text-center py-4 border-0">
+                    <h3 class="mb-0"><i class="fas fa-book mb-2 fa-2x"></i><br>Physical Book</h3>
+                </div>
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="text-center mb-4">
+                        <span class="fs-1 fw-bold text-success" id="physical-price">₹350</span>
+                        <span class="text-muted d-block" id="physical-original-price">Regular Price</span>
+                    </div>
+                    
+                    <ul class="list-unstyled mb-4 text-secondary">
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i> High Quality Print</li>
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Spiral Bound</li>
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Home Delivery</li>
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Best for offline study</li>
+                    </ul>
+
+                    <!-- Delivery Details Form -->
+                    <div id="delivery-form" class="mb-3 d-none p-3 bg-light rounded border border-success">
+                        <h6 class="text-success fw-bold mb-3"><i class="fas fa-truck me-2"></i>Delivery Details</h6>
+                        <input type="text" id="dlv-name" class="form-control form-control-sm mb-2" placeholder="Full Name">
+                        <input type="tel" id="dlv-phone" class="form-control form-control-sm mb-2" placeholder="Phone Number">
+                        <textarea id="dlv-address" class="form-control form-control-sm mb-2" placeholder="Complete Address" rows="2"></textarea>
+                        <input type="text" id="dlv-pincode" class="form-control form-control-sm" placeholder="PIN Code">
+                    </div>
+
+                    <div class="mt-auto">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="physical-upper-id" placeholder="Upper ID (Optional)">
+                            <button class="btn btn-outline-success" type="button" onclick="validateUpperId('physical')">Apply</button>
+                        </div>
+                        <div id="physical-msg" class="small mb-3"></div>
+
+                        {% if not is_logged_in %}
+                        <button class="btn btn-success w-100 py-2 fw-bold" onclick="alert('Please login first to purchase.')"><i class="fas fa-lock me-2"></i>Login to Purchase</button>
+                        {% else %}
+                        <button class="btn btn-success w-100 py-2 fw-bold" id="btn-buy-physical" onclick="showDeliveryForm()"><i class="fas fa-shopping-cart me-2"></i>Buy Now</button>
+                        <button class="btn btn-success w-100 py-2 fw-bold d-none" id="btn-confirm-physical" onclick="initiateCheckout('physical')"><i class="fas fa-credit-card me-2"></i>Proceed to Payment</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State variables
+    let currentPrices = {
+        'digital': 100,
+        'physical': 350
+    };
+    let validatedUpperIds = {
+        'digital': null,
+        'physical': null
+    };
+
+    function validateUpperId(type) {
+        const inputEl = document.getElementById(`${type}-upper-id`);
+        const code = inputEl.value.trim();
+        const msgEl = document.getElementById(`${type}-msg`);
+        
+        if (!code) {
+            msgEl.innerHTML = '<span class="text-danger">Please enter an Upper ID</span>';
+            return;
+        }
+
+        msgEl.innerHTML = '<span class="text-muted"><i class="fas fa-spinner fa-spin"></i> Validating...</span>';
+
+        fetch('/science-hub/validate-upper-id', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ code: code, product_type: type })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.valid) {
+                msgEl.innerHTML = `<span class="text-success fw-bold"><i class="fas fa-check-circle"></i> ${data.message}</span>`;
+                document.getElementById(`${type}-price`).innerText = `₹${data.price}`;
+                document.getElementById(`${type}-original-price`).innerText = 'Tuition Student Discount Applied!';
+                currentPrices[type] = data.price;
+                validatedUpperIds[type] = code;
+                inputEl.disabled = true;
+            } else {
+                msgEl.innerHTML = `<span class="text-danger fw-bold"><i class="fas fa-times-circle"></i> ${data.message}</span>`;
+                validatedUpperIds[type] = null;
+            }
+        })
+        .catch(err => {
+            msgEl.innerHTML = '<span class="text-danger">Error validating code. Try again.</span>';
+        });
+    }
+
+    function showDeliveryForm() {
+        document.getElementById('delivery-form').classList.remove('d-none');
+        document.getElementById('btn-buy-physical').classList.add('d-none');
+        document.getElementById('btn-confirm-physical').classList.remove('d-none');
+    }
+
+    function initiateCheckout(type) {
+        const btnId = type === 'digital' ? 'btn-buy-digital' : 'btn-confirm-physical';
+        const btn = document.getElementById(btnId);
+        
+        // Validation for physical
+        let deliveryData = {};
+        if (type === 'physical') {
+            deliveryData = {
+                full_name: document.getElementById('dlv-name').value.trim(),
+                phone: document.getElementById('dlv-phone').value.trim(),
+                address: document.getElementById('dlv-address').value.trim(),
+                pincode: document.getElementById('dlv-pincode').value.trim()
+            };
+            
+            if (!deliveryData.full_name || !deliveryData.phone || !deliveryData.address || !deliveryData.pincode) {
+                alert("Please fill all delivery details!");
+                return;
+            }
+        }
+
+        const originalBtnHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        btn.disabled = true;
+
+        const payload = {
+            product_type: type,
+            upper_id: validatedUpperIds[type],
+            ...deliveryData
+        };
+
+        fetch('/science-hub/create-order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert("Error: " + data.error);
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
+                return;
+            }
+
+            // Launch Razorpay Checkout
+            var options = {
+                "key": data.key, 
+                "amount": data.amount, 
+                "currency": data.currency,
+                "name": "Heritage Spices",
+                "description": type === 'digital' ? "Science Notes (Online)" : "Science Notes (Physical)",
+                "image": "https://indianheritagespices.com/static/images/favicon.png",
+                "order_id": data.order_id,
+                "handler": function (response){
+                    // Verify payment
+                    verifyPayment(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature, type);
+                },
+                "prefill": {
+                    "name": "{{ user.name if user else '' }}",
+                    "email": "{{ user.email if user else '' }}"
+                },
+                "theme": {
+                    "color": "#198754"
+                },
+                "modal": {
+                    "ondismiss": function(){
+                        btn.innerHTML = originalBtnHtml;
+                        btn.disabled = false;
+                    }
+                }
+            };
+            var rzp = new Razorpay(options);
+            rzp.on('payment.failed', function (response){
+                alert("Payment Failed: " + response.error.description);
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
+            });
+            rzp.open();
+        })
+        .catch(err => {
+            alert("Network error occurred.");
+            btn.innerHTML = originalBtnHtml;
+            btn.disabled = false;
+        });
+    }
+
+    function verifyPayment(payment_id, order_id, signature, type) {
+        fetch('/science-hub/verify-payment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                razorpay_payment_id: payment_id,
+                razorpay_order_id: order_id,
+                razorpay_signature: signature
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                if (type === 'digital') {
+                    window.location.href = '/science-hub/viewer';
+                } else {
+                    alert("Payment successful! Your physical book order is placed.");
+                    window.location.reload();
+                }
+            } else {
+                alert("Payment verification failed: " + data.error);
+            }
+        })
+        .catch(err => alert("Verification error"));
+    }
+</script>
+{% endblock %}

@@ -16,6 +16,9 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
 from flask_wtf import CSRFProtect
+import razorpay
+import hmac
+import hashlib
 
 # -------------------------
 # 🔐 Load environment
@@ -108,6 +111,38 @@ class CustomerDetail(db.Model):
     location = db.Column(db.String(200))
     interest = db.Column(db.String(200))
 
+# --- Upper ID Model (Tuition Student Codes) ---
+class UpperID(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    student_name = db.Column(db.String(200))
+    has_used_digital_offer = db.Column(db.Boolean, default=False)
+    has_used_physical_offer = db.Column(db.Boolean, default=False)
+
+# --- Science Hub Order Model ---
+class ScienceOrder(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(200), nullable=False)
+    product_type = db.Column(db.String(20))  # 'digital' or 'physical'
+    amount = db.Column(db.Integer, nullable=False)  # in paise
+    upper_id_used = db.Column(db.String(50), nullable=True)
+    razorpay_order_id = db.Column(db.String(100))
+    razorpay_payment_id = db.Column(db.String(100))
+    payment_status = db.Column(db.String(20), default='pending')
+    # Physical book delivery fields
+    full_name = db.Column(db.String(200))
+    phone = db.Column(db.String(20))
+    address = db.Column(db.Text)
+    pincode = db.Column(db.String(10))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# --- Digital Access Model ---
+class DigitalAccess(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(200), nullable=False)
+    access_token = db.Column(db.String(100), unique=True, nullable=False)
+    granted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 # --- DB Initialization Command ---
 @app.cli.command("init-db")
 def init_db():
@@ -132,6 +167,13 @@ google = oauth.register(
         'prompt': 'select_account'
     }
 )
+
+# -------------------------
+# 💳 Razorpay Config
+# -------------------------
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)) if RAZORPAY_KEY_ID else None
 
 # -------------------------
 # 📦 Helper Functions
@@ -642,6 +684,226 @@ def refund():
 def faq():
     return render_template('faq.html')
 
+
+# -------------------------
+# 🔬 Science Hub Routes
+# -------------------------
+
+@app.route('/science-hub')
+def science_hub():
+    user = session.get('user')
+    is_logged_in = bool(user)
+    
+    # Check if user already has digital access
+    has_digital_access = False
+    if is_logged_in:
+        has_digital_access = DigitalAccess.query.filter_by(user_email=user['email']).first() is not None
+
+    return render_template('science_hub.html', user=user, is_logged_in=is_logged_in, has_digital_access=has_digital_access, razorpay_key_id=RAZORPAY_KEY_ID)
+
+@app.route('/science-hub/validate-upper-id', methods=['POST'])
+def validate_upper_id():
+    data = request.json
+    code = data.get('code')
+    product_type = data.get('product_type')  # 'digital' or 'physical'
+
+    if not code:
+        return jsonify({'valid': False, 'message': 'Please enter an Upper ID'})
+
+    upper_id = UpperID.query.filter_by(code=code).first()
+    
+    if not upper_id:
+        return jsonify({'valid': False, 'message': 'Invalid Upper ID'})
+
+    if product_type == 'digital':
+        if upper_id.has_used_digital_offer:
+            return jsonify({'valid': False, 'message': 'This Upper ID has already been used for the Digital offer.'})
+        return jsonify({'valid': True, 'price': 40, 'message': f'Offer applied for {upper_id.student_name}!'})
+    
+    elif product_type == 'physical':
+        if upper_id.has_used_physical_offer:
+            return jsonify({'valid': False, 'message': 'This Upper ID has already been used for the Physical Book offer.'})
+        return jsonify({'valid': True, 'price': 250, 'message': f'Offer applied for {upper_id.student_name}!'})
+    
+    return jsonify({'valid': False, 'message': 'Invalid product type'})
+
+@app.route('/science-hub/create-order', methods=['POST'])
+def create_science_order():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    data = request.json
+    product_type = data.get('product_type')
+    upper_id_code = data.get('upper_id')
+    
+    # Determine price
+    amount_inr = 100 if product_type == 'digital' else 350
+    
+    if upper_id_code:
+        upper_id = UpperID.query.filter_by(code=upper_id_code).first()
+        if upper_id:
+            if product_type == 'digital' and not upper_id.has_used_digital_offer:
+                amount_inr = 40
+            elif product_type == 'physical' and not upper_id.has_used_physical_offer:
+                amount_inr = 250
+    
+    amount_paise = amount_inr * 100
+    
+    if not razorpay_client:
+        return jsonify({'error': 'Razorpay not configured on server'}), 500
+        
+    try:
+        # Create Razorpay order
+        order_data = {
+            'amount': amount_paise,
+            'currency': 'INR',
+            'receipt': f'receipt_{uuid.uuid4().hex[:10]}',
+            'payment_capture': 1
+        }
+        rzp_order = razorpay_client.order.create(data=order_data)
+        
+        # Save order in DB
+        new_order = ScienceOrder(
+            user_email=user['email'],
+            product_type=product_type,
+            amount=amount_paise,
+            upper_id_used=upper_id_code,
+            razorpay_order_id=rzp_order['id'],
+            full_name=data.get('full_name'),
+            phone=data.get('phone'),
+            address=data.get('address'),
+            pincode=data.get('pincode')
+        )
+        db.session.add(new_order)
+        db.session.commit()
+        
+        return jsonify({'order_id': rzp_order['id'], 'amount': amount_paise, 'currency': 'INR', 'key': RAZORPAY_KEY_ID})
+        
+    except Exception as e:
+        print("Error creating order:", e)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/science-hub/verify-payment', methods=['POST'])
+def verify_science_payment():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.json
+    razorpay_payment_id = data.get('razorpay_payment_id')
+    razorpay_order_id = data.get('razorpay_order_id')
+    razorpay_signature = data.get('razorpay_signature')
+    
+    if not all([razorpay_payment_id, razorpay_order_id, razorpay_signature]):
+        return jsonify({'error': 'Missing payment details'}), 400
+        
+    try:
+        # Verify signature
+        razorpay_client.utility.verify_payment_signature({
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        })
+        
+        # Signature is valid. Update order status
+        order = ScienceOrder.query.filter_by(razorpay_order_id=razorpay_order_id).first()
+        if not order:
+            return jsonify({'error': 'Order not found'}), 404
+            
+        order.payment_status = 'paid'
+        order.razorpay_payment_id = razorpay_payment_id
+        
+        # Mark Upper ID as used if applicable
+        if order.upper_id_used:
+            upper_id = UpperID.query.filter_by(code=order.upper_id_used).first()
+            if upper_id:
+                if order.product_type == 'digital':
+                    upper_id.has_used_digital_offer = True
+                elif order.product_type == 'physical':
+                    upper_id.has_used_physical_offer = True
+                    
+        # Grant Digital Access if applicable
+        if order.product_type == 'digital':
+            access = DigitalAccess(
+                user_email=user['email'],
+                access_token=uuid.uuid4().hex
+            )
+            db.session.add(access)
+            
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Payment successful!'})
+        
+    except razorpay.errors.SignatureVerificationError:
+        return jsonify({'error': 'Invalid signature'}), 400
+    except Exception as e:
+        print("Payment verification error:", e)
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/science-hub/viewer')
+def science_viewer():
+    user = session.get('user')
+    if not user:
+        flash("Please login to view notes.", "warning")
+        return redirect('/science-hub')
+        
+    # Check access
+    access = DigitalAccess.query.filter_by(user_email=user['email']).first()
+    if not access:
+        flash("You do not have access to the Science Notes. Please purchase the Online Access.", "danger")
+        return redirect('/science-hub')
+        
+    return render_template('science_viewer.html', user=user, total_pages=150) # Assuming 150 pages as discussed
+
+@app.route('/admin/science-hub', methods=['GET', 'POST'])
+@admin_required
+def admin_science_hub():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'add_id':
+            code = request.form.get('code')
+            student_name = request.form.get('student_name')
+            if code and student_name:
+                existing = UpperID.query.filter_by(code=code).first()
+                if not existing:
+                    new_id = UpperID(code=code, student_name=student_name)
+                    db.session.add(new_id)
+                    db.session.commit()
+                    flash("Upper ID added successfully", "success")
+                else:
+                    flash("Upper ID already exists", "danger")
+        elif action == 'delete_id':
+            id_to_delete = request.form.get('id')
+            upper_id = UpperID.query.get(id_to_delete)
+            if upper_id:
+                db.session.delete(upper_id)
+                db.session.commit()
+                flash("Upper ID deleted", "success")
+
+    upper_ids = UpperID.query.all()
+    orders = ScienceOrder.query.order_by(ScienceOrder.created_at.desc()).all()
+    access_grants = DigitalAccess.query.order_by(DigitalAccess.granted_at.desc()).all()
+    
+    return render_template('admin_science_hub.html', upper_ids=upper_ids, orders=orders, access_grants=access_grants)
+
+@app.route('/api/notes/<int:page_num>')
+def get_notes_page(page_num):
+    # This route serves the protected notes pages (images)
+    # Only accessible to logged in users with DigitalAccess
+    user = session.get('user')
+    if not user:
+        abort(401)
+    
+    access = DigitalAccess.query.filter_by(user_email=user['email']).first()
+    if not access:
+        abort(403)
+        
+    # Securely send the image. For now, assuming they are stored in static/notes/
+    # If using Google Drive, this would act as a proxy.
+    try:
+        return send_from_directory('static/notes', f'page_{page_num}.png')
+    except Exception:
+        abort(404)
 
 @app.template_filter()
 def truncate(s, length=100):

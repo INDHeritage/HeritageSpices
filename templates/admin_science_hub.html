@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Science Hub Admin | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-success fw-bold"><i class="fas fa-flask me-2"></i>Science Hub Admin</h1>
+        <a href="/admin/dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
+    </div>
+
+    <!-- Add Upper ID -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-primary text-white fw-bold">
+            <i class="fas fa-plus-circle me-2"></i>Add Tuition Student Upper ID
+        </div>
+        <div class="card-body">
+            <form method="POST" action="/admin/science-hub" class="row g-3 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add_id">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Upper ID (Code)</label>
+                    <input type="text" name="code" class="form-control" placeholder="e.g. UPPER-2025-001" required>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label fw-bold">Student Name</label>
+                    <input type="text" name="student_name" class="form-control" placeholder="Student Full Name" required>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-success w-100"><i class="fas fa-save me-2"></i>Add ID</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- List Upper IDs -->
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-header bg-dark text-white fw-bold">
+            <i class="fas fa-list me-2"></i>Registered Upper IDs
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code</th>
+                            <th>Student Name</th>
+                            <th>Digital Offer Used</th>
+                            <th>Physical Offer Used</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for uid in upper_ids %}
+                        <tr>
+                            <td><span class="badge bg-secondary font-monospace fs-6">{{ uid.code }}</span></td>
+                            <td>{{ uid.student_name }}</td>
+                            <td>
+                                {% if uid.has_used_digital_offer %}
+                                <span class="badge bg-danger">Used</span>
+                                {% else %}
+                                <span class="badge bg-success">Available</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if uid.has_used_physical_offer %}
+                                <span class="badge bg-danger">Used</span>
+                                {% else %}
+                                <span class="badge bg-success">Available</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="/admin/science-hub" onsubmit="return confirm('Are you sure you want to delete this Upper ID?');" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="delete_id">
+                                    <input type="hidden" name="id" value="{{ uid.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">No Upper IDs found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- List Orders -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-success text-white fw-bold">
+                    <i class="fas fa-shopping-cart me-2"></i>Recent Orders
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Email</th>
+                                    <th>Product</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                <tr>
+                                    <td><small>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                                    <td>{{ order.user_email }}
+                                        {% if order.upper_id_used %}<br><small class="text-muted">ID: {{ order.upper_id_used }}</small>{% endif %}
+                                        {% if order.product_type == 'physical' %}<br><small class="text-primary">{{ order.full_name }} | {{ order.phone }}</small>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if order.product_type == 'digital' %}
+                                        <span class="badge bg-primary">Online Access</span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark">Physical Book</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>₹{{ order.amount // 100 }}</td>
+                                    <td>
+                                        {% if order.payment_status == 'paid' %}
+                                        <span class="badge bg-success">Paid</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="text-center text-muted py-3">No orders yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- List Digital Access -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-info text-white fw-bold">
+                    <i class="fas fa-key me-2"></i>Active Digital Access
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for access in access_grants %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ access.user_email }}</strong><br>
+                                <small class="text-muted">Granted: {{ access.granted_at.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <i class="fas fa-check-circle text-success"></i>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-center text-muted py-3">No digital access granted yet.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Class 10 Science Notes | Heritage Spices{% endblock %}
+
+{% block content %}
+<style>
+    /* ANTI-PIRACY MEASURES */
+    @media print {
+        body { 
+            display: none !important; 
+        }
+    }
+    
+    body {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+
+    /* Watermark container */
+    #viewer-container {
+        position: relative;
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+        background: #f8f9fa;
+        min-height: 80vh;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+    }
+
+    #page-canvas {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+        /* Image is rendered on canvas, not as an <img> tag */
+    }
+
+    #watermark-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none; /* Let clicks pass through to canvas/buttons */
+        z-index: 10;
+        overflow: hidden;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-content: center;
+        opacity: 0.15; /* Subtle enough to read, visible enough to ruin screenshots */
+    }
+
+    .watermark-text {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #000;
+        transform: rotate(-30deg);
+        margin: 20px 40px;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="container-fluid py-3 bg-dark text-white">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="fas fa-lock text-success me-2"></i>Secure Notes Viewer</h5>
+        <div>
+            <a href="/science-hub" class="btn btn-sm btn-outline-light"><i class="fas fa-times me-1"></i>Close</a>
+        </div>
+    </div>
+</div>
+
+<div class="container py-4">
+    <!-- Controls Top -->
+    <div class="d-flex justify-content-center align-items-center mb-3 gap-3">
+        <button class="btn btn-primary" id="btn-prev" onclick="changePage(-1)" disabled><i class="fas fa-chevron-left me-1"></i> Prev</button>
+        <span class="fw-bold fs-5">Page <span id="current-page">1</span> of {{ total_pages }}</span>
+        <button class="btn btn-primary" id="btn-next" onclick="changePage(1)">Next <i class="fas fa-chevron-right ms-1"></i></button>
+    </div>
+
+    <!-- Viewer -->
+    <div id="viewer-container">
+        <!-- The Watermark -->
+        <div id="watermark-overlay">
+            <!-- JavaScript will populate this -->
+        </div>
+
+        <!-- The Canvas -->
+        <canvas id="page-canvas"></canvas>
+        
+        <!-- Loading overlay -->
+        <div id="loading-overlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white" style="z-index: 5;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls Bottom -->
+    <div class="d-flex justify-content-center align-items-center mt-3 gap-3">
+        <button class="btn btn-primary" id="btn-prev-btm" onclick="changePage(-1)" disabled><i class="fas fa-chevron-left me-1"></i> Prev</button>
+        <input type="number" id="page-jump" class="form-control text-center" style="width: 70px;" min="1" max="{{ total_pages }}" value="1" onchange="jumpToPage(this.value)">
+        <button class="btn btn-primary" id="btn-next-btm" onclick="changePage(1)">Next <i class="fas fa-chevron-right ms-1"></i></button>
+    </div>
+</div>
+
+<!-- ANTI-PIRACY SCRIPTS -->
+<script>
+    // 1. Disable Right Click
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // 2. Disable Keyboard Shortcuts (Ctrl+S, Ctrl+P, F12, Ctrl+U)
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && (e.key === 'p' || e.key === 'P' || e.key === 's' || e.key === 'S' || e.key === 'u' || e.key === 'U')) { 
+            e.preventDefault(); 
+        }
+        if (e.key === 'F12') { 
+            e.preventDefault(); 
+        }
+    });
+
+    // 3. Setup Watermark
+    function setupWatermark() {
+        const overlay = document.getElementById('watermark-overlay');
+        const identifier = "{{ user.email }}"; // Could add phone here if available
+        let html = '';
+        // Generate enough text to cover the screen
+        for(let i=0; i<30; i++) {
+            html += `<div class="watermark-text">${identifier}</div>`;
+        }
+        overlay.innerHTML = html;
+    }
+
+    // 4. Page Rendering Logic
+    let currentPage = 1;
+    const totalPages = parseInt("{{ total_pages }}") || 150;
+    const canvas = document.getElementById('page-canvas');
+    const ctx = canvas.getContext('2d');
+    const loadingOverlay = document.getElementById('loading-overlay');
+
+    function renderPage(pageNum) {
+        loadingOverlay.classList.remove('d-none');
+        
+        // Fetch image through secure route
+        const img = new Image();
+        img.onload = function() {
+            // Match canvas size to image size
+            canvas.width = img.width;
+            canvas.height = img.height;
+            // Draw image on canvas
+            ctx.drawImage(img, 0, 0);
+            loadingOverlay.classList.add('d-none');
+        };
+        img.onerror = function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = "30px Arial";
+            ctx.fillStyle = "red";
+            ctx.textAlign = "center";
+            ctx.fillText("Failed to load page " + pageNum, canvas.width/2, canvas.height/2);
+            loadingOverlay.classList.add('d-none');
+        }
+        
+        // Anti-cache string to ensure fresh load through proxy
+        img.src = `/api/notes/${pageNum}?t=${new Date().getTime()}`;
+    }
+
+    function updateControls() {
+        document.getElementById('current-page').innerText = currentPage;
+        document.getElementById('page-jump').value = currentPage;
+        
+        const prevBtns = [document.getElementById('btn-prev'), document.getElementById('btn-prev-btm')];
+        const nextBtns = [document.getElementById('btn-next'), document.getElementById('btn-next-btm')];
+        
+        prevBtns.forEach(btn => btn.disabled = (currentPage <= 1));
+        nextBtns.forEach(btn => btn.disabled = (currentPage >= totalPages));
+    }
+
+    function changePage(delta) {
+        let newPage = currentPage + delta;
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            updateControls();
+            renderPage(currentPage);
+            window.scrollTo({ top: document.getElementById('viewer-container').offsetTop - 20, behavior: 'smooth' });
+        }
+    }
+
+    function jumpToPage(val) {
+        let newPage = parseInt(val);
+        if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            updateControls();
+            renderPage(currentPage);
+        } else {
+            // reset to current if invalid
+            document.getElementById('page-jump').value = currentPage;
+        }
+    }
+
+    // Initialize
+    document.addEventListener("DOMContentLoaded", () => {
+        setupWatermark();
+        renderPage(currentPage);
+    });
+</script>
+{% endblock %}
