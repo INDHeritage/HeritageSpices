@@ -14,6 +14,7 @@ import html
 from flask import send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_migrate import Migrate
 from flask_wtf import CSRFProtect
 import razorpay
@@ -42,6 +43,7 @@ def admin_required(f):
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or "default-fallback-secret-key-12345"
 CORS(app, supports_credentials=True)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 csrf = CSRFProtect(app)
 
 # --- SQLAlchemy Setup ---
