@@ -1,5 +1,5 @@
 <!-- 🌶️ Products Section -->
-<section id="products" class="container mt-5" data-aos="zoom-in">
+<section id="products" class="container mt-5 motion-section">
   <h3 class="section-title text-center mb-4">Featured Products</h3>
   <div class="row justify-content-center">
 
@@ -98,17 +98,19 @@
 <!-- ✅ Custom Styles -->
 <style>
   .product-card {
-    border: none;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
-    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border-radius: 20px;
     overflow: hidden;
     background: #ffffff;
+    opacity: 0; /* Hidden initially for Motion to animate */
   }
 
   .product-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 30px rgba(46, 125, 50, 0.12);
+    transform: translateY(-12px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(27, 67, 50, 0.15);
+    border: 1px solid rgba(27, 67, 50, 0.1);
   }
 
   .product-image-container {

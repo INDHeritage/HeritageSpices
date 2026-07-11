@@ -79,8 +79,15 @@
     }
 
     header {
-      background-color: #ffffff;
-      box-shadow: 0 2px 10px rgba(27, 67, 50, 0.06);
+      background-color: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1050;
     }
 
     .navbar-brand {
@@ -98,54 +105,61 @@
       background-color: var(--primary-color) !important;
       border-color: var(--primary-color) !important;
       color: #ffffff !important;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border-radius: 8px;
     }
 
     .btn-success:hover, .btn-success:focus, .btn-success:active {
       background-color: var(--primary-hover) !important;
       border-color: var(--primary-hover) !important;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(27, 67, 50, 0.2) !important;
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 10px 25px -5px rgba(27, 67, 50, 0.4) !important;
     }
 
     .btn-outline-success {
       color: var(--primary-color) !important;
       border-color: var(--primary-color) !important;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border-radius: 8px;
     }
 
     .btn-outline-success:hover, .btn-outline-success:focus, .btn-outline-success:active {
       background-color: var(--primary-color) !important;
       border-color: var(--primary-color) !important;
       color: #ffffff !important;
-      transform: translateY(-1px);
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 10px 25px -5px rgba(27, 67, 50, 0.3) !important;
     }
 
     .btn-warning {
       background-color: var(--accent-color) !important;
       border-color: var(--accent-color) !important;
       color: #ffffff !important;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border-radius: 8px;
     }
 
     .btn-warning:hover, .btn-warning:focus, .btn-warning:active {
       background-color: var(--accent-hover) !important;
       border-color: var(--accent-hover) !important;
       color: #ffffff !important;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2) !important;
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 10px 25px -5px rgba(217, 119, 6, 0.4) !important;
     }
 
     .btn-outline-warning {
       color: var(--accent-color) !important;
       border-color: var(--accent-color) !important;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border-radius: 8px;
     }
 
     .btn-outline-warning:hover {
       background-color: var(--accent-color) !important;
       color: white !important;
       border-color: var(--accent-color) !important;
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 10px 25px -5px rgba(217, 119, 6, 0.3) !important;
     }
 
     .nav-link {
@@ -237,51 +251,38 @@
 
 
 
-<!-- ✅ Fullscreen Preloader (Emoji + Love theme) -->
-<div id="preloader" style="position:fixed; inset:0; background:#fffef3; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-  <div id="emoji-loader" style="font-size:48px;">🫚</div>
-  <p id="emoji-text" style="margin-top:10px; font-weight:600;">Loading Spices...</p>
-  <p id="made-with-love" style="margin-top:10px; font-weight:500; display:none;">Crafted with ❤️ for spice lovers</p>
-</div>
-
-<script>
-  // Failsafe: Hide preloader immediately if already shown
-  if (localStorage.getItem("preloaderShown")) {
-    var preloader = document.getElementById("preloader");
-    if (preloader) preloader.style.display = "none";
-  }
-</script>
 
 
 <!-- Sticky, animated header with search and dark mode toggle -->
-<header>
-  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm py-2 fixed-top animate__animated animate__fadeInDown">
+<header class="animate__animated animate__fadeInDown">
+  <nav class="navbar navbar-expand-lg navbar-light py-2">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center" href="/">
-        <img src="{{ url_for('static', filename='images/logo.png') }}" height="40" alt="Heritage Spices Logo" class="me-2 animate__animated animate__pulse animate__infinite" />
-        <!-- Removed: <span class="fw-semibold text-success" style="font-size: 1.2rem;">🌿 Indian Heritage Spices</span> -->
+        <img src="{{ url_for('static', filename='images/logo.png') }}" height="40" alt="Heritage Spices Logo" class="me-2" style="transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" />
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-        <ul class="navbar-nav align-items-center">
-          <li class="nav-item"><a class="nav-link" href="/">🏠 Home</a></li>
-          <li class="nav-item"><a class="nav-link" href="/products">🛒 Products</a></li>
-          <li class="nav-item"><a class="nav-link" href="/#wholesale">📦 Wholesale</a></li>
-          <li class="nav-item"><a class="nav-link" href="/blog">📝 Blog</a></li>
-          <li class="nav-item ms-2">
+        <ul class="navbar-nav align-items-center gap-3">
+          <li class="nav-item"><a class="nav-link d-flex align-items-center" href="/">🏠 Home</a></li>
+          <li class="nav-item"><a class="nav-link d-flex align-items-center" href="/products">🛒 Products</a></li>
+          <li class="nav-item"><a class="nav-link d-flex align-items-center" href="/#wholesale">📦 Wholesale</a></li>
+          <li class="nav-item"><a class="nav-link d-flex align-items-center" href="/blog">📝 Blog</a></li>
+          <li class="nav-item ms-lg-3 mt-3 mt-lg-0">
             {% if not user %}
-              <a href="{{ url_for('login') }}" class="btn btn-sm btn-success d-flex align-items-center" style="gap: 6px;">
-                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" style="height: 20px; width: 20px; background: #fff; border-radius: 50%; padding: 2px; box-shadow: 0 1px 3px rgba(60,60,60,0.08);"> 
-                <span>Login with Google</span>
+              <a href="{{ url_for('login') }}" class="btn btn-success d-flex align-items-center justify-content-center" style="gap: 8px; padding: 8px 16px;">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" style="height: 22px; width: 22px; background: #fff; border-radius: 50%; padding: 3px; box-shadow: 0 1px 3px rgba(60,60,60,0.08);"> 
+                <span class="fw-semibold">Login with Google</span>
               </a>
             {% else %}
-              <span class="me-2 text-success fw-semibold">👋 Hi, {{ user.name }}</span>
-              {% if user.email == 'heritage.spices.pvtltd@gmail.com' %}
-                <a href="/admin/dashboard" class="btn btn-sm btn-outline-primary me-2"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-              {% endif %}
-              <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger">Logout</a>
+              <div class="d-flex align-items-center gap-3">
+                <span class="text-success fw-semibold">👋 Hi, {{ user.name }}</span>
+                {% if user.email == 'heritage.spices.pvtltd@gmail.com' %}
+                  <a href="/admin/dashboard" class="btn btn-sm btn-outline-primary"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger">Logout</a>
+              </div>
             {% endif %}
           </li>
         </ul>
@@ -407,66 +408,6 @@
   <!-- ✅ Scripts -->
 <script>
   window.addEventListener("load", () => {
-    // Only show preloader if never shown before
-    if (!localStorage.getItem("preloaderShown")) {
-      // Set the flag immediately so it never shows again, even if user navigates away early
-      localStorage.setItem("preloaderShown", "true");
-    const emojis = ['🫚', '🌶️', '🍂', '☘️', '🧂', '🍃', '🥣', '📦', '🔥'];
-    const emojiTexts = [
-      "Grinding fresh ginger...",
-      "Choosing fiery red chilies...",
-      "Collecting dry herbs...",
-      "Picking minty leaves...",
-      "Sprinkling pure salt...",
-      "Blending with love...",
-      "Infusing in tradition...",
-      "Packing your order...",
-      "Igniting your taste buds..."
-    ];
-
-    const emojiEl = document.getElementById("emoji-loader");
-    const textEl = document.getElementById("emoji-text");
-    const preloader = document.getElementById("preloader");
-    const loveEl = document.getElementById("made-with-love");
-
-    let index = 0;
-
-    function animateEmoji() {
-      if (!emojiEl || !textEl || !preloader) return;
-
-      emojiEl.textContent = emojis[index];
-      textEl.textContent = emojiTexts[index];
-      index++;
-
-      if (index < emojis.length) {
-        setTimeout(animateEmoji, 400);
-      } else {
-        loveEl.style.display = 'block';
-        loveEl.classList.add('fade-in');
-        setTimeout(hidePreloader, 1500);
-      }
-    }
-
-    function hidePreloader() {
-      preloader.style.transition = "opacity 0.6s ease";
-      preloader.style.opacity = "0";
-      preloader.style.pointerEvents = "none";
-      preloader.style.visibility = "hidden";
-      setTimeout(() => {
-        preloader.style.display = "none";
-      }, 400);
-    }
-
-      animateEmoji();
-      // Backup hide after 9s
-      setTimeout(hidePreloader, 9000);
-    } else {
-      // Instantly hide preloader if already shown
-      const preloader = document.getElementById("preloader");
-      if (preloader) {
-        preloader.style.display = "none";
-      }
-    }
 
     // 🍪 Cookie Consent
     const banner = document.getElementById("cookie-banner");
@@ -591,16 +532,10 @@ s0.parentNode.insertBefore(s1,s0);
 <!-- ✅ Collapse navbar on mobile link click -->
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    const toggler = document.querySelector('.navbar-toggler');
     const navCollapse = document.getElementById('navbarNav');
 
-    if (toggler && navCollapse) {
-      toggler.addEventListener('click', () => {
-        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(navCollapse);
-        bsCollapse.toggle();
-      });
-
-      // Optional: close navbar when any nav link is clicked (on mobile)
+    if (navCollapse) {
+      // Close navbar when any nav link is clicked (on mobile)
       const navLinks = document.querySelectorAll('.nav-link');
       navLinks.forEach(link => {
         link.addEventListener('click', () => {
@@ -651,6 +586,10 @@ s0.parentNode.insertBefore(s1,s0);
 </script>
 
 
+<script type="module">
+  import { animate, scroll, inView, spring, stagger } from "https://cdn.jsdelivr.net/npm/motion@11.11.13/+esm";
+  window.Motion = { animate, scroll, inView, spring, stagger };
+</script>
 </body>
 </html>
 
