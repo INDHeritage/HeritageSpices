@@ -306,14 +306,14 @@ def robots():
         "User-agent: *\n"
         "Disallow: /admin/\n"
         "Allow: /\n"
-        "Sitemap: https://www.heritagespices.shop/sitemap.xml\n",
+        "Sitemap: https://indianheritagespices.com/sitemap.xml\n",
         200,
         {'Content-Type': 'text/plain'}
     )
 
 @app.route('/sitemap.xml')
 def sitemap():
-    base = "https://www.heritagespices.shop"
+    base = "https://indianheritagespices.com"
     static_urls = ['/', '/about', '/contact', '/privacy', '/blog', '/products']
     
     blogs = get_all_blogs()
