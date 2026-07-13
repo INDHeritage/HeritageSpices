@@ -51,11 +51,12 @@
         flex-wrap: wrap;
         justify-content: center;
         align-content: center;
-        opacity: 0.15; /* Subtle enough to read, visible enough to ruin screenshots */
+        opacity: 0.04; /* Very subtle to not distract reading */
+        pointer-events: none;
     }
 
     .watermark-text {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         font-weight: bold;
         color: #000;
         transform: rotate(-30deg);
@@ -119,6 +120,24 @@
         }
         if (e.key === 'F12') { 
             e.preventDefault(); 
+        }
+    });
+
+    // 2.5 Anti-Screenshot & Screen Recording Protection
+    // Blurs the screen when the window loses focus (e.g. Snipping tool overlay opens)
+    window.addEventListener('blur', () => {
+        document.getElementById('viewer-container').style.filter = 'blur(15px)';
+    });
+    window.addEventListener('focus', () => {
+        document.getElementById('viewer-container').style.filter = 'none';
+    });
+    
+    // Attempt to clear clipboard if PrintScreen is pressed
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'PrintScreen') {
+            navigator.clipboard.writeText('Screenshots are disabled for copyrighted content.');
+            document.getElementById('viewer-container').style.filter = 'blur(15px)';
+            setTimeout(() => { document.getElementById('viewer-container').style.filter = 'none'; }, 2000);
         }
     });
 
