@@ -22,6 +22,32 @@
       <div class="col-sm-6 col-md-4 col-lg-3 d-flex">
         <div class="card product-card w-100 d-flex flex-column animate__animated animate__fadeInUp">
           
+          <!-- Google Rich Snippets: Product Schema -->
+          <script type="application/ld+json">
+          {
+            "@context": "https://schema.org/",
+            "@type": "Product",
+            "name": "{{ product.name }}",
+            "image": "https://www.indianheritagespices.com{{ product.image_url if product.image_url else '/static/images/logo.jpg' }}",
+            "description": "{{ product.description }}",
+            "brand": {
+              "@type": "Brand",
+              "name": "Indian Heritage Spices"
+            },
+            "offers": {
+              "@type": "Offer",
+              "url": "https://www.indianheritagespices.com/products#details{{ product.id }}",
+              "priceCurrency": "INR",
+              "price": "{{ product.price }}",
+              "availability": "https://schema.org/{% if product.stock is not none and product.stock > 0 %}InStock{% else %}OutOfStock{% endif %}",
+              "seller": {
+                "@type": "Organization",
+                "name": "Indian Heritage Spices"
+              }
+            }
+          }
+          </script>
+          
           <!-- Product Image -->
           <div class="product-img-container position-relative">
             {% if product.image_url %}
