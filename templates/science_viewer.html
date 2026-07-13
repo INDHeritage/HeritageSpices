@@ -133,7 +133,7 @@
     });
     
     // Attempt to clear clipboard if PrintScreen is pressed
-    document.addEventListener('keyup', (e) => {
+    document.addEventListener('keydown', (e) => {
         if (e.key === 'PrintScreen') {
             navigator.clipboard.writeText('Screenshots are disabled for copyrighted content.');
             document.getElementById('viewer-container').style.filter = 'blur(15px)';
@@ -225,4 +225,8 @@
         renderPage(currentPage);
     });
 </script>
+{% endblock %}
+
+{% block scripts %}
+<!-- Intentionally empty to block the chatbot from loading on the secure viewer page -->
 {% endblock %}
