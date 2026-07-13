@@ -855,7 +855,7 @@ def science_viewer():
         flash("You do not have access to the Science Notes. Please purchase the Online Access.", "danger")
         return redirect('/science-hub')
         
-    return render_template('science_viewer.html', user=user, total_pages=150) # Assuming 150 pages as discussed
+    return render_template('science_viewer.html', user=user, total_pages=297) 
 
 @app.route('/admin/science-hub', methods=['GET', 'POST'])
 @admin_required
