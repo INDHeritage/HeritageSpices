@@ -6,11 +6,30 @@
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <div class="container py-5">
-    <div class="row mb-5">
-        <div class="col-12 text-center">
-            <h1 class="display-4 fw-bold text-success mb-3"><i class="fas fa-flask"></i> Science Hub</h1>
-            <p class="lead text-muted">Premium Class 10 Science Notes — Unlock your full potential with structured, easy-to-understand study materials.</p>
+    <!-- Beautiful Hero Section -->
+    <div class="row align-items-center mb-5 bg-white rounded shadow-sm p-4 border-top border-5 border-success">
+        <div class="col-lg-6 text-center text-lg-start mb-4 mb-lg-0">
+            <span class="badge bg-success mb-3 px-3 py-2 fs-6 rounded-pill">Newly Released!</span>
+            <h1 class="display-4 fw-bolder text-dark mb-3">Class 10 <span class="text-success">Science Notes</span></h1>
+            <p class="lead text-secondary mb-4">
+                Unlock your full potential with our masterfully crafted Class 10 Science notes. 
+                Designed by experts to simplify complex concepts and guarantee maximum board exam scores.
+            </p>
+            <ul class="list-unstyled mb-4">
+                <li class="mb-3 d-flex align-items-center fs-5 text-dark"><i class="fas fa-check-circle text-success me-3 fa-lg"></i> 150+ Pages of High-Yield Content</li>
+                <li class="mb-3 d-flex align-items-center fs-5 text-dark"><i class="fas fa-check-circle text-success me-3 fa-lg"></i> Chapter-wise mind maps & diagrams</li>
+                <li class="mb-3 d-flex align-items-center fs-5 text-dark"><i class="fas fa-check-circle text-success me-3 fa-lg"></i> Previous 10 Years Board Questions</li>
+            </ul>
+            <a href="#pricing-section" class="btn btn-success btn-lg px-5 py-3 fw-bold shadow-sm" style="border-radius: 30px;">Get Access Now <i class="fas fa-arrow-down ms-2"></i></a>
         </div>
+        <div class="col-lg-6 text-center">
+            <img src="{{ url_for('static', filename='images/science_notes_mockup.png') }}" class="img-fluid rounded shadow-lg" alt="Class 10 Science Notes Mockup" style="transform: perspective(1000px) rotateY(-10deg); transition: transform 0.3s;" onmouseover="this.style.transform='perspective(1000px) rotateY(0deg) scale(1.02)'" onmouseout="this.style.transform='perspective(1000px) rotateY(-10deg)'">
+        </div>
+    </div>
+    
+    <div class="text-center mb-4 mt-5" id="pricing-section">
+        <h2 class="fw-bold text-dark">Choose Your Format</h2>
+        <p class="text-muted">Available in both DRM-Protected Digital format and Premium Physical Print.</p>
     </div>
 
     <!-- Check Digital Access -->
