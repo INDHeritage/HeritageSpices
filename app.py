@@ -1161,7 +1161,19 @@ def check_pincode():
     if not pincode or len(pincode) != 6 or not pincode.isdigit():
         return jsonify({'available': False, 'message': 'Please enter a valid 6-digit pincode'})
     
+    mode = get_setting('delivery_mode', 'hybrid')
+    
+    if mode == 'manual':
+        return jsonify({
+            'available': True,
+            'couriers': [{'rate': 60, 'courier_name': 'Standard Flat Rate', 'estimated_delivery_days': '5-7'}],
+            'message': 'Delivery available'
+        })
+    
     # Check blacklist
+    if mode in ['hybrid', 'manual']:
+        pass # manual is already handled above, hybrid handles blacklist
+    
     blacklisted = BlacklistedPincode.query.filter_by(pincode=pincode).first()
     if blacklisted:
         return jsonify({'available': False, 'message': f'Delivery not available to {pincode} ({blacklisted.reason or "Restricted area"})'})
@@ -1191,7 +1203,19 @@ def calculate_shipping():
             item_weight = 0.15  # 150g
         total_weight_kg += item_weight * item.quantity
     
-    rates = nimbus_api.get_shipping_rates(pincode, total_weight_kg)
+    mode = get_setting('delivery_mode', 'hybrid')
+    
+    if mode == 'manual':
+        rates = [{
+            'courier_id': 'flat',
+            'courier_name': 'Standard Flat Rate',
+            'rate': 60,
+            'estimated_days': '5-7',
+            'min_weight': 0.5
+        }]
+    else:
+        rates = nimbus_api.get_shipping_rates(pincode, total_weight_kg)
+        
     return jsonify({'rates': rates})
 
 @app.route('/checkout/create-order', methods=['POST'])
