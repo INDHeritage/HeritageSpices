@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row mb-5">
+    <div class="col-12 text-center">
+      <h1 class="display-5 fw-bold text-success mb-3 animate__animated animate__fadeInDown">My Orders</h1>
+      <p class="lead text-muted">Track and review your authentic spice purchases.</p>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      {% if orders %}
+        <div class="d-flex flex-column gap-4">
+          {% for order in orders %}
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden animate__animated animate__fadeInUp" style="animation-delay: {{ loop.index0 * 0.1 }}s">
+              <!-- Order Header -->
+              <div class="card-header bg-light border-0 py-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex flex-wrap gap-4">
+                  <div>
+                    <small class="text-uppercase text-muted fw-bold mb-1 d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Order Placed</small>
+                    <span class="fw-semibold">{{ order.created_at.strftime('%d %B %Y') }}</span>
+                  </div>
+                  <div>
+                    <small class="text-uppercase text-muted fw-bold mb-1 d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total</small>
+                    <span class="fw-semibold">₹{{ order.total_amount // 100 }}</span>
+                  </div>
+                  <div>
+                    <small class="text-uppercase text-muted fw-bold mb-1 d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Ship To</small>
+                    <span class="fw-semibold text-primary" role="button" data-bs-toggle="tooltip" title="{{ order.address }}, {{ order.city }}, {{ order.pincode }}">{{ order.full_name }}</span>
+                  </div>
+                </div>
+                <div class="text-md-end">
+                  <small class="text-uppercase text-muted fw-bold mb-1 d-block" style="font-size: 0.75rem; letter-spacing: 0.5px;">Order #</small>
+                  <span class="fw-bold font-monospace text-dark">{{ order.order_number }}</span>
+                </div>
+              </div>
+              
+              <!-- Order Body -->
+              <div class="card-body p-4 border-top border-light-subtle">
+                <div class="row align-items-center">
+                  <div class="col-md-8">
+                    <h5 class="fw-bold mb-3">Status</h5>
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                      {% if order.payment_status == 'paid' %}
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill"><i class="fas fa-check-circle me-1"></i> Paid</span>
+                      {% else %}
+                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2 rounded-pill"><i class="fas fa-clock me-1"></i> Pending Payment</span>
+                      {% endif %}
+                      
+                      {% if order.shipping_status == 'delivered' %}
+                        <span class="badge bg-success px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-box-open me-1"></i> Delivered</span>
+                      {% elif order.shipping_status == 'shipped' %}
+                        <span class="badge bg-primary px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-truck me-1"></i> Shipped</span>
+                      {% elif order.shipping_status == 'cancelled' %}
+                        <span class="badge bg-danger px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-times-circle me-1"></i> Cancelled</span>
+                      {% else %}
+                        <span class="badge bg-info text-dark px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-box me-1"></i> Processing</span>
+                      {% endif %}
+                    </div>
+                    
+                    <h6 class="fw-bold text-muted mb-2">Items</h6>
+                    <ul class="list-unstyled mb-0">
+                      {% for item in order.items %}
+                        <li class="mb-2 d-flex align-items-center">
+                          <span class="badge bg-secondary rounded-pill me-2">{{ item.quantity }}</span> 
+                          <span class="fw-semibold text-dark me-2">{{ item.product_name }}</span>
+                          <span class="text-muted small">@ ₹{{ item.unit_price // 100 }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  
+                  <div class="col-md-4 text-md-end mt-4 mt-md-0 d-flex flex-column gap-2 justify-content-center h-100">
+                    <a href="/orders/{{ order.id }}/track" class="btn btn-outline-success rounded-pill fw-bold hover-lift py-2 shadow-sm w-100">
+                      <i class="fas fa-map-marker-alt me-1"></i> Track Package
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5 animate__animated animate__fadeIn">
+          <div class="mb-4">
+            <i class="fas fa-box-open fa-5x text-success opacity-50"></i>
+          </div>
+          <h2 class="fw-bold mb-3">No orders yet</h2>
+          <p class="text-muted mb-4 lead">You haven't placed any orders with us yet. Start exploring our authentic spices!</p>
+          <a href="/products" class="btn btn-success btn-lg rounded-pill px-5 shadow-sm hover-lift">
+            <i class="fas fa-shopping-bag me-2"></i> Shop Now
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Block chatbot on orders page
+  window.Tawk_API = window.Tawk_API || {};
+  window.Tawk_API.onLoad = function() {
+      window.Tawk_API.hideWidget();
+  };
+  
+  // Enable tooltips
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+  });
+</script>
+<style>
+  .hover-lift { transition: all 0.3s ease; }
+  .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(25, 135, 84, 0.2) !important; }
+</style>
+{% endblock %}

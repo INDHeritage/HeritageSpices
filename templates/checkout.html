@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row mb-4">
+    <div class="col-12 text-center">
+      <h1 class="display-5 fw-bold text-success mb-3 animate__animated animate__fadeInDown">Secure Checkout</h1>
+      <p class="lead text-muted">Complete your purchase to get authentic spices delivered to your door.</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Order Summary -->
+    <div class="col-lg-5 order-lg-2">
+      <div class="card shadow-sm border-0 rounded-4 bg-light mb-4 sticky-top animate__animated animate__fadeInRight" style="top: 100px; z-index: 1;">
+        <div class="card-header bg-success text-white border-0 py-3 rounded-top-4">
+          <h5 class="mb-0 fw-bold"><i class="fas fa-shopping-bag me-2"></i> Order Summary</h5>
+        </div>
+        <div class="card-body p-4">
+          <!-- Items List -->
+          <div class="mb-4">
+            {% for item in cart_items %}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div class="d-flex align-items-center">
+                <span class="badge bg-secondary rounded-pill me-2">{{ item.quantity }}</span>
+                <span class="fw-semibold text-dark">{{ item.product.name }}</span>
+              </div>
+              <span class="fw-bold text-success">₹{{ (item.product.price|int) * item.quantity }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          
+          <hr class="border-secondary opacity-25">
+          
+          <!-- Totals -->
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Subtotal</span>
+            <span class="fw-semibold">₹{{ cart_total }}</span>
+          </div>
+          
+          <div class="d-flex justify-content-between mb-3" id="shipping-row">
+            <span class="text-muted">Shipping</span>
+            <span class="fst-italic text-muted small" id="shipping-cost-display">Enter pincode to calculate</span>
+          </div>
+          
+          <hr class="border-secondary opacity-50 border-2">
+          
+          <div class="d-flex justify-content-between align-items-center mb-0">
+            <span class="fs-4 fw-bold text-dark">Grand Total</span>
+            <span class="fs-3 fw-bold text-success" id="grand-total-display">₹{{ cart_total }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Shipping Details -->
+    <div class="col-lg-7 order-lg-1">
+      
+      <!-- Policy Alert -->
+      <div class="alert alert-danger shadow-sm border-0 rounded-3 mb-4 animate__animated animate__fadeInLeft">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+          <div>
+            <h5 class="alert-heading mb-1 fw-bold">Strict Store Policy</h5>
+            <p class="mb-0 small"><strong>All sales are final.</strong> We do not offer refunds or returns. <strong>Prepaid orders only</strong> — Cash on Delivery (COD) is strictly not supported.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0 rounded-4 animate__animated animate__fadeInUp">
+        <div class="card-body p-4 p-md-5">
+          <h4 class="fw-bold mb-4 border-bottom pb-3"><i class="fas fa-map-marked-alt text-success me-2"></i> Delivery Details</h4>
+          
+          <form id="checkout-form">
+            <input type="hidden" name="csrf_token" id="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="subtotal" value="{{ cart_total }}">
+            
+            <div class="row g-3">
+              <!-- Contact Info -->
+              <div class="col-md-6">
+                <label for="fullName" class="form-label fw-semibold">Full Name *</label>
+                <input type="text" class="form-control bg-light" id="fullName" required placeholder="John Doe">
+              </div>
+              <div class="col-md-6">
+                <label for="phone" class="form-label fw-semibold">Phone Number *</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light">+91</span>
+                  <input type="tel" class="form-control bg-light" id="phone" required pattern="[0-9]{10}" placeholder="9876543210">
+                </div>
+              </div>
+              
+              <!-- Address -->
+              <div class="col-12 mt-4">
+                <label for="address" class="form-label fw-semibold">Full Address *</label>
+                <textarea class="form-control bg-light" id="address" rows="3" required placeholder="House No, Street, Landmark..."></textarea>
+              </div>
+              
+              <!-- Pincode Check Zone -->
+              <div class="col-12 mt-4 bg-success bg-opacity-10 p-3 p-md-4 rounded-3 border border-success border-opacity-25">
+                <label for="pincode" class="form-label fw-bold text-success"><i class="fas fa-map-pin me-1"></i> Delivery Pincode *</label>
+                <div class="input-group">
+                  <input type="text" class="form-control border-success" id="pincode" required pattern="[0-9]{6}" placeholder="6-digit pincode" maxlength="6">
+                  <button class="btn btn-success fw-bold px-4" type="button" id="btn-check-pincode">
+                    Check Delivery
+                  </button>
+                </div>
+                <div id="pincode-result" class="mt-2 small fw-semibold"></div>
+                
+                <!-- Shipping Options (Hidden initially) -->
+                <div id="shipping-options-container" class="mt-4 d-none">
+                  <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">Select Shipping Method</h6>
+                  <div id="shipping-rates-list" class="d-flex flex-column gap-2">
+                    <!-- Radio buttons will be injected here via JS -->
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6 mt-4">
+                <label for="city" class="form-label fw-semibold">City *</label>
+                <input type="text" class="form-control bg-light" id="city" required>
+              </div>
+              <div class="col-md-6 mt-4">
+                <label for="state" class="form-label fw-semibold">State *</label>
+                <select class="form-select bg-light" id="state" required>
+                  <option value="" selected disabled>Choose state...</option>
+                  <option value="Andhra Pradesh">Andhra Pradesh</option>
+                  <option value="Assam">Assam</option>
+                  <option value="Bihar">Bihar</option>
+                  <option value="Chandigarh">Chandigarh</option>
+                  <option value="Chhattisgarh">Chhattisgarh</option>
+                  <option value="Delhi">Delhi</option>
+                  <option value="Goa">Goa</option>
+                  <option value="Gujarat">Gujarat</option>
+                  <option value="Haryana">Haryana</option>
+                  <option value="Himachal Pradesh">Himachal Pradesh</option>
+                  <option value="Jharkhand">Jharkhand</option>
+                  <option value="Karnataka">Karnataka</option>
+                  <option value="Kerala">Kerala</option>
+                  <option value="Madhya Pradesh">Madhya Pradesh</option>
+                  <option value="Maharashtra">Maharashtra</option>
+                  <option value="Odisha">Odisha</option>
+                  <option value="Punjab">Punjab</option>
+                  <option value="Rajasthan">Rajasthan</option>
+                  <option value="Tamil Nadu">Tamil Nadu</option>
+                  <option value="Telangana">Telangana</option>
+                  <option value="Uttar Pradesh">Uttar Pradesh</option>
+                  <option value="Uttarakhand">Uttarakhand</option>
+                  <option value="West Bengal">West Bengal</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mt-5 text-center">
+              <button type="submit" class="btn btn-success btn-lg px-5 py-3 rounded-pill fw-bold shadow-lg hover-lift w-100" id="btn-pay-now" disabled>
+                <i class="fas fa-lock me-2"></i> Pay Now <span id="pay-btn-amount">₹{{ cart_total }}</span>
+              </button>
+              <div class="mt-3 small text-muted">
+                By proceeding, you agree to our <a href="/terms" class="text-success text-decoration-none">Terms</a> and acknowledge that <strong class="text-danger">all sales are final</strong>.
+              </div>
+            </div>
+          </form>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  // Block chatbot on checkout
+  window.Tawk_API = window.Tawk_API || {};
+  window.Tawk_API.onLoad = function() {
+      window.Tawk_API.hideWidget();
+  };
+
+  const pincodeInput = document.getElementById('pincode');
+  const btnCheck = document.getElementById('btn-check-pincode');
+  const resultDiv = document.getElementById('pincode-result');
+  const shippingContainer = document.getElementById('shipping-options-container');
+  const shippingList = document.getElementById('shipping-rates-list');
+  const btnPay = document.getElementById('btn-pay-now');
+  const csrf = document.getElementById('csrf_token').value;
+  const subtotal = parseInt(document.getElementById('subtotal').value);
+  
+  let selectedShippingRate = 0;
+
+  // Auto-check on typing 6 digits
+  pincodeInput.addEventListener('input', function() {
+    this.value = this.value.replace(/[^0-9]/g, '');
+    if (this.value.length === 6) {
+      btnCheck.click();
+    } else {
+      btnPay.disabled = true;
+      shippingContainer.classList.add('d-none');
+      resultDiv.innerHTML = '';
+      updateTotals(0);
+    }
+  });
+
+  // Check Pincode API
+  btnCheck.addEventListener('click', async function() {
+    const pincode = pincodeInput.value;
+    if (pincode.length !== 6) {
+      alert("Please enter a valid 6-digit pincode.");
+      return;
+    }
+
+    const originalText = btnCheck.innerHTML;
+    btnCheck.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+    btnCheck.disabled = true;
+    btnPay.disabled = true;
+
+    try {
+      // 1. Check Serviceability
+      const servRes = await fetch('/checkout/check-pincode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ pincode })
+      });
+      const servData = await servRes.json();
+
+      if (!servData.available) {
+        resultDiv.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle"></i> ${servData.message}</span>`;
+        shippingContainer.classList.add('d-none');
+        btnCheck.innerHTML = originalText;
+        btnCheck.disabled = false;
+        return;
+      }
+
+      resultDiv.innerHTML = `<span class="text-success"><i class="fas fa-check-circle"></i> Delivery available to ${pincode}</span>`;
+
+      // 2. Fetch Shipping Rates
+      const ratesRes = await fetch('/checkout/calculate-shipping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ pincode })
+      });
+      const ratesData = await ratesRes.json();
+
+      // Render shipping options
+      shippingList.innerHTML = '';
+      if (ratesData.rates && ratesData.rates.length > 0) {
+        ratesData.rates.forEach((rate, index) => {
+          const isChecked = index === 0 ? 'checked' : '';
+          if (index === 0) selectedShippingRate = rate.rate;
+          
+          const div = document.createElement('div');
+          div.className = 'form-check custom-radio border rounded-3 p-3 bg-white mb-2 d-flex align-items-center cursor-pointer';
+          div.innerHTML = `
+            <input class="form-check-input ms-1 me-3 fs-5" type="radio" name="shipping_rate" id="rate${index}" value="${rate.rate}" ${isChecked} onchange="updateTotals(${rate.rate})">
+            <label class="form-check-label w-100 d-flex justify-content-between align-items-center" style="cursor:pointer;" for="rate${index}">
+              <div>
+                <div class="fw-bold text-dark">${rate.courier_name}</div>
+                <small class="text-muted">Est. Delivery: ${rate.estimated_days} Days</small>
+              </div>
+              <div class="fw-bold text-success fs-5">₹${rate.rate}</div>
+            </label>
+          `;
+          shippingList.appendChild(div);
+        });
+        
+        shippingContainer.classList.remove('d-none');
+        updateTotals(selectedShippingRate);
+        btnPay.disabled = false;
+      } else {
+        resultDiv.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle"></i> Could not calculate shipping. Please try another pincode.</span>`;
+      }
+
+    } catch (err) {
+      console.error(err);
+      resultDiv.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Network error. Please try again.</span>`;
+    } finally {
+      btnCheck.innerHTML = originalText;
+      btnCheck.disabled = false;
+    }
+  });
+
+  // Update Totals UI
+  function updateTotals(shipping) {
+    selectedShippingRate = shipping;
+    const grand = subtotal + shipping;
+    
+    if (shipping > 0) {
+      document.getElementById('shipping-cost-display').innerHTML = `<span class="fw-semibold text-dark">₹${shipping}</span>`;
+    } else {
+      document.getElementById('shipping-cost-display').innerText = 'Enter pincode to calculate';
+    }
+    
+    document.getElementById('grand-total-display').innerText = `₹${grand}`;
+    document.getElementById('pay-btn-amount').innerText = `₹${grand}`;
+  }
+
+  // Handle Form Submit & Razorpay
+  document.getElementById('checkout-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (btnPay.disabled) return;
+    
+    const originalBtnText = btnPay.innerHTML;
+    btnPay.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+    btnPay.disabled = true;
+    
+    // Collect data
+    const payload = {
+      full_name: document.getElementById('fullName').value,
+      phone: document.getElementById('phone').value,
+      address: document.getElementById('address').value,
+      city: document.getElementById('city').value,
+      state: document.getElementById('state').value,
+      pincode: pincodeInput.value,
+      shipping_rate: selectedShippingRate
+    };
+
+    try {
+      // Create Order on server
+      const res = await fetch('/checkout/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (data.error) {
+        alert(data.error);
+        btnPay.innerHTML = originalBtnText;
+        btnPay.disabled = false;
+        return;
+      }
+
+      // Initialize Razorpay
+      const options = {
+        key: data.key,
+        amount: data.amount,
+        currency: data.currency,
+        name: "Heritage Spices",
+        description: `Order ${data.order_number}`,
+        image: "/static/images/logo.png",
+        order_id: data.order_id,
+        handler: async function (response) {
+          // Verify payment
+          try {
+            btnPay.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying...';
+            
+            const verifyRes = await fetch('/checkout/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+            const verifyData = await verifyRes.json();
+            
+            if (verifyData.success) {
+              window.location.href = '/orders';
+            } else {
+              alert(verifyData.error || "Payment verification failed");
+              window.location.reload();
+            }
+          } catch (err) {
+            console.error(err);
+            alert("Error verifying payment. If amount was deducted, please contact support.");
+          }
+        },
+        prefill: {
+          name: payload.full_name,
+          contact: payload.phone
+        },
+        theme: {
+          color: "#198754"
+        },
+        modal: {
+          ondismiss: function() {
+            btnPay.innerHTML = originalBtnText;
+            btnPay.disabled = false;
+          }
+        }
+      };
+      
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', function (response){
+        alert("Payment failed: " + response.error.description);
+        btnPay.innerHTML = originalBtnText;
+        btnPay.disabled = false;
+      });
+      rzp.open();
+      
+    } catch (err) {
+      console.error(err);
+      alert("Network error. Please try again.");
+      btnPay.innerHTML = originalBtnText;
+      btnPay.disabled = false;
+    }
+  });
+</script>
+
+<style>
+  .hover-lift { transition: all 0.3s ease; }
+  .hover-lift:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(25, 135, 84, 0.4) !important; }
+  
+  .custom-radio:hover { border-color: var(--bs-success) !important; background-color: rgba(25,135,84,0.02) !important; }
+  .custom-radio input[type="radio"]:checked + label { color: var(--bs-success); }
+  .custom-radio:has(input[type="radio"]:checked) { border-color: var(--bs-success) !important; border-width: 2px !important; background-color: rgba(25,135,84,0.05) !important; }
+</style>
+{% endblock %}

@@ -104,12 +104,19 @@
             </div>
 
             <!-- E-commerce Action Button -->
-            {% if product.meesho_link %}
-              <a href="{{ product.meesho_link }}" class="btn btn-success w-100 py-2 rounded-pill mt-auto fw-semibold meesho-btn d-flex align-items-center justify-content-center gap-2" target="_blank">
-                <i class="fas fa-shopping-cart"></i>
-                <span>Buy Now on Meesho</span>
-              </a>
-            {% endif %}
+            <div class="mt-auto pt-3 border-top border-light">
+              <form class="add-to-cart-form d-flex gap-2" onsubmit="event.preventDefault(); addToCart({{ product.id }});">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="number" id="qty-{{ product.id }}" class="form-control text-center bg-light border-0 w-25 rounded-3 fw-semibold text-dark" value="1" min="1" max="5">
+                {% if product.stock is not none and product.stock <= 0 %}
+                  <button type="button" class="btn btn-secondary flex-grow-1 py-2 rounded-3 fw-semibold text-uppercase tracking-wider shadow-sm" disabled>Out of Stock</button>
+                {% else %}
+                  <button type="submit" class="btn btn-success flex-grow-1 py-2 rounded-3 fw-semibold text-uppercase tracking-wider shadow-sm d-flex justify-content-center align-items-center gap-2 transition-transform hover-lift" id="btn-{{ product.id }}">
+                    <i class="fas fa-cart-plus"></i> Add to Cart
+                  </button>
+                {% endif %}
+              </form>
+            </div>
 
             <!-- Admin Actions -->
             {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
@@ -226,9 +233,87 @@
     transform: translateY(-1px);
     box-shadow: 0 6px 16px rgba(46, 125, 50, 0.25);
   }
+  
+  .hover-lift {
+    transition: all 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(46, 125, 50, 0.25) !important;
+  }
 
   .tracking-wider {
     letter-spacing: 1px;
   }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function addToCart(productId) {
+    const qtyInput = document.getElementById(`qty-${productId}`);
+    let quantity = parseInt(qtyInput.value) || 1;
+    
+    // Enforce limits (max 5)
+    if (quantity > 5) {
+      alert("You can only add up to 5 pouches per product.");
+      quantity = 5;
+      qtyInput.value = 5;
+    }
+    
+    const btn = document.getElementById(`btn-${productId}`);
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+    btn.disabled = true;
+    
+    fetch('/cart/add', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+      },
+      body: JSON.stringify({
+        product_id: productId,
+        quantity: quantity
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      
+      if (data.success) {
+        // Update cart badge in navbar
+        const badge = document.getElementById('cart-badge');
+        if (badge) {
+          badge.textContent = data.cart_count;
+          badge.classList.remove('d-none');
+          
+          // Animate badge
+          badge.classList.add('animate__animated', 'animate__bounceIn');
+          setTimeout(() => badge.classList.remove('animate__animated', 'animate__bounceIn'), 1000);
+        }
+        
+        // Show success alert temporarily below button
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success mt-2 py-1 px-2 small animate__animated animate__fadeIn text-center';
+        alert.innerHTML = '<i class="fas fa-check-circle"></i> Added to cart!';
+        btn.parentElement.parentElement.appendChild(alert);
+        setTimeout(() => {
+          alert.classList.replace('animate__fadeIn', 'animate__fadeOut');
+          setTimeout(() => alert.remove(), 500);
+        }, 2000);
+      } else {
+        alert(data.error || 'Failed to add to cart');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      alert('An error occurred. Please try again.');
+    });
+  }
+</script>
 {% endblock %}

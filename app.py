@@ -20,6 +20,7 @@ from flask_wtf import CSRFProtect
 import razorpay
 import hmac
 import hashlib
+import nimbus_api
 
 # -------------------------
 # 🔐 Load environment
@@ -144,6 +145,87 @@ class DigitalAccess(db.Model):
     user_email = db.Column(db.String(200), nullable=False)
     access_token = db.Column(db.String(100), unique=True, nullable=False)
     granted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# --- Site Settings (key-value store for toggles) ---
+class SiteSetting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.String(500), nullable=False)
+
+# --- Cart Item ---
+class CartItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(200), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    quantity = db.Column(db.Integer, default=1)
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    product = db.relationship('Product', backref='cart_items')
+
+# --- Spice Order ---
+class SpiceOrder(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(50), unique=True, nullable=False)
+    user_email = db.Column(db.String(200), nullable=False)
+    
+    # Customer delivery details
+    full_name = db.Column(db.String(200), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    address = db.Column(db.Text, nullable=False)
+    city = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(100), nullable=False)
+    pincode = db.Column(db.String(10), nullable=False)
+    
+    # Pricing (all in paise)
+    subtotal = db.Column(db.Integer, nullable=False)
+    shipping_cost = db.Column(db.Integer, default=0)
+    total_amount = db.Column(db.Integer, nullable=False)
+    
+    # Payment (Razorpay only, no COD)
+    razorpay_order_id = db.Column(db.String(100))
+    razorpay_payment_id = db.Column(db.String(100))
+    payment_status = db.Column(db.String(20), default='pending')
+    
+    # Shipping (NimbusPost)
+    nimbus_order_id = db.Column(db.String(100))
+    awb_number = db.Column(db.String(100))
+    courier_name = db.Column(db.String(100))
+    shipping_status = db.Column(db.String(50), default='processing')
+    estimated_delivery = db.Column(db.String(50))
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    items = db.relationship('OrderItem', backref='order', lazy=True)
+
+# --- Order Line Items ---
+class OrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('spice_order.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product_name = db.Column(db.String(200))
+    quantity = db.Column(db.Integer, nullable=False)
+    unit_price = db.Column(db.Integer, nullable=False)  # in paise
+
+# --- Blacklisted Pincodes (admin managed) ---
+class BlacklistedPincode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    pincode = db.Column(db.String(10), unique=True, nullable=False)
+    city = db.Column(db.String(100))
+    reason = db.Column(db.String(200))
+
+# --- Site Settings Helpers ---
+def get_setting(key, default=''):
+    """Get a site setting value by key"""
+    setting = SiteSetting.query.filter_by(key=key).first()
+    return setting.value if setting else default
+
+def set_setting(key, value):
+    """Set a site setting value"""
+    setting = SiteSetting.query.filter_by(key=key).first()
+    if setting:
+        setting.value = str(value)
+    else:
+        setting = SiteSetting(key=key, value=str(value))
+        db.session.add(setting)
+    db.session.commit()
 
 # --- DB Initialization Command ---
 @app.cli.command("init-db")
@@ -536,13 +618,19 @@ def admin_dashboard():
     total_products = Product.query.count()
     total_blogs = Blog.query.count()
     total_messages = ContactMessage.query.count()
+    total_spice_orders = SpiceOrder.query.count()
+    total_revenue = sum(o.total_amount for o in SpiceOrder.query.filter_by(payment_status='paid').all()) // 100
+    pending_shipments = SpiceOrder.query.filter_by(payment_status='paid', shipping_status='processing').count()
     
     return render_template('admin_dashboard.html', 
                            total_users=total_users, 
                            total_visits=total_visits,
                            total_products=total_products,
                            total_blogs=total_blogs,
-                           total_messages=total_messages)
+                           total_messages=total_messages,
+                           total_spice_orders=total_spice_orders,
+                           total_revenue=total_revenue,
+                           pending_shipments=pending_shipments)
 
 # ✅ Admin: View Contact Messages
 @app.route('/admin/messages')
@@ -701,7 +789,13 @@ def science_hub():
     if is_logged_in:
         has_digital_access = DigitalAccess.query.filter_by(user_email=user['email']).first() is not None
 
-    return render_template('science_hub.html', user=user, is_logged_in=is_logged_in, has_digital_access=has_digital_access, razorpay_key_id=RAZORPAY_KEY_ID)
+    # Read toggles from SiteSetting
+    digital_enabled = get_setting('science_hub_digital_enabled', 'true') == 'true'
+    physical_enabled = get_setting('science_hub_physical_enabled', 'true') == 'true'
+
+    return render_template('science_hub.html', user=user, is_logged_in=is_logged_in,
+                           has_digital_access=has_digital_access, razorpay_key_id=RAZORPAY_KEY_ID,
+                           digital_enabled=digital_enabled, physical_enabled=physical_enabled)
 
 @app.route('/science-hub/validate-upper-id', methods=['POST'])
 def validate_upper_id():
@@ -912,6 +1006,596 @@ def truncate(s, length=100):
     return s if len(s) <= length else s[:length] + "..."
 
 
+# -------------------------
+# 🛒 Cart Routes
+# -------------------------
+
+@app.route('/cart')
+def view_cart():
+    user = session.get('user')
+    if not user:
+        flash("Please login to view your cart.", "warning")
+        return redirect('/login')
+    
+    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_total = sum(int(float(item.product.price)) * item.quantity for item in cart_items if item.product)
+    
+    return render_template('cart.html', cart_items=cart_items, cart_total=cart_total,
+                           user=user, is_logged_in=True)
+
+@app.route('/cart/add', methods=['POST'])
+def add_to_cart():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    # Check if store is open
+    if get_setting('store_open', 'true') == 'false':
+        return jsonify({'error': 'Store is currently closed'}), 503
+    
+    data = request.json
+    product_id = data.get('product_id')
+    quantity = int(data.get('quantity', 1))
+    
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({'error': 'Product not found'}), 404
+    
+    # Check stock
+    if product.stock is not None and product.stock < quantity:
+        return jsonify({'error': f'Only {product.stock} items available'}), 400
+    
+    # Max 5 per product
+    existing = CartItem.query.filter_by(user_email=user['email'], product_id=product_id).first()
+    if existing:
+        new_qty = existing.quantity + quantity
+        if new_qty > 5:
+            return jsonify({'error': 'Maximum 5 per product allowed'}), 400
+        existing.quantity = new_qty
+    else:
+        if quantity > 5:
+            return jsonify({'error': 'Maximum 5 per product allowed'}), 400
+        item = CartItem(user_email=user['email'], product_id=product_id, quantity=quantity)
+        db.session.add(item)
+    
+    db.session.commit()
+    count = CartItem.query.filter_by(user_email=user['email']).count()
+    return jsonify({'success': True, 'message': f'{product.name} added to cart!', 'cart_count': count})
+
+@app.route('/cart/update', methods=['POST'])
+def update_cart():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    data = request.json
+    item_id = data.get('item_id')
+    quantity = int(data.get('quantity', 1))
+    
+    item = CartItem.query.filter_by(id=item_id, user_email=user['email']).first()
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
+    
+    if quantity <= 0:
+        db.session.delete(item)
+    elif quantity > 5:
+        return jsonify({'error': 'Maximum 5 per product allowed'}), 400
+    else:
+        # Check stock
+        if item.product.stock is not None and item.product.stock < quantity:
+            return jsonify({'error': f'Only {item.product.stock} items available'}), 400
+        item.quantity = quantity
+    
+    db.session.commit()
+    
+    # Recalculate totals
+    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_total = sum(int(float(ci.product.price)) * ci.quantity for ci in cart_items if ci.product)
+    count = len(cart_items)
+    
+    return jsonify({'success': True, 'cart_total': cart_total, 'cart_count': count})
+
+@app.route('/cart/remove', methods=['POST'])
+def remove_from_cart():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    data = request.json
+    item_id = data.get('item_id')
+    
+    item = CartItem.query.filter_by(id=item_id, user_email=user['email']).first()
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+    
+    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_total = sum(int(float(ci.product.price)) * ci.quantity for ci in cart_items if ci.product)
+    count = len(cart_items)
+    
+    return jsonify({'success': True, 'cart_total': cart_total, 'cart_count': count})
+
+@app.route('/cart/count')
+def cart_count():
+    user = session.get('user')
+    if not user:
+        return jsonify({'count': 0})
+    count = CartItem.query.filter_by(user_email=user['email']).count()
+    return jsonify({'count': count})
+
+
+# -------------------------
+# 💳 Checkout Routes
+# -------------------------
+
+@app.route('/checkout')
+def checkout():
+    user = session.get('user')
+    if not user:
+        flash("Please login to checkout.", "warning")
+        return redirect('/login')
+    
+    if get_setting('store_open', 'true') == 'false':
+        flash("Store is currently closed. Please try again later.", "warning")
+        return redirect('/products')
+    
+    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    if not cart_items:
+        flash("Your cart is empty.", "warning")
+        return redirect('/cart')
+    
+    cart_total = sum(int(float(item.product.price)) * item.quantity for item in cart_items if item.product)
+    
+    return render_template('checkout.html', cart_items=cart_items, cart_total=cart_total,
+                           user=user, is_logged_in=True, razorpay_key_id=RAZORPAY_KEY_ID)
+
+@app.route('/checkout/check-pincode', methods=['POST'])
+def check_pincode():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    data = request.json
+    pincode = data.get('pincode', '').strip()
+    
+    if not pincode or len(pincode) != 6 or not pincode.isdigit():
+        return jsonify({'available': False, 'message': 'Please enter a valid 6-digit pincode'})
+    
+    # Check blacklist
+    blacklisted = BlacklistedPincode.query.filter_by(pincode=pincode).first()
+    if blacklisted:
+        return jsonify({'available': False, 'message': f'Delivery not available to {pincode} ({blacklisted.reason or "Restricted area"})'})
+    
+    # Check with NimbusPost
+    result = nimbus_api.check_serviceability(pincode)
+    return jsonify(result)
+
+@app.route('/checkout/calculate-shipping', methods=['POST'])
+def calculate_shipping():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    data = request.json
+    pincode = data.get('pincode', '').strip()
+    
+    # Calculate total weight from cart
+    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    total_weight_kg = 0.0
+    for item in cart_items:
+        # Estimate: 50g product = 100g packed, 100g product = 150g packed
+        price = float(item.product.price) if item.product.price else 0
+        if price <= 50:
+            item_weight = 0.1  # 100g
+        else:
+            item_weight = 0.15  # 150g
+        total_weight_kg += item_weight * item.quantity
+    
+    rates = nimbus_api.get_shipping_rates(pincode, total_weight_kg)
+    return jsonify({'rates': rates})
+
+@app.route('/checkout/create-order', methods=['POST'])
+def create_checkout_order():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    if get_setting('store_open', 'true') == 'false':
+        return jsonify({'error': 'Store is currently closed'}), 503
+    
+    data = request.json
+    
+    # Validate delivery details
+    full_name = data.get('full_name', '').strip()
+    phone = data.get('phone', '').strip()
+    address = data.get('address', '').strip()
+    city = data.get('city', '').strip()
+    state = data.get('state', '').strip()
+    pincode = data.get('pincode', '').strip()
+    shipping_rate = int(data.get('shipping_rate', 60))
+    
+    if not all([full_name, phone, address, city, state, pincode]):
+        return jsonify({'error': 'Please fill in all delivery details'}), 400
+    
+    # Check blacklist again
+    blacklisted = BlacklistedPincode.query.filter_by(pincode=pincode).first()
+    if blacklisted:
+        return jsonify({'error': 'Delivery not available to this pincode'}), 400
+    
+    # Get cart items
+    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    if not cart_items:
+        return jsonify({'error': 'Cart is empty'}), 400
+    
+    # Check stock for all items
+    for item in cart_items:
+        if item.product.stock is not None and item.product.stock < item.quantity:
+            return jsonify({'error': f'{item.product.name} has only {item.product.stock} left in stock'}), 400
+    
+    # Calculate totals
+    subtotal_rupees = sum(int(float(item.product.price)) * item.quantity for item in cart_items)
+    subtotal_paise = subtotal_rupees * 100
+    shipping_paise = shipping_rate * 100
+    total_paise = subtotal_paise + shipping_paise
+    
+    if not razorpay_client:
+        return jsonify({'error': 'Payment system not configured'}), 500
+    
+    try:
+        # Create Razorpay order
+        order_number = f'HS-{uuid.uuid4().hex[:8].upper()}'
+        rzp_order = razorpay_client.order.create({
+            'amount': total_paise,
+            'currency': 'INR',
+            'receipt': order_number,
+            'payment_capture': 1
+        })
+        
+        # Save order
+        new_order = SpiceOrder(
+            order_number=order_number,
+            user_email=user['email'],
+            full_name=full_name,
+            phone=phone,
+            address=address,
+            city=city,
+            state=state,
+            pincode=pincode,
+            subtotal=subtotal_paise,
+            shipping_cost=shipping_paise,
+            total_amount=total_paise,
+            razorpay_order_id=rzp_order['id']
+        )
+        db.session.add(new_order)
+        db.session.flush()  # Get new_order.id
+        
+        # Save order items (snapshot)
+        for item in cart_items:
+            order_item = OrderItem(
+                order_id=new_order.id,
+                product_id=item.product_id,
+                product_name=item.product.name,
+                quantity=item.quantity,
+                unit_price=int(float(item.product.price)) * 100
+            )
+            db.session.add(order_item)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'order_id': rzp_order['id'],
+            'order_number': order_number,
+            'amount': total_paise,
+            'currency': 'INR',
+            'key': RAZORPAY_KEY_ID
+        })
+        
+    except Exception as e:
+        print("Checkout order creation error:", e)
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/checkout/verify-payment', methods=['POST'])
+def verify_checkout_payment():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.json
+    razorpay_payment_id = data.get('razorpay_payment_id')
+    razorpay_order_id = data.get('razorpay_order_id')
+    razorpay_signature = data.get('razorpay_signature')
+    
+    if not all([razorpay_payment_id, razorpay_order_id, razorpay_signature]):
+        return jsonify({'error': 'Missing payment details'}), 400
+    
+    try:
+        # Verify signature
+        razorpay_client.utility.verify_payment_signature({
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        })
+        
+        # Update order
+        order = SpiceOrder.query.filter_by(razorpay_order_id=razorpay_order_id).first()
+        if not order:
+            return jsonify({'error': 'Order not found'}), 404
+        
+        order.payment_status = 'paid'
+        order.razorpay_payment_id = razorpay_payment_id
+        
+        # Decrement stock
+        for item in order.items:
+            product = Product.query.get(item.product_id)
+            if product and product.stock is not None:
+                product.stock = max(0, product.stock - item.quantity)
+        
+        # Clear the cart
+        CartItem.query.filter_by(user_email=user['email']).delete()
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Payment successful!', 'order_number': order.order_number})
+        
+    except razorpay.errors.SignatureVerificationError:
+        return jsonify({'error': 'Invalid payment signature'}), 400
+    except Exception as e:
+        print("Checkout payment verification error:", e)
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+# -------------------------
+# 📦 Customer Order Routes
+# -------------------------
+
+@app.route('/orders')
+def my_orders():
+    user = session.get('user')
+    if not user:
+        flash("Please login to view your orders.", "warning")
+        return redirect('/login')
+    
+    orders = SpiceOrder.query.filter_by(user_email=user['email']).order_by(SpiceOrder.created_at.desc()).all()
+    return render_template('my_orders.html', orders=orders, user=user, is_logged_in=True)
+
+@app.route('/orders/<int:order_id>/track')
+def track_order(order_id):
+    user = session.get('user')
+    if not user:
+        flash("Please login to track your order.", "warning")
+        return redirect('/login')
+    
+    order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
+    
+    # Get tracking from NimbusPost
+    tracking = {'current_status': order.shipping_status, 'history': [], 'estimated_delivery': order.estimated_delivery or 'N/A'}
+    if order.awb_number:
+        tracking = nimbus_api.track_shipment(order.awb_number)
+    
+    return render_template('order_tracking.html', order=order, tracking=tracking,
+                           user=user, is_logged_in=True)
+
+
+# -------------------------
+# ⚙️ Admin Store Settings
+# -------------------------
+
+@app.route('/admin/store-settings', methods=['GET', 'POST'])
+@admin_required
+def admin_store_settings():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'toggle_store':
+            current = get_setting('store_open', 'true')
+            set_setting('store_open', 'false' if current == 'true' else 'true')
+            flash("Store status updated!", "success")
+        
+        elif action == 'toggle_science_hub':
+            digital = request.form.get('digital_enabled', 'false')
+            physical = request.form.get('physical_enabled', 'false')
+            set_setting('science_hub_digital_enabled', digital)
+            set_setting('science_hub_physical_enabled', physical)
+            flash("Science Hub settings updated!", "success")
+        
+        elif action == 'update_stock':
+            product_id = request.form.get('product_id')
+            new_stock = request.form.get('stock', type=int)
+            product = Product.query.get(product_id)
+            if product and new_stock is not None:
+                product.stock = new_stock
+                db.session.commit()
+                flash(f"Stock updated for {product.name}", "success")
+        
+        elif action == 'update_notice':
+            notice = request.form.get('shipping_notice', '')
+            set_setting('shipping_notice', notice)
+            flash("Shipping notice updated!", "success")
+        
+        return redirect('/admin/store-settings')
+    
+    settings = {
+        'store_open': get_setting('store_open', 'true'),
+        'science_hub_digital_enabled': get_setting('science_hub_digital_enabled', 'true'),
+        'science_hub_physical_enabled': get_setting('science_hub_physical_enabled', 'true'),
+        'shipping_notice': get_setting('shipping_notice', '')
+    }
+    products = Product.query.all()
+    
+    return render_template('admin_store_settings.html', settings=settings, products=products,
+                           user=session.get('user'), is_logged_in=True)
+
+
+# -------------------------
+# 🚚 Admin Delivery Zones
+# -------------------------
+
+@app.route('/admin/delivery-zones', methods=['GET', 'POST'])
+@admin_required
+def admin_delivery_zones():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'set_mode':
+            mode = request.form.get('delivery_mode', 'hybrid')
+            set_setting('delivery_mode', mode)
+            flash("Delivery mode updated!", "success")
+        
+        elif action == 'add_blacklist':
+            pincode = request.form.get('pincode', '').strip()
+            city = request.form.get('city', '').strip()
+            reason = request.form.get('reason', '').strip()
+            if pincode and not BlacklistedPincode.query.filter_by(pincode=pincode).first():
+                bp = BlacklistedPincode(pincode=pincode, city=city, reason=reason)
+                db.session.add(bp)
+                db.session.commit()
+                flash(f"Pincode {pincode} blacklisted", "success")
+            else:
+                flash("Pincode already blacklisted or invalid", "warning")
+        
+        elif action == 'remove_blacklist':
+            bp_id = request.form.get('id')
+            bp = BlacklistedPincode.query.get(bp_id)
+            if bp:
+                db.session.delete(bp)
+                db.session.commit()
+                flash("Pincode removed from blacklist", "success")
+        
+        return redirect('/admin/delivery-zones')
+    
+    delivery_mode = get_setting('delivery_mode', 'hybrid')
+    blacklisted = BlacklistedPincode.query.all()
+    
+    return render_template('admin_delivery_zones.html', delivery_mode=delivery_mode,
+                           blacklisted=blacklisted, user=session.get('user'), is_logged_in=True)
+
+
+# -------------------------
+# 📋 Admin Orders
+# -------------------------
+
+@app.route('/admin/orders')
+@admin_required
+def admin_orders():
+    orders = SpiceOrder.query.order_by(SpiceOrder.created_at.desc()).all()
+    
+    stats = {
+        'total_orders': len(orders),
+        'total_revenue': sum(o.total_amount for o in orders if o.payment_status == 'paid') // 100,
+        'pending_shipments': sum(1 for o in orders if o.payment_status == 'paid' and o.shipping_status == 'processing'),
+        'delivered': sum(1 for o in orders if o.shipping_status == 'delivered')
+    }
+    
+    return render_template('admin_orders.html', orders=orders, stats=stats,
+                           user=session.get('user'), is_logged_in=True)
+
+@app.route('/admin/orders/ship/<int:order_id>', methods=['POST'])
+@admin_required
+def ship_order(order_id):
+    order = SpiceOrder.query.get_or_404(order_id)
+    
+    if order.payment_status != 'paid':
+        flash("Cannot ship unpaid order.", "danger")
+        return redirect('/admin/orders')
+    
+    if order.shipping_status != 'processing':
+        flash("Order already shipped or cancelled.", "warning")
+        return redirect('/admin/orders')
+    
+    # Push to NimbusPost
+    shipment_data = {
+        'order_number': order.order_number,
+        'consignee': {
+            'name': order.full_name,
+            'address': order.address,
+            'city': order.city,
+            'state': order.state,
+            'pincode': order.pincode,
+            'phone': order.phone
+        },
+        'items': [{'name': item.product_name, 'quantity': item.quantity, 'price': item.unit_price // 100}
+                  for item in order.items],
+        'total_amount': order.total_amount // 100,
+        'weight_kg': 0.5
+    }
+    
+    result = nimbus_api.create_shipment(shipment_data)
+    
+    if result['success']:
+        order.awb_number = result.get('awb_number')
+        order.courier_name = result.get('courier_name', 'NimbusPost')
+        order.shipping_status = 'shipped'
+        order.estimated_delivery = result.get('estimated_delivery', '')
+        db.session.commit()
+        flash(f"Order {order.order_number} shipped! AWB: {order.awb_number}", "success")
+    else:
+        # Even if NimbusPost is not configured, mark as shipped manually
+        order.shipping_status = 'shipped'
+        order.courier_name = 'Manual'
+        db.session.commit()
+        flash(f"Order {order.order_number} marked as shipped. NimbusPost: {result.get('message', 'Not configured')}", "warning")
+    
+    return redirect('/admin/orders')
+
+@app.route('/admin/orders/cancel/<int:order_id>', methods=['POST'])
+@admin_required
+def cancel_order(order_id):
+    order = SpiceOrder.query.get_or_404(order_id)
+    
+    if order.shipping_status not in ['processing']:
+        flash("Cannot cancel shipped orders.", "danger")
+        return redirect('/admin/orders')
+    
+    # Cancel on NimbusPost if shipped
+    if order.awb_number:
+        nimbus_api.cancel_shipment(order.awb_number)
+    
+    # Restore stock
+    for item in order.items:
+        product = Product.query.get(item.product_id)
+        if product and product.stock is not None:
+            product.stock += item.quantity
+    
+    order.shipping_status = 'cancelled'
+    db.session.commit()
+    flash(f"Order {order.order_number} cancelled. Stock restored.", "success")
+    return redirect('/admin/orders')
+
+# NimbusPost Webhook
+@app.route('/api/nimbus/webhook', methods=['POST'])
+@csrf.exempt
+def nimbus_webhook():
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data'}), 400
+    
+    awb = data.get('awb_number') or data.get('awb')
+    status = data.get('current_status') or data.get('status')
+    
+    if awb and status:
+        order = SpiceOrder.query.filter_by(awb_number=awb).first()
+        if order:
+            order.shipping_status = status.lower()
+            if 'delivered' in status.lower():
+                order.shipping_status = 'delivered'
+            db.session.commit()
+    
+    return jsonify({'success': True}), 200
+
+
+# -------------------------
+# Update existing routes
+# -------------------------
+
+# Inject cart count into all templates
+@app.context_processor
+def inject_cart_count():
+    user = session.get('user')
+    if user:
+        count = CartItem.query.filter_by(user_email=user['email']).count()
+        return {'cart_count': count}
+    return {'cart_count': 0}
+
 
 @app.errorhandler(403)
 def forbidden(e):
@@ -945,4 +1629,5 @@ if __name__ == '__main__':
         db.create_all()
         print("Database tables created!")
     app.run(debug=True)
+
     

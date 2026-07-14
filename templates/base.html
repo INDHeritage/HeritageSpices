@@ -273,6 +273,22 @@
           <li class="nav-item"><a class="nav-link d-flex align-items-center" href="/products">🛒 Products</a></li>
           <li class="nav-item"><a class="nav-link d-flex align-items-center" href="/#wholesale">📦 Wholesale</a></li>
           <li class="nav-item"><a class="nav-link d-flex align-items-center" href="/blog">📝 Blog</a></li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center position-relative text-success fw-bold" href="/cart">
+              <i class="fas fa-shopping-cart fa-lg me-1"></i> Cart
+              {% if cart_count and cart_count > 0 %}
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-badge">
+                {{ cart_count }}
+                <span class="visually-hidden">items in cart</span>
+              </span>
+              {% else %}
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="cart-badge">
+                0
+                <span class="visually-hidden">items in cart</span>
+              </span>
+              {% endif %}
+            </a>
+          </li>
           <li class="nav-item"><a class="nav-link d-flex align-items-center text-primary fw-bold" href="/science-hub">🔬 Science Hub</a></li>
           <li class="nav-item ms-lg-3 mt-3 mt-lg-0">
             {% if not user %}

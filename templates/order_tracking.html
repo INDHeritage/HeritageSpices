@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Track Order #{{ order.order_number }} | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row mb-4">
+    <div class="col-12 text-center">
+      <h1 class="display-6 fw-bold text-success mb-3 animate__animated animate__fadeInDown">Track Order</h1>
+      <p class="text-muted font-monospace">{{ order.order_number }}</p>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      
+      <!-- Summary Card -->
+      <div class="card shadow border-0 rounded-4 mb-4 animate__animated animate__fadeInUp">
+        <div class="card-body p-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+            <div>
+              <h5 class="fw-bold mb-1">Order Details</h5>
+              <small class="text-muted">Placed on {{ order.created_at.strftime('%d %b %Y, %I:%M %p') }}</small>
+            </div>
+            <div class="text-end mt-3 mt-md-0">
+              <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill mb-1">Paid: ₹{{ order.total_amount // 100 }}</span>
+            </div>
+          </div>
+          
+          <div class="row bg-light rounded-3 p-3 g-3">
+            <div class="col-md-6">
+              <small class="text-uppercase text-muted fw-bold mb-1 d-block" style="font-size: 0.75rem;">Delivery Address</small>
+              <p class="mb-0 fw-semibold">{{ order.full_name }}</p>
+              <small class="text-muted d-block">{{ order.address }}</small>
+              <small class="text-muted">{{ order.city }}, {{ order.state }} - {{ order.pincode }}</small>
+              <small class="text-muted d-block mt-1"><i class="fas fa-phone-alt me-1"></i> +91 {{ order.phone }}</small>
+            </div>
+            <div class="col-md-6 border-md-start border-light-subtle ps-md-4 mt-4 mt-md-0">
+              <small class="text-uppercase text-muted fw-bold mb-1 d-block" style="font-size: 0.75rem;">Courier Info</small>
+              {% if order.courier_name %}
+                <p class="mb-1 fw-semibold text-dark"><i class="fas fa-truck text-primary me-2"></i> {{ order.courier_name }}</p>
+                {% if order.awb_number %}
+                  <p class="mb-1 text-muted small"><span class="fw-bold">AWB:</span> {{ order.awb_number }}</p>
+                {% endif %}
+                <p class="mb-0 text-muted small"><span class="fw-bold">Est. Delivery:</span> <span class="text-success">{{ tracking.estimated_delivery }}</span></p>
+              {% else %}
+                <p class="mb-0 text-muted fst-italic">Waiting for carrier assignment</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tracking Timeline -->
+      <div class="card shadow-sm border-0 rounded-4 animate__animated animate__fadeInUp" style="animation-delay: 0.2s;">
+        <div class="card-header bg-white border-bottom border-light-subtle p-4">
+          <h5 class="fw-bold mb-0"><i class="fas fa-route text-success me-2"></i> Tracking History</h5>
+        </div>
+        <div class="card-body p-4">
+          
+          <div class="tracking-timeline position-relative ps-4 py-2 border-start border-2 border-success border-opacity-25 ms-3">
+            
+            {% set s_status = order.shipping_status|lower %}
+            
+            <!-- Step 1: Order Placed -->
+            <div class="timeline-step mb-4 position-relative">
+              <div class="timeline-icon bg-success text-white rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                <i class="fas fa-check small"></i>
+              </div>
+              <h6 class="fw-bold text-dark mb-1">Order Placed</h6>
+              <small class="text-muted">{{ order.created_at.strftime('%d %b %Y, %I:%M %p') }}</small>
+            </div>
+            
+            <!-- Step 2: Payment -->
+            <div class="timeline-step mb-4 position-relative">
+              <div class="timeline-icon bg-success text-white rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                <i class="fas fa-check small"></i>
+              </div>
+              <h6 class="fw-bold text-dark mb-1">Payment Confirmed</h6>
+              <small class="text-muted">Transaction ID: {{ order.razorpay_payment_id }}</small>
+            </div>
+            
+            <!-- Step 3: Shipped -->
+            {% set is_shipped = s_status in ['shipped', 'in transit', 'out for delivery', 'delivered'] %}
+            <div class="timeline-step mb-4 position-relative opacity-{{ '100' if is_shipped else '50' }}">
+              <div class="timeline-icon bg-{{ 'success' if is_shipped else 'light' }} text-{{ 'white' if is_shipped else 'secondary' }} border border-{{ 'success' if is_shipped else 'secondary' }} rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                <i class="fas fa-{{ 'check' if is_shipped else 'box' }} small"></i>
+              </div>
+              <h6 class="fw-bold text-dark mb-1">Packed & Shipped</h6>
+              {% if is_shipped %}
+                <small class="text-muted">Handed over to {{ order.courier_name or 'courier' }}</small>
+              {% else %}
+                <small class="text-muted fst-italic">We are preparing your order</small>
+              {% endif %}
+            </div>
+            
+            <!-- Dynamic NimbusPost History -->
+            {% if tracking.history %}
+              {% for event in tracking.history %}
+              <div class="timeline-step mb-4 position-relative">
+                <div class="timeline-icon bg-info text-white rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                  <i class="fas fa-truck-moving small"></i>
+                </div>
+                <h6 class="fw-bold text-dark mb-1">{{ event.status }}</h6>
+                <small class="text-muted d-block">{{ event.location }}</small>
+                <small class="text-muted">{{ event.date }}</small>
+              </div>
+              {% endfor %}
+            {% endif %}
+            
+            <!-- Step 4: Delivered -->
+            {% set is_delivered = s_status == 'delivered' %}
+            <div class="timeline-step position-relative opacity-{{ '100' if is_delivered else '50' }}">
+              <div class="timeline-icon bg-{{ 'success' if is_delivered else 'light' }} text-{{ 'white' if is_delivered else 'secondary' }} border border-{{ 'success' if is_delivered else 'secondary' }} rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                <i class="fas fa-{{ 'star' if is_delivered else 'home' }} small"></i>
+              </div>
+              <h6 class="fw-bold text-dark mb-1">Delivered</h6>
+              {% if is_delivered %}
+                <small class="text-success fw-bold">Package has been delivered successfully!</small>
+              {% else %}
+                <small class="text-muted fst-italic">Awaiting delivery</small>
+              {% endif %}
+            </div>
+            
+          </div>
+          
+        </div>
+      </div>
+      
+      <div class="text-center mt-4">
+        <a href="/orders" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm hover-lift">
+          <i class="fas fa-arrow-left me-2"></i> Back to My Orders
+        </a>
+      </div>
+      
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.Tawk_API = window.Tawk_API || {};
+  window.Tawk_API.onLoad = function() {
+      window.Tawk_API.hideWidget();
+  };
+</script>
+<style>
+  .hover-lift { transition: all 0.3s ease; }
+  .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important; }
+</style>
+{% endblock %}

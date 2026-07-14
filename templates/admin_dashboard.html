@@ -63,16 +63,55 @@
     </div>
   </div>
 
+  <!-- 🛒 E-Commerce Stats -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-4">
+      <div class="card bg-dark text-white h-100 shadow-sm border-0">
+        <div class="card-body text-center d-flex flex-column justify-content-center">
+          <i class="fas fa-shopping-bag fa-2x mb-2"></i>
+          <h5 class="card-title">Spice Orders</h5>
+          <h2 class="display-6 fw-bold mb-0">{{ total_spice_orders }}</h2>
+        </div>
+        <div class="card-footer bg-transparent border-0 text-center">
+          <a href="/admin/orders" class="text-white text-decoration-none small">Manage Orders <i class="fas fa-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-success text-white h-100 shadow-sm border-0">
+        <div class="card-body text-center d-flex flex-column justify-content-center">
+          <i class="fas fa-rupee-sign fa-2x mb-2"></i>
+          <h5 class="card-title">Total Revenue</h5>
+          <h2 class="display-6 fw-bold mb-0">₹{{ total_revenue }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-warning text-dark h-100 shadow-sm border-0">
+        <div class="card-body text-center d-flex flex-column justify-content-center">
+          <i class="fas fa-truck fa-2x mb-2"></i>
+          <h5 class="card-title">Pending Shipments</h5>
+          <h2 class="display-6 fw-bold mb-0">{{ pending_shipments }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <h3 class="mb-4">Quick Actions</h3>
   <div class="row g-3">
-    <div class="col-md-6">
+    <div class="col-md-4">
       <a href="/admin/products/add" class="btn btn-lg btn-outline-warning w-100 d-flex align-items-center justify-content-center py-3">
         <i class="fas fa-plus-circle fa-lg me-2"></i> Add New Product
       </a>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-4">
       <a href="/admin/blogs" class="btn btn-lg btn-outline-info w-100 d-flex align-items-center justify-content-center py-3">
         <i class="fas fa-pen fa-lg me-2"></i> Write New Blog Post
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="/admin/orders" class="btn btn-lg btn-outline-dark w-100 d-flex align-items-center justify-content-center py-3">
+        <i class="fas fa-shopping-bag fa-lg me-2"></i> Manage Orders
       </a>
     </div>
     <div class="col-12 mt-4">
@@ -94,6 +133,28 @@
             <p class="text-muted mb-0 small">Manage Upper IDs, Orders, and Digital Access for Class 10 Notes.</p>
           </div>
           <a href="/admin/science-hub" class="btn btn-success">Manage Science Hub</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 mt-3">
+      <div class="card shadow-sm border-0">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="mb-1"><i class="fas fa-cog text-secondary me-2"></i> Store Settings</h5>
+            <p class="text-muted mb-0 small">Toggle store open/close, Science Hub availability, stock management.</p>
+          </div>
+          <a href="/admin/store-settings" class="btn btn-secondary">Settings</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 mt-3">
+      <div class="card shadow-sm border-0">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="mb-1"><i class="fas fa-map-marker-alt text-danger me-2"></i> Delivery Zones</h5>
+            <p class="text-muted mb-0 small">Manage NimbusPost delivery modes and blacklisted pincodes.</p>
+          </div>
+          <a href="/admin/delivery-zones" class="btn btn-danger">Manage Zones</a>
         </div>
       </div>
     </div>

@@ -69,7 +69,9 @@
                         </div>
                         <div id="digital-msg" class="small mb-3"></div>
                         
-                        {% if not is_logged_in %}
+                        {% if not digital_enabled %}
+                        <button class="btn btn-secondary w-100 py-2 fw-bold" disabled><i class="fas fa-ban me-2"></i>Currently Unavailable</button>
+                        {% elif not is_logged_in %}
                         <button class="btn btn-primary w-100 py-2 fw-bold" onclick="alert('Please login first to purchase.')"><i class="fas fa-lock me-2"></i>Login to Purchase</button>
                         {% elif has_digital_access %}
                         <button class="btn btn-secondary w-100 py-2 fw-bold" disabled>Already Purchased</button>
@@ -116,7 +118,9 @@
                         </div>
                         <div id="physical-msg" class="small mb-3"></div>
 
-                        {% if not is_logged_in %}
+                        {% if not physical_enabled %}
+                        <button class="btn btn-secondary w-100 py-2 fw-bold" disabled><i class="fas fa-ban me-2"></i>Currently Unavailable</button>
+                        {% elif not is_logged_in %}
                         <button class="btn btn-success w-100 py-2 fw-bold" onclick="alert('Please login first to purchase.')"><i class="fas fa-lock me-2"></i>Login to Purchase</button>
                         {% else %}
                         <button class="btn btn-success w-100 py-2 fw-bold" id="btn-buy-physical" onclick="showDeliveryForm()"><i class="fas fa-shopping-cart me-2"></i>Buy Now</button>

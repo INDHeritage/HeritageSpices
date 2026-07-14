@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}Delivery Zones | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h1 class="text-success fw-bold mb-0">
+      <i class="fas fa-map-marked-alt me-2"></i>Delivery Zones
+    </h1>
+    <a href="/admin/dashboard" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+    </a>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Card 1 : Delivery Mode Selection                                   -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4" style="transition: box-shadow .3s ease;">
+    <div class="card-header bg-white border-bottom-0 rounded-top-4 pt-4 pb-0 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-route text-success me-2"></i>Delivery Mode
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        Choose how serviceability is determined for incoming orders.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      <form method="POST" action="/admin/delivery-zones" id="modeForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="set_mode">
+
+        <div class="row g-3">
+          <!-- NimbusPost Auto -->
+          <div class="col-md-4">
+            <label class="card border rounded-3 p-3 h-100 d-flex flex-column text-center mode-option
+                          {% if delivery_mode == 'nimbuspost' %}border-success border-2 bg-success bg-opacity-10{% endif %}"
+                   style="cursor: pointer; transition: all .25s ease;">
+              <input type="radio" name="delivery_mode" value="nimbuspost" class="d-none"
+                     {% if delivery_mode == 'nimbuspost' %}checked{% endif %}>
+              <i class="fas fa-rocket fa-2x mb-2 text-success"></i>
+              <strong>NimbusPost Auto</strong>
+              <span class="badge bg-success mt-2 align-self-center">Recommended</span>
+              <small class="text-muted mt-2">Automatically checks serviceability via NimbusPost API for every order.</small>
+            </label>
+          </div>
+          <!-- Manual Whitelist -->
+          <div class="col-md-4">
+            <label class="card border rounded-3 p-3 h-100 d-flex flex-column text-center mode-option
+                          {% if delivery_mode == 'manual' %}border-success border-2 bg-success bg-opacity-10{% endif %}"
+                   style="cursor: pointer; transition: all .25s ease;">
+              <input type="radio" name="delivery_mode" value="manual" class="d-none"
+                     {% if delivery_mode == 'manual' %}checked{% endif %}>
+              <i class="fas fa-list-check fa-2x mb-2 text-primary"></i>
+              <strong>Manual Pincode Whitelist</strong>
+              <small class="text-muted mt-2">Only deliver to pincodes you have manually added to the whitelist.</small>
+            </label>
+          </div>
+          <!-- Hybrid -->
+          <div class="col-md-4">
+            <label class="card border rounded-3 p-3 h-100 d-flex flex-column text-center mode-option
+                          {% if delivery_mode == 'hybrid' %}border-success border-2 bg-success bg-opacity-10{% endif %}"
+                   style="cursor: pointer; transition: all .25s ease;">
+              <input type="radio" name="delivery_mode" value="hybrid" class="d-none"
+                     {% if delivery_mode == 'hybrid' %}checked{% endif %}>
+              <i class="fas fa-code-merge fa-2x mb-2 text-warning"></i>
+              <strong>Hybrid</strong>
+              <small class="text-muted mt-1">(NimbusPost&nbsp;+&nbsp;Blacklist)</small>
+              <small class="text-muted mt-2">NimbusPost auto but block specific pincodes you choose.</small>
+            </label>
+          </div>
+        </div>
+
+        <div class="text-end mt-3">
+          <button type="submit" class="btn btn-success px-4">
+            <i class="fas fa-save me-1"></i>Save Mode
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Card 2 : Blacklisted Pincodes  (NimbusPost Auto / Hybrid modes)    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="blacklistCard" class="card border-0 shadow-sm rounded-4 mb-4" style="transition: box-shadow .3s ease;
+       {% if delivery_mode == 'manual' %}display:none;{% endif %}">
+    <div class="card-header bg-white border-bottom-0 rounded-top-4 pt-4 pb-0 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-ban text-danger me-2"></i>Blacklisted Pincodes
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        Pincodes blocked from delivery even if NimbusPost says they are serviceable.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      <!-- Add Blacklist Form -->
+      <form method="POST" action="/admin/delivery-zones" class="mb-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="add_blacklist">
+        <div class="row g-2 align-items-end">
+          <div class="col-sm-4 col-md-3">
+            <label class="form-label small fw-semibold">Pincode</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="fas fa-map-pin text-muted"></i></span>
+              <input type="text" name="pincode" class="form-control" placeholder="e.g. 400001"
+                     pattern="\d{6}" maxlength="6" required>
+            </div>
+          </div>
+          <div class="col-sm-5 col-md-4">
+            <label class="form-label small fw-semibold">City / Area Name</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="fas fa-city text-muted"></i></span>
+              <input type="text" name="city" class="form-control" placeholder="e.g. Mumbai" required>
+            </div>
+          </div>
+          <div class="col-sm-3 col-md-3">
+            <button type="submit" class="btn btn-danger w-100">
+              <i class="fas fa-ban me-1"></i>Block Pincode
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Blacklist Table -->
+      {% if blacklisted %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="fw-semibold"><i class="fas fa-hashtag me-1 text-muted"></i>Pincode</th>
+              <th class="fw-semibold"><i class="fas fa-city me-1 text-muted"></i>City / Area</th>
+              <th class="fw-semibold text-end"><i class="fas fa-trash-can me-1 text-muted"></i>Remove</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in blacklisted %}
+            <tr>
+              <td>
+                <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2" style="font-size: .85rem;">
+                  {{ item.pincode }}
+                </span>
+              </td>
+              <td class="fw-medium">{{ item.city }}</td>
+              <td class="text-end">
+                <form method="POST" action="/admin/delivery-zones" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="remove_blacklist">
+                  <input type="hidden" name="pincode" value="{{ item.pincode }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Unblock this pincode"
+                          onclick="return confirm('Unblock pincode {{ item.pincode }}?')">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-4 text-muted">
+        <i class="fas fa-check-circle fa-2x mb-2 opacity-25"></i>
+        <p class="mb-0">No pincodes are blacklisted.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Card 3 : Whitelisted Pincodes  (Manual mode)                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="whitelistCard" class="card border-0 shadow-sm rounded-4 mb-4" style="transition: box-shadow .3s ease;
+       {% if delivery_mode != 'manual' %}display:none;{% endif %}">
+    <div class="card-header bg-white border-bottom-0 rounded-top-4 pt-4 pb-0 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-check-double text-success me-2"></i>Whitelisted Pincodes
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        Only these pincodes will be accepted for delivery in Manual mode.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      <!-- Add Whitelist Form -->
+      <form method="POST" action="/admin/delivery-zones" class="mb-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="add_whitelist">
+        <div class="row g-2 align-items-end">
+          <div class="col-sm-3">
+            <label class="form-label small fw-semibold">Pincode</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="fas fa-map-pin text-muted"></i></span>
+              <input type="text" name="pincode" class="form-control" placeholder="e.g. 411001"
+                     pattern="\d{6}" maxlength="6" required>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label small fw-semibold">City / Area Name</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="fas fa-city text-muted"></i></span>
+              <input type="text" name="city" class="form-control" placeholder="e.g. Pune" required>
+            </div>
+          </div>
+          <div class="col-sm-2">
+            <div class="form-check mt-4">
+              <input class="form-check-input" type="checkbox" name="is_local" value="1" id="isLocalCheck">
+              <label class="form-check-label fw-semibold small" for="isLocalCheck">
+                <i class="fas fa-location-dot text-success me-1"></i>Local
+              </label>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <button type="submit" class="btn btn-success w-100">
+              <i class="fas fa-plus me-1"></i>Add Pincode
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Whitelist Table -->
+      {% if whitelisted %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="fw-semibold"><i class="fas fa-hashtag me-1 text-muted"></i>Pincode</th>
+              <th class="fw-semibold"><i class="fas fa-city me-1 text-muted"></i>City / Area</th>
+              <th class="fw-semibold text-center"><i class="fas fa-location-dot me-1 text-muted"></i>Local</th>
+              <th class="fw-semibold text-end"><i class="fas fa-trash-can me-1 text-muted"></i>Remove</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in whitelisted %}
+            <tr>
+              <td>
+                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2" style="font-size: .85rem;">
+                  {{ item.pincode }}
+                </span>
+              </td>
+              <td class="fw-medium">{{ item.city }}</td>
+              <td class="text-center">
+                {% if item.is_local %}
+                  <span class="badge bg-success px-3 py-1">
+                    <i class="fas fa-check me-1"></i>Local
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary bg-opacity-25 text-secondary px-3 py-1">—</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <form method="POST" action="/admin/delivery-zones" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="remove_whitelist">
+                  <input type="hidden" name="pincode" value="{{ item.pincode }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove this pincode"
+                          onclick="return confirm('Remove pincode {{ item.pincode }}?')">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-4 text-muted">
+        <i class="fas fa-inbox fa-2x mb-2 opacity-25"></i>
+        <p class="mb-0">No pincodes whitelisted yet. Add your serviceable pincodes above.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Card hover lift + mode-option styling -->
+<style>
+  .card.rounded-4:hover {
+    box-shadow: 0 .75rem 2rem rgba(27, 67, 50, .12) !important;
+  }
+  .mode-option {
+    transition: all .25s ease;
+  }
+  .mode-option:hover {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 4px 16px rgba(27, 67, 50, .10);
+    transform: translateY(-2px);
+  }
+  .mode-option:has(input:checked) {
+    border-color: var(--primary-color) !important;
+    border-width: 2px;
+    background-color: rgba(27, 67, 50, .06);
+  }
+  .form-check-input:checked {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+  }
+  .table th {
+    border-top: none;
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chatbot intentionally blocked on admin pages -->
+
+<!-- Toggle visibility of Blacklist / Whitelist cards based on selected mode -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const radios      = document.querySelectorAll('input[name="delivery_mode"]');
+    const blackCard   = document.getElementById('blacklistCard');
+    const whiteCard   = document.getElementById('whitelistCard');
+    const modeOptions = document.querySelectorAll('.mode-option');
+
+    function updateVisibility() {
+      const selected = document.querySelector('input[name="delivery_mode"]:checked');
+      if (!selected) return;
+      const mode = selected.value;
+
+      // Show / hide cards
+      if (mode === 'manual') {
+        blackCard.style.display = 'none';
+        whiteCard.style.display = '';
+      } else {
+        blackCard.style.display = '';
+        whiteCard.style.display = 'none';
+      }
+
+      // Highlight selected radio card
+      modeOptions.forEach(opt => {
+        const radio = opt.querySelector('input[type="radio"]');
+        if (radio && radio.checked) {
+          opt.classList.add('border-success', 'border-2');
+          opt.style.backgroundColor = 'rgba(27, 67, 50, .06)';
+        } else {
+          opt.classList.remove('border-success', 'border-2');
+          opt.style.backgroundColor = '';
+        }
+      });
+    }
+
+    radios.forEach(r => r.addEventListener('change', updateVisibility));
+    updateVisibility();
+  });
+</script>
+{% endblock %}

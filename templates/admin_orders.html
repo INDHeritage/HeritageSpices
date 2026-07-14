@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Orders | Heritage Spices Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-lg-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold text-success mb-1">Manage Spice Orders</h2>
+      <p class="text-muted mb-0">Process shipments and view customer purchases.</p>
+    </div>
+    <a href="/admin/dashboard" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm hover-lift">
+      <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+    </a>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-3">
+      <div class="card bg-white shadow-sm border-0 rounded-4 h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <p class="text-muted small text-uppercase fw-bold mb-1">Total Orders</p>
+              <h3 class="fw-bold text-dark mb-0">{{ stats.total_orders }}</h3>
+            </div>
+            <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
+              <i class="fas fa-shopping-bag fa-lg"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-white shadow-sm border-0 rounded-4 h-100 border-bottom border-4 border-success">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <p class="text-muted small text-uppercase fw-bold mb-1">Total Revenue</p>
+              <h3 class="fw-bold text-success mb-0">₹{{ stats.total_revenue }}</h3>
+            </div>
+            <div class="bg-success bg-opacity-10 text-success p-3 rounded-circle">
+              <i class="fas fa-rupee-sign fa-lg"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-white shadow-sm border-0 rounded-4 h-100 border-bottom border-4 border-warning">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <p class="text-muted small text-uppercase fw-bold mb-1">Pending Shipments</p>
+              <h3 class="fw-bold text-dark mb-0">{{ stats.pending_shipments }}</h3>
+            </div>
+            <div class="bg-warning bg-opacity-10 text-warning p-3 rounded-circle">
+              <i class="fas fa-box fa-lg"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-white shadow-sm border-0 rounded-4 h-100 border-bottom border-4 border-info">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <p class="text-muted small text-uppercase fw-bold mb-1">Delivered</p>
+              <h3 class="fw-bold text-dark mb-0">{{ stats.delivered }}</h3>
+            </div>
+            <div class="bg-info bg-opacity-10 text-info p-3 rounded-circle">
+              <i class="fas fa-check-circle fa-lg"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Orders Table -->
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th scope="col" class="ps-4 py-3">Order Details</th>
+              <th scope="col">Customer</th>
+              <th scope="col">Items</th>
+              <th scope="col" class="text-center">Status</th>
+              <th scope="col" class="text-end pe-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in orders %}
+            <tr>
+              <td class="ps-4">
+                <div class="fw-bold font-monospace text-dark">{{ order.order_number }}</div>
+                <small class="text-muted">{{ order.created_at.strftime('%d %b %Y, %H:%M') }}</small>
+                <div class="fw-bold text-success mt-1">₹{{ order.total_amount // 100 }}</div>
+              </td>
+              <td>
+                <div class="fw-semibold">{{ order.full_name }}</div>
+                <small class="text-muted d-block"><i class="fas fa-phone-alt me-1" style="font-size:0.7rem;"></i>{{ order.phone }}</small>
+                <button class="btn btn-link btn-sm p-0 text-decoration-none mt-1" type="button" data-bs-toggle="collapse" data-bs-target="#address-{{ order.id }}">
+                  View Address <i class="fas fa-chevron-down ms-1" style="font-size:0.7rem;"></i>
+                </button>
+                <div class="collapse mt-2" id="address-{{ order.id }}">
+                  <div class="p-2 bg-light rounded small border">
+                    {{ order.address }}<br>
+                    {{ order.city }}, {{ order.state }} - {{ order.pincode }}
+                  </div>
+                </div>
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0 small">
+                  {% for item in order.items %}
+                    <li><span class="badge bg-secondary me-1">{{ item.quantity }}x</span> {{ item.product_name }}</li>
+                  {% endfor %}
+                </ul>
+              </td>
+              <td class="text-center">
+                <div class="d-flex flex-column gap-1 align-items-center">
+                  {% if order.payment_status == 'paid' %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success w-100 py-1">Paid</span>
+                  {% else %}
+                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning w-100 py-1">Pending</span>
+                  {% endif %}
+                  
+                  {% if order.shipping_status == 'delivered' %}
+                    <span class="badge bg-success w-100 py-1">Delivered</span>
+                  {% elif order.shipping_status == 'shipped' %}
+                    <span class="badge bg-primary w-100 py-1">Shipped</span>
+                  {% elif order.shipping_status == 'cancelled' %}
+                    <span class="badge bg-danger w-100 py-1">Cancelled</span>
+                  {% else %}
+                    <span class="badge bg-info text-dark w-100 py-1">Processing</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="text-end pe-4">
+                <div class="d-flex flex-column gap-2 align-items-end">
+                  {% if order.payment_status == 'paid' and order.shipping_status == 'processing' %}
+                    <form action="/admin/orders/ship/{{ order.id }}" method="POST" class="w-100 m-0 text-end">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm btn-success rounded-pill fw-bold w-100" onclick="return confirm('Generate NimbusPost AWB and mark as shipped?');">
+                        <i class="fas fa-truck-fast me-1"></i> Ship
+                      </button>
+                    </form>
+                    <form action="/admin/orders/cancel/{{ order.id }}" method="POST" class="w-100 m-0 text-end">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill w-100" onclick="return confirm('Cancel order and refund/restore stock?');">
+                        Cancel
+                      </button>
+                    </form>
+                  {% elif order.shipping_status == 'shipped' %}
+                    <a href="/orders/{{ order.id }}/track" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill w-100">
+                      Track <i class="fas fa-external-link-alt ms-1" style="font-size:0.7rem;"></i>
+                    </a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center py-5">
+                <i class="fas fa-box-open fa-3x text-muted mb-3 opacity-50"></i>
+                <h5 class="text-muted">No orders found.</h5>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.Tawk_API = window.Tawk_API || {};
+  window.Tawk_API.onLoad = function() {
+      window.Tawk_API.hideWidget();
+  };
+</script>
+<style>
+  .hover-lift { transition: all 0.3s ease; }
+  .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important; }
+</style>
+{% endblock %}

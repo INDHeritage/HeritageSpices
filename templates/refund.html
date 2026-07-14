@@ -2,57 +2,88 @@
 {% block title %}Refund & Shipping Policy | Heritage Spices{% endblock %}
 {% block content %}
 <div class="container py-5">
-  <div class="mb-4 text-center">
-    <h1 class="fw-bold text-success"><i class="fas fa-undo-alt me-2"></i>Refund & Shipping Policy</h1>
-    <p class="lead">Please review our refund and shipping policies before placing your order.</p>
+  <div class="mb-5 text-center">
+    <h1 class="fw-bold text-success mb-3"><i class="fas fa-undo-alt me-2"></i>Refund & Shipping Policy</h1>
+    <p class="lead text-muted">Please read our policies carefully before making a purchase.</p>
   </div>
-  <div class="accordion" id="refundAccordion">
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingOne">
-        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-          Shipping Policy
-        </button>
-      </h2>
-      <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#refundAccordion">
-        <div class="accordion-body">
-          We ship orders within 2 business days. Delivery times may vary based on your location. You will receive a tracking number once your order is shipped.
+  
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      
+      <!-- Strict Policy Notice -->
+      <div class="alert alert-danger shadow-sm border-0 rounded-4 p-4 mb-5 animate__animated animate__fadeIn">
+        <div class="d-flex align-items-center mb-3">
+          <i class="fas fa-exclamation-triangle fa-2x text-danger me-3"></i>
+          <h4 class="alert-heading fw-bold mb-0 text-danger">Strict "No Refund, No Return" Policy</h4>
         </div>
+        <p class="mb-0 fs-5">At Heritage Spices, we maintain strict quality control. Because our products are consumable food items and digital access codes, <strong>all sales are final. We do not offer refunds, returns, or exchanges under any circumstances.</strong></p>
       </div>
-    </div>
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingTwo">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-          Refund Policy
-        </button>
-      </h2>
-      <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#refundAccordion">
-        <div class="accordion-body">
-          If you are not satisfied with your purchase, you may request a refund within 7 days of delivery. Please contact us with your order details and reason for return. Refunds are processed to your original payment method.
+
+      <div class="accordion shadow-sm rounded-4 overflow-hidden border-0" id="policyAccordion">
+        
+        <!-- Shipping Policy -->
+        <div class="accordion-item border-0 border-bottom">
+          <h2 class="accordion-header" id="headingOne">
+            <button class="accordion-button bg-light fw-bold text-dark fs-5 py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+              <i class="fas fa-truck text-success me-2"></i> Shipping & Delivery
+            </button>
+          </h2>
+          <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#policyAccordion">
+            <div class="accordion-body p-4 text-secondary">
+              <ul class="mb-0">
+                <li class="mb-2">We process and ship all orders within <strong>24-48 business hours</strong> of payment confirmation.</li>
+                <li class="mb-2">We use premium courier partners via NimbusPost for fast and reliable delivery.</li>
+                <li class="mb-2">Once shipped, you will receive an AWB tracking number on your dashboard.</li>
+                <li>Delivery typically takes <strong>3-7 business days</strong> depending on your pincode.</li>
+              </ul>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingThree">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
-          Return Conditions
-        </button>
-      </h2>
-      <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#refundAccordion">
-        <div class="accordion-body">
-          Products must be unused, unopened, and in original packaging to be eligible for a return. Shipping costs are non-refundable unless the return is due to our error.
+        
+        <!-- Payment Policy -->
+        <div class="accordion-item border-0 border-bottom">
+          <h2 class="accordion-header" id="headingTwo">
+            <button class="accordion-button collapsed bg-light fw-bold text-dark fs-5 py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+              <i class="fas fa-credit-card text-success me-2"></i> Payment Terms (Prepaid Only)
+            </button>
+          </h2>
+          <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#policyAccordion">
+            <div class="accordion-body p-4 text-secondary">
+              <p class="mb-2">To ensure fast and secure transactions, we <strong>only accept prepaid orders</strong>.</p>
+              <p class="mb-0 text-danger fw-semibold"><i class="fas fa-times-circle me-1"></i> Cash on Delivery (COD) is strictly NOT available.</p>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingFour">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
-          Contact Us
-        </button>
-      </h2>
-      <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#refundAccordion">
-        <div class="accordion-body">
-          If you have any questions about our refund or shipping policy, please <a href="/contact">contact us</a>.
+        
+        <!-- Science Hub / Digital Products -->
+        <div class="accordion-item border-0 border-bottom">
+          <h2 class="accordion-header" id="headingThree">
+            <button class="accordion-button collapsed bg-light fw-bold text-dark fs-5 py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+              <i class="fas fa-laptop-code text-success me-2"></i> Digital Products (Science Hub)
+            </button>
+          </h2>
+          <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#policyAccordion">
+            <div class="accordion-body p-4 text-secondary">
+              <p class="mb-0">Purchases of digital access (Class 10 Science Notes) are <strong>instant and irreversible</strong>. Once digital access is granted to your account, the transaction cannot be cancelled, refunded, or transferred to another account.</p>
+            </div>
+          </div>
         </div>
+        
+        <!-- Exceptions / Support -->
+        <div class="accordion-item border-0">
+          <h2 class="accordion-header" id="headingFour">
+            <button class="accordion-button collapsed bg-light fw-bold text-dark fs-5 py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+              <i class="fas fa-headset text-success me-2"></i> Damaged in Transit / Support
+            </button>
+          </h2>
+          <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#policyAccordion">
+            <div class="accordion-body p-4 text-secondary">
+              <p class="mb-3">While we do not offer returns, we care about your experience. If your physical package arrives severely damaged due to courier mishandling, please contact us <strong>within 24 hours of delivery</strong> with unboxing video proof.</p>
+              <a href="/contact" class="btn btn-outline-success fw-bold rounded-pill px-4">Contact Support</a>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

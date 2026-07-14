@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping Cart | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row mb-4">
+    <div class="col-12 text-center">
+      <h1 class="display-5 fw-bold text-success mb-3 animate__animated animate__fadeInDown">Your Shopping Cart</h1>
+      <p class="lead text-muted">Review your items before checkout.</p>
+    </div>
+  </div>
+
+  {% if cart_items %}
+  <div class="row g-4">
+    <!-- Cart Items -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 rounded-4 overflow-hidden animate__animated animate__fadeInLeft">
+        <div class="card-header bg-light border-0 py-3">
+          <h5 class="mb-0 fw-bold"><i class="fas fa-shopping-basket text-success me-2"></i> Cart Items ({{ cart_items|length }})</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" class="ps-4">Product</th>
+                  <th scope="col" class="text-center">Price</th>
+                  <th scope="col" class="text-center">Quantity</th>
+                  <th scope="col" class="text-center">Total</th>
+                  <th scope="col" class="pe-4"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in cart_items %}
+                <tr id="cart-row-{{ item.id }}">
+                  <td class="ps-4 py-3">
+                    <div class="d-flex align-items-center">
+                      {% if item.product.image_url %}
+                        <img src="{{ item.product.image_url }}" alt="{{ item.product.name }}" class="rounded shadow-sm me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                      {% else %}
+                        <div class="rounded shadow-sm me-3 bg-light d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; color: #81c784;">
+                          <i class="fas fa-leaf fa-lg"></i>
+                        </div>
+                      {% endif %}
+                      <div>
+                        <h6 class="mb-0 fw-bold">{{ item.product.name }}</h6>
+                        {% if item.product.category %}
+                          <small class="text-muted">{{ item.product.category }}</small>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </td>
+                  <td class="text-center fw-semibold text-secondary">₹{{ item.product.price|int }}</td>
+                  <td class="text-center" style="width: 150px;">
+                    <div class="input-group input-group-sm">
+                      <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty({{ item.id }}, -1)">
+                        <i class="fas fa-minus"></i>
+                      </button>
+                      <input type="text" class="form-control text-center fw-bold" id="qty-{{ item.id }}" value="{{ item.quantity }}" readonly>
+                      <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty({{ item.id }}, 1)">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                  </td>
+                  <td class="text-center fw-bold text-success fs-5" id="total-{{ item.id }}">
+                    ₹{{ (item.product.price|int) * item.quantity }}
+                  </td>
+                  <td class="pe-4 text-end">
+                    <button class="btn btn-sm btn-outline-danger rounded-circle" onclick="removeItem({{ item.id }})" title="Remove item">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="col-lg-4">
+      <div class="card shadow border-0 rounded-4 bg-success text-white animate__animated animate__fadeInRight" style="position: sticky; top: 100px;">
+        <div class="card-body p-4">
+          <h4 class="fw-bold mb-4 border-bottom border-light pb-3">Order Summary</h4>
+          
+          <div class="d-flex justify-content-between mb-3 fs-5">
+            <span>Subtotal</span>
+            <span class="fw-bold" id="cart-subtotal">₹{{ cart_total }}</span>
+          </div>
+          
+          <div class="d-flex justify-content-between mb-4">
+            <span class="text-light opacity-75">Shipping</span>
+            <span class="text-light opacity-75 fst-italic text-end">Calculated at checkout</span>
+          </div>
+          
+          <hr class="border-light opacity-50 mb-4">
+          
+          <div class="d-flex justify-content-between mb-4 fs-4 fw-bold">
+            <span>Estimated Total</span>
+            <span id="cart-grand-total">₹{{ cart_total }}</span>
+          </div>
+          
+          <a href="/checkout" class="btn btn-light btn-lg w-100 fw-bold text-success rounded-pill shadow-sm mb-3 hover-lift d-flex align-items-center justify-content-center gap-2">
+            Proceed to Checkout <i class="fas fa-arrow-right"></i>
+          </a>
+          
+          <div class="text-center small opacity-75 mt-3">
+            <i class="fas fa-shield-alt me-1"></i> Secure checkout powered by Razorpay
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-5">
+    <div class="col-12 text-center animate__animated animate__fadeInUp animate__delay-1s">
+      <div class="alert alert-danger d-inline-block shadow-sm px-4 rounded-pill border-0 bg-danger text-white">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Strict Policy:</strong> Prepaid Only • No COD • No Refunds • No Returns
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Empty Cart -->
+  <div class="row justify-content-center py-5 animate__animated animate__fadeIn">
+    <div class="col-md-6 text-center">
+      <div class="mb-4">
+        <i class="fas fa-shopping-cart fa-6x text-success opacity-50"></i>
+      </div>
+      <h2 class="fw-bold mb-3">Your cart is empty</h2>
+      <p class="text-muted mb-4 lead">Looks like you haven't added any of our authentic spices to your cart yet.</p>
+      <a href="/products" class="btn btn-success btn-lg rounded-pill px-5 shadow-sm hover-lift">
+        <i class="fas fa-store me-2"></i> Continue Shopping
+      </a>
+    </div>
+  </div>
+  {% endif %}
+  
+  <input type="hidden" name="csrf_token" id="csrf_token" value="{{ csrf_token() }}">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Block chatbot on cart page
+  window.Tawk_API = window.Tawk_API || {};
+  window.Tawk_API.onLoad = function() {
+      window.Tawk_API.hideWidget();
+  };
+  
+  function updateQty(itemId, change) {
+    const input = document.getElementById(`qty-${itemId}`);
+    let newQty = parseInt(input.value) + change;
+    
+    if (newQty < 1) return; // Use remove instead
+    if (newQty > 5) {
+      alert("Maximum 5 pouches allowed per product.");
+      return;
+    }
+    
+    // Disable inputs while updating
+    input.disabled = true;
+    
+    fetch('/cart/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.getElementById('csrf_token').value
+      },
+      body: JSON.stringify({ item_id: itemId, quantity: newQty })
+    })
+    .then(res => res.json())
+    .then(data => {
+      input.disabled = false;
+      if (data.success) {
+        input.value = newQty;
+        // The total per row requires a page reload or passing prices in JS.
+        // For now, we'll reload the page to be safe and accurate, since cart is small.
+        window.location.reload();
+      } else {
+        alert(data.error || "Update failed");
+      }
+    })
+    .catch(err => {
+      input.disabled = false;
+      console.error(err);
+      alert("Error updating cart.");
+    });
+  }
+  
+  function removeItem(itemId) {
+    if(!confirm("Remove this item from your cart?")) return;
+    
+    fetch('/cart/remove', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.getElementById('csrf_token').value
+      },
+      body: JSON.stringify({ item_id: itemId })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || "Failed to remove");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Error removing item.");
+    });
+  }
+</script>
+<style>
+  .hover-lift {
+    transition: all 0.3s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
+  }
+</style>
+{% endblock %}

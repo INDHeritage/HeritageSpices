@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}Store Settings | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h1 class="text-success fw-bold mb-0">
+      <i class="fas fa-cogs me-2"></i>Store Settings
+    </h1>
+    <a href="/admin/dashboard" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+    </a>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Card 1 : Store Availability (Emergency Kill Switch)               -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4" style="transition: box-shadow .3s ease;">
+    <div class="card-header bg-white border-bottom-0 rounded-top-4 pt-4 pb-0 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-store-alt text-success me-2"></i>Store Availability
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        Emergency kill-switch — when closed, customers see a maintenance banner instead of products.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      <form method="POST" action="/admin/store-settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="toggle_store">
+
+        <div class="d-flex align-items-center justify-content-between p-3 rounded-3"
+             style="background: var(--card-bg-light); border: 1px solid var(--border-color);">
+          <div>
+            <span class="fw-semibold fs-6">
+              {% if settings.get('store_open') %}
+                <i class="fas fa-circle text-success me-1" style="font-size: .6rem; vertical-align: middle;"></i>
+                Store Open
+              {% else %}
+                <i class="fas fa-circle text-danger me-1" style="font-size: .6rem; vertical-align: middle;"></i>
+                Store Closed
+              {% endif %}
+            </span>
+            <br>
+            <small class="text-muted">
+              {% if settings.get('store_open') %}
+                Customers can browse and purchase products normally.
+              {% else %}
+                All product pages show a maintenance banner.
+              {% endif %}
+            </small>
+          </div>
+          <div class="form-check form-switch form-switch-lg ms-3" style="min-width: 60px;">
+            <input class="form-check-input" type="checkbox" role="switch" id="storeToggle"
+                   name="store_open" value="1"
+                   {% if settings.get('store_open') %}checked{% endif %}
+                   onchange="this.form.submit()"
+                   style="width: 3rem; height: 1.5rem; cursor: pointer;">
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Card 2 : Science Hub Availability                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4" style="transition: box-shadow .3s ease;">
+    <div class="card-header bg-white border-bottom-0 rounded-top-4 pt-4 pb-0 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-flask text-success me-2"></i>Science Hub Availability
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        Control access to digital notes and physical book delivery options.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      <form method="POST" action="/admin/store-settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="toggle_science_hub">
+
+        <!-- Digital Notes Toggle -->
+        <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3"
+             style="background: var(--card-bg-light); border: 1px solid var(--border-color);">
+          <div>
+            <span class="fw-semibold">
+              <i class="fas fa-laptop-code text-primary me-1"></i>Digital Notes Access
+            </span>
+            <br>
+            <small class="text-muted">
+              {% if settings.get('science_hub_digital') %}
+                Students can access and purchase digital notes.
+              {% else %}
+                Digital notes section is hidden from Science Hub.
+              {% endif %}
+            </small>
+          </div>
+          <div class="form-check form-switch ms-3" style="min-width: 60px;">
+            <input class="form-check-input" type="checkbox" role="switch" id="digitalToggle"
+                   name="science_hub_digital" value="1"
+                   {% if settings.get('science_hub_digital') %}checked{% endif %}
+                   style="width: 3rem; height: 1.5rem; cursor: pointer;">
+          </div>
+        </div>
+
+        <!-- Physical Book Toggle -->
+        <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3"
+             style="background: var(--card-bg-light); border: 1px solid var(--border-color);">
+          <div>
+            <span class="fw-semibold">
+              <i class="fas fa-book text-warning me-1"></i>Physical Book Delivery
+            </span>
+            <br>
+            <small class="text-muted">
+              {% if settings.get('science_hub_physical') %}
+                Physical book ordering and delivery is active.
+              {% else %}
+                Physical book ordering is paused.
+              {% endif %}
+            </small>
+          </div>
+          <div class="form-check form-switch ms-3" style="min-width: 60px;">
+            <input class="form-check-input" type="checkbox" role="switch" id="physicalToggle"
+                   name="science_hub_physical" value="1"
+                   {% if settings.get('science_hub_physical') %}checked{% endif %}
+                   style="width: 3rem; height: 1.5rem; cursor: pointer;">
+          </div>
+        </div>
+
+        <div class="text-end">
+          <button type="submit" class="btn btn-success px-4">
+            <i class="fas fa-save me-1"></i>Save Science Hub Settings
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Card 3 : Stock Management                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4" style="transition: box-shadow .3s ease;">
+    <div class="card-header bg-white border-bottom-0 rounded-top-4 pt-4 pb-0 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-boxes-stacked text-success me-2"></i>Stock Management
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        Update inventory counts for all products. Items with stock &lt; 5 are flagged as low.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      {% if products %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="fw-semibold"><i class="fas fa-tag me-1 text-muted"></i>Product Name</th>
+              <th class="fw-semibold text-center"><i class="fas fa-cubes me-1 text-muted"></i>Current Stock</th>
+              <th class="fw-semibold text-end"><i class="fas fa-pen me-1 text-muted"></i>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in products %}
+            <tr>
+              <td class="fw-medium">
+                {{ product.name }}
+                {% if product.stock is defined and product.stock < 5 %}
+                  <span class="badge bg-danger ms-2" style="font-size: .7rem;">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Low Stock
+                  </span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if product.stock is defined %}
+                  <span class="badge {% if product.stock < 5 %}bg-danger{% elif product.stock < 15 %}bg-warning text-dark{% else %}bg-success{% endif %} px-3 py-2"
+                        style="font-size: .85rem; min-width: 50px;">
+                    {{ product.stock }}
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary px-3 py-2">N/A</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="POST" action="/admin/store-settings" class="d-flex align-items-center justify-content-end gap-2">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="update_stock">
+                  <input type="hidden" name="product_id" value="{{ product.id }}">
+                  <input type="number" name="stock" class="form-control form-control-sm"
+                         style="width: 80px; border-radius: 8px;"
+                         value="{{ product.stock if product.stock is defined else 0 }}" min="0" required>
+                  <button type="submit" class="btn btn-sm btn-outline-success" title="Update stock">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i>
+        <p class="mb-0">No products found. <a href="/admin/products/add" class="text-success">Add a product</a> first.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Card 4 : Shipping Notice (Global Banner)                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4" style="transition: box-shadow .3s ease;">
+    <div class="card-header bg-white border-bottom-0 rounded-top-4 pt-4 pb-0 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-bullhorn text-success me-2"></i>Shipping Notice
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        Set a global banner shown to all customers (e.g., "Shipping delayed due to festival"). Leave blank to remove.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      <form method="POST" action="/admin/store-settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="update_notice">
+
+        {% if settings.get('shipping_notice') %}
+        <div class="alert alert-info d-flex align-items-center mb-3 border-0 rounded-3" role="alert">
+          <i class="fas fa-info-circle me-2"></i>
+          <span>Current notice: <strong>{{ settings.shipping_notice }}</strong></span>
+        </div>
+        {% endif %}
+
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 rounded-start-3">
+            <i class="fas fa-shipping-fast text-muted"></i>
+          </span>
+          <input type="text" name="shipping_notice" class="form-control border-start-0 rounded-end-0"
+                 placeholder="e.g. Shipping delayed due to festival season"
+                 value="{{ settings.get('shipping_notice', '') }}"
+                 maxlength="200">
+          <button type="submit" class="btn btn-success rounded-end-3 px-4">
+            <i class="fas fa-save me-1"></i>Update
+          </button>
+        </div>
+        <small class="text-muted mt-1 d-block">
+          <i class="fas fa-lightbulb me-1 text-warning"></i>Leave empty and save to clear the notice.
+        </small>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<!-- Hover lift animation for cards -->
+<style>
+  .card.rounded-4:hover {
+    box-shadow: 0 .75rem 2rem rgba(27, 67, 50, .12) !important;
+  }
+  .form-check-input:checked {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+  }
+  .table th {
+    border-top: none;
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chatbot intentionally blocked on admin pages -->
+{% endblock %}
