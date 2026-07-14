@@ -35,7 +35,7 @@
              style="background: var(--card-bg-light); border: 1px solid var(--border-color);">
           <div>
             <span class="fw-semibold fs-6">
-               {% if settings.get('store_open') == 'true' %}
+              {% if settings.get('store_open') == 'true' %}
                 <i class="fas fa-circle text-success me-1" style="font-size: .6rem; vertical-align: middle;"></i>
                 Store Open
               {% else %}
@@ -99,7 +99,7 @@
           </div>
           <div class="form-check form-switch ms-3" style="min-width: 60px;">
             <input class="form-check-input" type="checkbox" role="switch" id="digitalToggle"
-                   name="science_hub_digital" value="1"
+                   name="science_hub_digital_enabled" value="1"
                    {% if settings.get('science_hub_digital_enabled') == 'true' %}checked{% endif %}
                    style="width: 3rem; height: 1.5rem; cursor: pointer;">
           </div>
@@ -123,7 +123,7 @@
           </div>
           <div class="form-check form-switch ms-3" style="min-width: 60px;">
             <input class="form-check-input" type="checkbox" role="switch" id="physicalToggle"
-                   name="science_hub_physical" value="1"
+                   name="science_hub_physical_enabled" value="1"
                    {% if settings.get('science_hub_physical_enabled') == 'true' %}checked{% endif %}
                    style="width: 3rem; height: 1.5rem; cursor: pointer;">
           </div>
