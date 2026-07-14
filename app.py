@@ -1392,8 +1392,8 @@ def admin_store_settings():
             flash("Store status updated!", "success")
         
         elif action == 'toggle_science_hub':
-            digital = request.form.get('digital_enabled', 'false')
-            physical = request.form.get('physical_enabled', 'false')
+            digital = 'true' if request.form.get('science_hub_digital') else 'false'
+            physical = 'true' if request.form.get('science_hub_physical') else 'false'
             set_setting('science_hub_digital_enabled', digital)
             set_setting('science_hub_physical_enabled', physical)
             flash("Science Hub settings updated!", "success")
