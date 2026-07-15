@@ -156,7 +156,7 @@
     const input = document.getElementById(`qty-${itemId}`);
     let newQty = parseInt(input.value) + change;
     
-    if (newQty < 1) return; // Use remove instead
+    if (newQty < 2) return; // MOQ is 2, don't go below
     if (newQty > 5) {
       alert("Maximum 5 pouches allowed per product.");
       return;

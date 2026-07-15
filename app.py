@@ -1035,7 +1035,10 @@ def add_to_cart():
     
     data = request.json
     product_id = data.get('product_id')
-    quantity = int(data.get('quantity', 1))
+    quantity = int(data.get('quantity', 2))
+    
+    if quantity < 2:
+        return jsonify({'error': 'Minimum order quantity is 2 pouches.'}), 400
     
     product = Product.query.get(product_id)
     if not product:
@@ -1078,6 +1081,8 @@ def update_cart():
     
     if quantity <= 0:
         db.session.delete(item)
+    elif quantity < 2:
+        return jsonify({'error': 'Minimum order quantity is 2 pouches.'}), 400
     elif quantity > 5:
         return jsonify({'error': 'Maximum 5 per product allowed'}), 400
     else:
@@ -1166,7 +1171,7 @@ def check_pincode():
     if mode == 'manual':
         return jsonify({
             'available': True,
-            'couriers': [{'rate': 60, 'courier_name': 'Standard Flat Rate', 'estimated_delivery_days': '5-7'}],
+            'couriers': [{'rate': 40, 'courier_name': 'Standard Flat Rate', 'estimated_delivery_days': '5-7'}],
             'message': 'Delivery available'
         })
     
@@ -1195,12 +1200,12 @@ def calculate_shipping():
     cart_items = CartItem.query.filter_by(user_email=user['email']).all()
     total_weight_kg = 0.0
     for item in cart_items:
-        # Estimate: 50g product = 100g packed, 100g product = 150g packed
+        # Precise weight: product + 5g polythine
         price = float(item.product.price) if item.product.price else 0
-        if price <= 50:
-            item_weight = 0.1  # 100g
+        if price <= 45:
+            item_weight = 0.06  # 55g + 5g = 60g
         else:
-            item_weight = 0.15  # 150g
+            item_weight = 0.11  # 105g + 5g = 110g
         total_weight_kg += item_weight * item.quantity
     
     mode = get_setting('delivery_mode', 'hybrid')
@@ -1209,7 +1214,7 @@ def calculate_shipping():
         rates = [{
             'courier_id': 'flat',
             'courier_name': 'Standard Flat Rate',
-            'rate': 60,
+            'rate': 40,
             'estimated_days': '5-7',
             'min_weight': 0.5
         }]
@@ -1526,6 +1531,14 @@ def ship_order(order_id):
         flash("Order already shipped or cancelled.", "warning")
         return redirect('/admin/orders')
     
+    total_weight_kg = 0.0
+    for item in order.items:
+        if item.unit_price <= 4500: # paise
+            item_weight = 0.06
+        else:
+            item_weight = 0.11
+        total_weight_kg += item_weight * item.quantity
+
     # Push to NimbusPost
     shipment_data = {
         'order_number': order.order_number,
@@ -1540,7 +1553,7 @@ def ship_order(order_id):
         'items': [{'name': item.product_name, 'quantity': item.quantity, 'price': item.unit_price // 100}
                   for item in order.items],
         'total_amount': order.total_amount // 100,
-        'weight_kg': 0.5
+        'weight_kg': total_weight_kg
     }
     
     result = nimbus_api.create_shipment(shipment_data)

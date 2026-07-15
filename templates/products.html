@@ -107,7 +107,7 @@
             <div class="mt-auto pt-3 border-top border-light">
               <form class="add-to-cart-form d-flex gap-2" onsubmit="event.preventDefault(); addToCart({{ product.id }});">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="number" id="qty-{{ product.id }}" class="form-control text-center bg-light border-0 w-25 rounded-3 fw-semibold text-dark" value="1" min="1" max="5">
+                <input type="number" id="qty-{{ product.id }}" class="form-control text-center bg-light border-0 w-25 rounded-3 fw-semibold text-dark" value="2" min="2" max="5">
                 {% if product.stock is not none and product.stock <= 0 %}
                   <button type="button" class="btn btn-secondary flex-grow-1 py-2 rounded-3 fw-semibold text-uppercase tracking-wider shadow-sm" disabled>Out of Stock</button>
                 {% else %}
