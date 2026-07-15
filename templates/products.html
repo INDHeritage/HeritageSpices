@@ -28,8 +28,8 @@
             "@context": "https://schema.org/",
             "@type": "Product",
             "name": "{{ product.name }}",
-            "image": "https://www.indianheritagespices.com{{ product.image_url if product.image_url else '/static/images/logo.jpg' }}",
-            "description": "{{ product.description }}",
+            "image": "https://www.indianheritagespices.com{{ url_for('static', filename='images/' ~ product.image) }}",
+            "description": "{{ product.description | replace('\n', ' ') | replace('\"', '\\\"') }}",
             "brand": {
               "@type": "Brand",
               "name": "Indian Heritage Spices"
@@ -38,11 +38,27 @@
               "@type": "Offer",
               "url": "https://www.indianheritagespices.com/products#details{{ product.id }}",
               "priceCurrency": "INR",
-              "price": "{{ product.price }}",
+              "price": "{{ '%.2f'|format(product.price) }}",
               "availability": "https://schema.org/{% if product.stock is not none and product.stock > 0 %}InStock{% else %}OutOfStock{% endif %}",
               "seller": {
                 "@type": "Organization",
                 "name": "Indian Heritage Spices"
+              },
+              "hasMerchantReturnPolicy": {
+                "@type": "MerchantReturnPolicy",
+                "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
+              },
+              "shippingDetails": {
+                "@type": "OfferShippingDetails",
+                "shippingRate": {
+                  "@type": "MonetaryAmount",
+                  "value": 40.00,
+                  "currency": "INR"
+                },
+                "shippingDestination": {
+                  "@type": "DefinedRegion",
+                  "addressCountry": "IN"
+                }
               }
             }
           }
