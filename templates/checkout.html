@@ -81,27 +81,27 @@
               <!-- Contact Info -->
               <div class="col-md-6">
                 <label for="fullName" class="form-label fw-semibold">Full Name *</label>
-                <input type="text" class="form-control bg-light" id="fullName" required placeholder="John Doe">
+                <input type="text" class="form-control bg-light" id="fullName" required placeholder="John Doe" autocomplete="name">
               </div>
               <div class="col-md-6">
                 <label for="phone" class="form-label fw-semibold">Phone Number *</label>
                 <div class="input-group">
                   <span class="input-group-text bg-light">+91</span>
-                  <input type="tel" class="form-control bg-light" id="phone" required pattern="[0-9]{10}" placeholder="9876543210">
+                  <input type="tel" class="form-control bg-light" id="phone" required pattern="[0-9]{10}" placeholder="9876543210" autocomplete="tel">
                 </div>
               </div>
               
               <!-- Address -->
               <div class="col-12 mt-4">
                 <label for="address" class="form-label fw-semibold">Full Address *</label>
-                <textarea class="form-control bg-light" id="address" rows="3" required placeholder="House No, Street, Landmark..."></textarea>
+                <textarea class="form-control bg-light" id="address" rows="3" required placeholder="House No, Street, Landmark..." autocomplete="street-address"></textarea>
               </div>
               
               <!-- Pincode Check Zone -->
               <div class="col-12 mt-4 bg-success bg-opacity-10 p-3 p-md-4 rounded-3 border border-success border-opacity-25">
                 <label for="pincode" class="form-label fw-bold text-success"><i class="fas fa-map-pin me-1"></i> Delivery Pincode *</label>
                 <div class="input-group">
-                  <input type="text" class="form-control border-success" id="pincode" required pattern="[0-9]{6}" placeholder="6-digit pincode" maxlength="6">
+                  <input type="text" class="form-control border-success" id="pincode" required pattern="[0-9]{6}" placeholder="6-digit pincode" maxlength="6" autocomplete="postal-code">
                   <button class="btn btn-success fw-bold px-4" type="button" id="btn-check-pincode">
                     Check Delivery
                   </button>
@@ -119,7 +119,7 @@
               
               <div class="col-md-6 mt-4">
                 <label for="city" class="form-label fw-semibold">City *</label>
-                <input type="text" class="form-control bg-light" id="city" required>
+                <input type="text" class="form-control bg-light" id="city" required autocomplete="address-level2">
               </div>
               <div class="col-md-6 mt-4">
                 <label for="state" class="form-label fw-semibold">State *</label>
