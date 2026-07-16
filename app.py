@@ -319,11 +319,6 @@ def auth():
 
         save_user(user_info)
 
-        # Check if additional details are already filled
-        existing_detail = CustomerDetail.query.filter_by(email=session['user']['email']).first()
-        if not existing_detail:
-            return redirect('/collect-details')
-
         return redirect('/')
     except Exception as e:
         print("OAuth error:", e)
