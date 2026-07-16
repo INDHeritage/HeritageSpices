@@ -38,7 +38,7 @@
               "@type": "Offer",
               "url": "https://www.indianheritagespices.com/products#details{{ product.id }}",
               "priceCurrency": "INR",
-              "price": "{{ '%.2f'|format(product.price) }}",
+              "price": "{{ '%.2f'|format(product.price|float) if product.price else '0.00' }}",
               "availability": "https://schema.org/{% if product.stock is not none and product.stock > 0 %}InStock{% else %}OutOfStock{% endif %}",
               "seller": {
                 "@type": "Organization",
