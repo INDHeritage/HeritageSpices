@@ -1615,6 +1615,24 @@ def nimbus_webhook():
     return jsonify({'success': True}), 200
 
 
+@app.route('/admin/test-nimbus-login')
+def test_nimbus_login():
+    import os, requests
+    email = os.getenv('NIMBUS_EMAIL')
+    password = os.getenv('NIMBUS_PASSWORD')
+    if not email or not password:
+        return "NIMBUS_EMAIL or NIMBUS_PASSWORD not set in environment."
+    try:
+        url = 'https://api.nimbuspost.com/v1/users/login'
+        payload = {'email': email, 'password': password}
+        resp = requests.post(url, json=payload, timeout=10)
+        return jsonify({
+            'status_code': resp.status_code,
+            'response': resp.json()
+        })
+    except Exception as e:
+        return str(e)
+
 # -------------------------
 # Update existing routes
 # -------------------------
