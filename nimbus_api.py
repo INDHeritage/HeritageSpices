@@ -12,17 +12,40 @@ WAREHOUSE_STATE = os.getenv('WAREHOUSE_STATE', 'Maharashtra')
 WAREHOUSE_PINCODE = os.getenv('WAREHOUSE_PINCODE', '440001')
 WAREHOUSE_PHONE = os.getenv('WAREHOUSE_PHONE', '')
 
+NIMBUS_EMAIL = os.getenv('NIMBUS_EMAIL')
+NIMBUS_PASSWORD = os.getenv('NIMBUS_PASSWORD')
+
+_jwt_token = None
+
+def get_token():
+    global _jwt_token
+    if _jwt_token:
+        return _jwt_token
+        
+    if NIMBUS_EMAIL and NIMBUS_PASSWORD:
+        try:
+            url = f'{NIMBUS_BASE_URL}/users/login'
+            payload = {'email': NIMBUS_EMAIL, 'password': NIMBUS_PASSWORD}
+            resp = requests.post(url, json=payload, timeout=10)
+            data = resp.json()
+            if resp.status_code == 200 and data.get('status'):
+                _jwt_token = data.get('data', {}).get('token')
+                return _jwt_token
+        except Exception as e:
+            print(f"Nimbus login error: {e}")
+            
+    return NIMBUS_API_TOKEN
 
 def _headers():
+    token = get_token()
     return {
-        'Authorization': f'Bearer {NIMBUS_API_TOKEN}',
+        'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'
     }
 
-
 def is_configured():
     """Check if NimbusPost is properly configured"""
-    return bool(NIMBUS_API_TOKEN)
+    return bool(get_token())
 
 
 def check_serviceability(delivery_pincode, weight_kg=0.5, payment_mode='prepaid'):
