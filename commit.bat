@@ -1,3 +1,2 @@
-git add .
-git commit -m "Feature: Complete Product Review System with Admin moderation and Google Schema"
+git commit -a -m "Fix: Ensure database tables are created on Render startup"
 git push origin main

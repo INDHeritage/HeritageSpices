@@ -1698,11 +1698,12 @@ def test_csrf():
 # -------------------------
 # 🚀 Run App
 # -------------------------
+# --- TEMP: Create DB tables if missing ---
+with app.app_context():
+    db.create_all()
+    print("Database tables created/verified!")
+
 if __name__ == '__main__':
-    # --- TEMP: Create DB tables if missing ---
-    with app.app_context():
-        db.create_all()
-        print("Database tables created!")
     app.run(debug=True)
 
     
