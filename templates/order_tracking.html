@@ -80,47 +80,62 @@
               <small class="text-muted">Transaction ID: {{ order.razorpay_payment_id }}</small>
             </div>
             
-            <!-- Step 3: Shipped -->
-            {% set is_shipped = s_status in ['shipped', 'in transit', 'out for delivery', 'delivered'] %}
-            <div class="timeline-step mb-4 position-relative opacity-{{ '100' if is_shipped else '50' }}">
-              <div class="timeline-icon bg-{{ 'success' if is_shipped else 'light' }} text-{{ 'white' if is_shipped else 'secondary' }} border border-{{ 'success' if is_shipped else 'secondary' }} rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
-                <i class="fas fa-{{ 'check' if is_shipped else 'box' }} small"></i>
-              </div>
-              <h6 class="fw-bold text-dark mb-1">Packed & Shipped</h6>
-              {% if is_shipped %}
-                <small class="text-muted">Handed over to {{ order.courier_name or 'courier' }}</small>
-              {% else %}
-                <small class="text-muted fst-italic">We are preparing your order</small>
-              {% endif %}
-            </div>
-            
-            <!-- Dynamic NimbusPost History -->
-            {% if tracking.history %}
-              {% for event in tracking.history %}
-              <div class="timeline-step mb-4 position-relative">
-                <div class="timeline-icon bg-info text-white rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
-                  <i class="fas fa-truck-moving small"></i>
+            {% if s_status == 'cancelled' %}
+              <div class="timeline-step position-relative opacity-100">
+                <div class="timeline-icon bg-danger text-white border border-danger rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                  <i class="fas fa-times small"></i>
                 </div>
-                <h6 class="fw-bold text-dark mb-1">{{ event.status }}</h6>
-                <small class="text-muted d-block">{{ event.location }}</small>
-                <small class="text-muted">{{ event.date }}</small>
+                <h6 class="fw-bold text-danger mb-1">Order Cancelled</h6>
+                <small class="text-muted d-block mt-1">This order was cancelled by the store administrator.</small>
+                {% if order.payment_status == 'paid' %}
+                  <div class="alert alert-danger p-2 mt-2 border-0 bg-danger bg-opacity-10" style="font-size: 0.85rem;">
+                    <i class="fas fa-info-circle me-1 text-danger"></i> Your refund of ₹{{ order.total_amount // 100 }} will be automatically credited to your original payment method within 5-7 business days.
+                  </div>
+                {% endif %}
               </div>
-              {% endfor %}
-            {% endif %}
-            
-            <!-- Step 4: Delivered -->
-            {% set is_delivered = s_status == 'delivered' %}
-            <div class="timeline-step position-relative opacity-{{ '100' if is_delivered else '50' }}">
-              <div class="timeline-icon bg-{{ 'success' if is_delivered else 'light' }} text-{{ 'white' if is_delivered else 'secondary' }} border border-{{ 'success' if is_delivered else 'secondary' }} rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
-                <i class="fas fa-{{ 'star' if is_delivered else 'home' }} small"></i>
+            {% else %}
+              <!-- Step 3: Shipped -->
+              {% set is_shipped = s_status in ['shipped', 'in transit', 'out for delivery', 'delivered'] %}
+              <div class="timeline-step mb-4 position-relative opacity-{{ '100' if is_shipped else '50' }}">
+                <div class="timeline-icon bg-{{ 'success' if is_shipped else 'light' }} text-{{ 'white' if is_shipped else 'secondary' }} border border-{{ 'success' if is_shipped else 'secondary' }} rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                  <i class="fas fa-{{ 'check' if is_shipped else 'box' }} small"></i>
+                </div>
+                <h6 class="fw-bold text-dark mb-1">Packed & Shipped</h6>
+                {% if is_shipped %}
+                  <small class="text-muted">Handed over to {{ order.courier_name or 'courier' }}</small>
+                {% else %}
+                  <small class="text-muted fst-italic">We are preparing your order</small>
+                {% endif %}
               </div>
-              <h6 class="fw-bold text-dark mb-1">Delivered</h6>
-              {% if is_delivered %}
-                <small class="text-success fw-bold">Package has been delivered successfully!</small>
-              {% else %}
-                <small class="text-muted fst-italic">Awaiting delivery</small>
+              
+              <!-- Dynamic NimbusPost History -->
+              {% if tracking.history %}
+                {% for event in tracking.history %}
+                <div class="timeline-step mb-4 position-relative">
+                  <div class="timeline-icon bg-info text-white rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                    <i class="fas fa-truck-moving small"></i>
+                  </div>
+                  <h6 class="fw-bold text-dark mb-1">{{ event.status }}</h6>
+                  <small class="text-muted d-block">{{ event.location }}</small>
+                  <small class="text-muted">{{ event.date }}</small>
+                </div>
+                {% endfor %}
               {% endif %}
-            </div>
+              
+              <!-- Step 4: Delivered -->
+              {% set is_delivered = s_status == 'delivered' %}
+              <div class="timeline-step position-relative opacity-{{ '100' if is_delivered else '50' }}">
+                <div class="timeline-icon bg-{{ 'success' if is_delivered else 'light' }} text-{{ 'white' if is_delivered else 'secondary' }} border border-{{ 'success' if is_delivered else 'secondary' }} rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
+                  <i class="fas fa-{{ 'star' if is_delivered else 'home' }} small"></i>
+                </div>
+                <h6 class="fw-bold text-dark mb-1">Delivered</h6>
+                {% if is_delivered %}
+                  <small class="text-success fw-bold">Package has been delivered successfully!</small>
+                {% else %}
+                  <small class="text-muted fst-italic">Awaiting delivery</small>
+                {% endif %}
+              </div>
+            {% endif %}
             
           </div>
           

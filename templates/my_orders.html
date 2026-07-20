@@ -59,8 +59,13 @@
                         <span class="badge bg-danger px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-times-circle me-1"></i> Cancelled</span>
                       {% else %}
                         <span class="badge bg-info text-dark px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-box me-1"></i> Processing</span>
-                      {% endif %}
                     </div>
+                    {% if order.shipping_status == 'cancelled' and order.payment_status == 'paid' %}
+                      <div class="alert alert-danger py-2 px-3 mb-4 rounded-3 d-flex align-items-center" style="font-size: 0.85rem;">
+                        <i class="fas fa-info-circle me-2 fs-5"></i> 
+                        <div><strong>Order Cancelled:</strong> The refund of ₹{{ order.total_amount // 100 }} will be credited to your original payment method within 5-7 business days.</div>
+                      </div>
+                    {% endif %}
                     
                     <h6 class="fw-bold text-muted mb-2">Items</h6>
                     <ul class="list-unstyled mb-0">
