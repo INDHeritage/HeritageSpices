@@ -88,8 +88,30 @@ class Product(db.Model):
     price = db.Column(db.String(100), nullable=True)
     image_url = db.Column(db.String(300), nullable=True)
     category = db.Column(db.String(100), nullable=True)
-    stock = db.Column(db.Integer, nullable=True)
     meesho_link = db.Column(db.String(300), nullable=True)
+    reviews = db.relationship('ProductReview', backref='product', lazy=True, cascade='all, delete-orphan')
+
+    @property
+    def approved_reviews(self):
+        return [r for r in self.reviews if r.status == 'approved']
+        
+    @property
+    def avg_rating(self):
+        approved = self.approved_reviews
+        if not approved:
+            return 0.0
+        return round(sum(r.rating for r in approved) / len(approved), 1)
+
+# --- Product Review Model ---
+class ProductReview(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    user_name = db.Column(db.String(100), nullable=False)
+    user_email = db.Column(db.String(200), nullable=False)
+    rating = db.Column(db.Integer, nullable=False, default=5)
+    review_text = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default='pending') # pending, approved, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # --- User Model (replaces users.csv) ---
 class User(db.Model):
@@ -1684,3 +1706,70 @@ if __name__ == '__main__':
     app.run(debug=True)
 
     
+
+# --- Product Review Routes ---
+@app.route('/product/<int:product_id>/review', methods=['POST'])
+def submit_review(product_id):
+    user = session.get('user')
+    if not user:
+        return jsonify({'success': False, 'message': 'You must be logged in to submit a review.'}), 401
+    
+    product = Product.query.get_or_404(product_id)
+    rating = int(request.form.get('rating', 5))
+    review_text = request.form.get('review_text', '').strip()
+    
+    if not review_text:
+        return jsonify({'success': False, 'message': 'Review text is required.'}), 400
+        
+    new_review = ProductReview(
+        product_id=product.id,
+        user_name=user.get('name', 'Customer'),
+        user_email=user.get('email', ''),
+        rating=rating,
+        review_text=review_text,
+        status='pending'
+    )
+    db.session.add(new_review)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Review submitted successfully! It will appear once approved.'})
+
+@app.route('/admin/reviews')
+@admin_required
+def admin_reviews():
+    reviews = ProductReview.query.order_by(
+        db.case({
+            'pending': 1,
+            'approved': 2,
+            'rejected': 3
+        }, value=ProductReview.status),
+        ProductReview.created_at.desc()
+    ).all()
+    return render_template('admin_reviews.html', reviews=reviews)
+
+@app.route('/admin/reviews/<int:review_id>/approve', methods=['POST'])
+@admin_required
+def approve_review(review_id):
+    review = ProductReview.query.get_or_404(review_id)
+    review.status = 'approved'
+    db.session.commit()
+    flash('Review approved.', 'success')
+    return redirect(url_for('admin_reviews'))
+
+@app.route('/admin/reviews/<int:review_id>/reject', methods=['POST'])
+@admin_required
+def reject_review(review_id):
+    review = ProductReview.query.get_or_404(review_id)
+    review.status = 'rejected'
+    db.session.commit()
+    flash('Review rejected.', 'warning')
+    return redirect(url_for('admin_reviews'))
+
+@app.route('/admin/reviews/<int:review_id>/delete', methods=['POST'])
+@admin_required
+def delete_review(review_id):
+    review = ProductReview.query.get_or_404(review_id)
+    db.session.delete(review)
+    db.session.commit()
+    flash('Review deleted.', 'danger')
+    return redirect(url_for('admin_reviews'))
