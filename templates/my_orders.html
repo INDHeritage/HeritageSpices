@@ -59,6 +59,7 @@
                         <span class="badge bg-danger px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-times-circle me-1"></i> Cancelled</span>
                       {% else %}
                         <span class="badge bg-info text-dark px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-box me-1"></i> Processing</span>
+                      {% endif %}
                     </div>
                     {% if order.shipping_status == 'cancelled' and order.payment_status == 'paid' %}
                       <div class="alert alert-danger py-2 px-3 mb-4 rounded-3 d-flex align-items-center" style="font-size: 0.85rem;">
