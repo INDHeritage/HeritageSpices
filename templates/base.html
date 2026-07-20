@@ -299,6 +299,7 @@
             {% else %}
               <div class="d-flex align-items-center gap-3">
                 <span class="text-success fw-semibold">👋 Hi, {{ user.name }}</span>
+                <a href="/orders" class="btn btn-sm btn-outline-success"><i class="fas fa-box"></i> My Orders</a>
                 {% if user.email == 'heritage.spices.pvtltd@gmail.com' %}
                   <a href="/admin/dashboard" class="btn btn-sm btn-outline-primary"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
                 {% endif %}
