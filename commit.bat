@@ -1,2 +1,2 @@
-git commit -a -m "Hotfix: Restore mistakenly deleted stock column to Product model"
+git commit -a -m "UI: Make review link look like a clickable button"
 git push origin main
