@@ -1517,6 +1517,7 @@ def admin_orders():
 @admin_required
 def ship_order(order_id):
     order = SpiceOrder.query.get_or_404(order_id)
+    warehouse = request.form.get('warehouse')
     
     if order.payment_status != 'paid':
         flash("Cannot ship unpaid order.", "danger")
@@ -1550,6 +1551,8 @@ def ship_order(order_id):
         'total_amount': order.total_amount // 100,
         'weight_kg': total_weight_kg
     }
+    if warehouse:
+        shipment_data['pickup_location'] = warehouse
     
     result = nimbus_api.create_shipment(shipment_data)
     

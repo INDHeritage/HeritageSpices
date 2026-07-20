@@ -1,54 +1,31 @@
 import os
 import requests
 
-NIMBUS_API_TOKEN = os.getenv('NIMBUS_API_TOKEN')
-NIMBUS_BASE_URL = 'https://api.nimbuspost.com/v1'
+NIMBUS_API_TOKEN = os.getenv('NIMBUS_API_TOKEN')  # npk_...
+NIMBUS_API_SECRET = os.getenv('NIMBUS_API_SECRET', 'Txnm_Yw44oWz4_A3Aoqg507fSuDaMhGJ')  # Txnm_...
+NIMBUS_BASE_URL = 'https://api-v2.nimbuspost.com/v2'
 
 # Default pickup/warehouse details (from env vars)
-WAREHOUSE_NAME = os.getenv('WAREHOUSE_NAME', 'Heritage Spices')
+WAREHOUSE_NAME = os.getenv('WAREHOUSE_NAME', 'Warehouse1 Sindewahi')
 WAREHOUSE_ADDRESS = os.getenv('WAREHOUSE_ADDRESS', '')
 WAREHOUSE_CITY = os.getenv('WAREHOUSE_CITY', 'Nagpur')
 WAREHOUSE_STATE = os.getenv('WAREHOUSE_STATE', 'Maharashtra')
-WAREHOUSE_PINCODE = os.getenv('WAREHOUSE_PINCODE', '440001')
+WAREHOUSE_PINCODE = os.getenv('WAREHOUSE_PINCODE', '441222')
 WAREHOUSE_PHONE = os.getenv('WAREHOUSE_PHONE', '')
 
-NIMBUS_EMAIL = os.getenv('NIMBUS_EMAIL')
-NIMBUS_PASSWORD = os.getenv('NIMBUS_PASSWORD')
-
-_jwt_token = None
-
-def get_token():
-    global _jwt_token
-    if _jwt_token:
-        return _jwt_token
-        
-    if NIMBUS_EMAIL and NIMBUS_PASSWORD:
-        try:
-            url = f'{NIMBUS_BASE_URL}/users/login'
-            payload = {'email': NIMBUS_EMAIL, 'password': NIMBUS_PASSWORD}
-            resp = requests.post(url, json=payload, timeout=10)
-            data = resp.json()
-            if resp.status_code == 200 and data.get('status'):
-                _jwt_token = data.get('data', {}).get('token')
-                return _jwt_token
-        except Exception as e:
-            print(f"Nimbus login error: {e}")
-            
-    return NIMBUS_API_TOKEN
-
 def _headers():
-    token = get_token()
     return {
-        'Authorization': f'Bearer {token}',
+        'x-api-key': NIMBUS_API_TOKEN or '',
+        'x-api-secret': NIMBUS_API_SECRET or '',
         'Content-Type': 'application/json'
     }
 
 def is_configured():
     """Check if NimbusPost is properly configured"""
-    return bool(get_token())
+    return bool(NIMBUS_API_TOKEN and NIMBUS_API_SECRET)
 
 
-def check_serviceability(delivery_pincode, weight_kg=0.5, payment_mode='prepaid'):
+def check_serviceability(delivery_pincode, weight_kg=0.5, payment_mode='prepaid', order_value_paise=50000):
     """
     Check if delivery is available to a given pincode.
     Returns: dict with 'available' (bool), 'couriers' (list of options)
@@ -57,24 +34,53 @@ def check_serviceability(delivery_pincode, weight_kg=0.5, payment_mode='prepaid'
         return {'available': True, 'couriers': [], 'message': 'NimbusPost not configured, allowing all pincodes'}
 
     try:
-        url = f'{NIMBUS_BASE_URL}/courier/serviceability'
+        url = f'{NIMBUS_BASE_URL}/serviceability'
         payload = {
-            'origin': WAREHOUSE_PINCODE,
-            'destination': delivery_pincode,
-            'weight': weight_kg,
-            'payment_type': payment_mode
+            'pickupPincode': WAREHOUSE_PINCODE,
+            'deliveryPincode': str(delivery_pincode),
+            'paymentMode': payment_mode.lower(),
+            'orderValuePaise': order_value_paise,
+            'packages': [{
+                'weight': int(weight_kg * 1000),  # v2 expects grams
+                'length': 15,
+                'width': 10,
+                'height': 5
+            }]
         }
+        
         resp = requests.post(url, json=payload, headers=_headers(), timeout=10)
         data = resp.json()
 
-        if resp.status_code == 200 and data.get('status'):
-            couriers = data.get('data', [])
+        if resp.status_code == 200 and data.get('success'):
+            available_couriers = data.get('data', {}).get('available', [])
+            
+            # Map v2 response to our internal format
+            mapped_couriers = []
+            for c in available_couriers:
+                mapped_couriers.append({
+                    'courier_company_id': c.get('courierId'),
+                    'courier_name': c.get('courierDisplayName', c.get('courierName')),
+                    'rate': c.get('totalPaise', 0) / 100,  # Convert paise to rupees
+                    'estimated_delivery_days': str(c.get('tatDays', 7))
+                })
+                
             return {
-                'available': len(couriers) > 0,
-                'couriers': couriers,
-                'message': 'Delivery available' if couriers else 'No couriers available for this pincode'
+                'available': len(mapped_couriers) > 0,
+                'couriers': mapped_couriers,
+                'message': 'Delivery available' if mapped_couriers else 'No couriers available for this pincode'
             }
-        return {'available': False, 'couriers': [], 'message': data.get('message', 'Serviceability check failed')}
+            
+        # If API returns an error (like invalid pincode), fallback to Flat Rate so checkout doesn't break
+        print(f"NimbusPost API v2 error: {data}. Falling back to Flat Rate.")
+        return {
+            'available': True,
+            'couriers': [{
+                'courier_name': 'Standard Delivery (Fallback)',
+                'rate': 40,
+                'estimated_delivery': '3-7 days'
+            }],
+            'message': 'Fallback to Standard Delivery'
+        }
     except Exception as e:
         print(f'NimbusPost serviceability error: {e}')
         return {'available': True, 'couriers': [], 'message': 'Could not verify, allowing order'}
@@ -93,7 +99,7 @@ def get_shipping_rates(delivery_pincode, weight_kg=0.5):
             'courier_id': courier.get('courier_company_id', ''),
             'courier_name': courier.get('courier_name', 'Standard Delivery'),
             'rate': courier.get('rate', 0),
-            'estimated_days': courier.get('estimated_delivery_days', '5-7'),
+            'estimated_days': f"{courier.get('estimated_delivery_days', '5')} days",
             'min_weight': courier.get('min_weight', 0.5)
         })
 
@@ -106,7 +112,7 @@ def get_shipping_rates(delivery_pincode, weight_kg=0.5):
             'courier_id': 'default',
             'courier_name': 'Standard Delivery',
             'rate': 60,  # Default ₹60 shipping
-            'estimated_days': '5-7',
+            'estimated_days': '5-7 days',
             'min_weight': 0.5
         }]
 
@@ -115,7 +121,7 @@ def get_shipping_rates(delivery_pincode, weight_kg=0.5):
 
 def create_shipment(order_data):
     """
-    Create a shipment on NimbusPost.
+    Create a shipment on NimbusPost API v2.
     order_data should contain:
         - order_number
         - consignee (name, address, city, state, pincode, phone)
@@ -128,59 +134,92 @@ def create_shipment(order_data):
     if not is_configured():
         return {
             'success': False,
-            'message': 'NimbusPost not configured. Please add NIMBUS_API_TOKEN to environment variables.',
+            'message': 'NimbusPost not configured. Please add API keys to environment variables.',
             'awb_number': None
         }
 
     try:
-        url = f'{NIMBUS_BASE_URL}/shipments'
-        payload = {
+        # Step 1: Create Order
+        orders_url = f'{NIMBUS_BASE_URL}/orders'
+        
+        # Format items for v2
+        mapped_items = []
+        for item in order_data.get('items', []):
+            mapped_items.append({
+                'name': item['name'],
+                'quantity': item['quantity'],
+                'pricePaise': int(item['price'] * 100)
+            })
+            
+        # Determine warehouse ID mapping for v2
+        wh_name = order_data.get('pickup_location', WAREHOUSE_NAME)
+        wh_id = 'WH-001' # default
+        if 'Hyderabad' in wh_name:
+            wh_id = 'WH-002'
+            
+        order_payload = {
             'order_number': order_data['order_number'],
-            'shipping_customer_name': order_data['consignee']['name'],
-            'shipping_address': order_data['consignee']['address'],
-            'shipping_city': order_data['consignee']['city'],
-            'shipping_state': order_data['consignee']['state'],
-            'shipping_pincode': order_data['consignee']['pincode'],
-            'shipping_country': 'India',
-            'shipping_phone': order_data['consignee']['phone'],
-            'order_amount': order_data['total_amount'],
-            'payment_type': 'prepaid',
-            'sub_total': order_data['total_amount'],
-            'weight': order_data.get('weight_kg', 0.5),
-            'length': order_data.get('length', 15),
-            'breadth': order_data.get('breadth', 10),
-            'height': order_data.get('height', 5),
-            'pickup_location': WAREHOUSE_NAME,
-            'order_items': []
+            'order_type': 'forward', # 'b2c' or 'forward'
+            'payment_mode': 'prepaid',
+            'warehouse_id': wh_id,
+            'shipping_address': {
+                'name': order_data['consignee']['name'],
+                'address_line_1': order_data['consignee']['address'],
+                'city': order_data['consignee']['city'],
+                'state': order_data['consignee']['state'],
+                'pincode': str(order_data['consignee']['pincode']),
+                'phone': str(order_data['consignee']['phone'])
+            },
+            'items': mapped_items,
+            'package': {
+                'weight': int(order_data.get('weight_kg', 0.5) * 1000), # grams
+                'length': 15,
+                'width': 10,
+                'height': 5
+            }
         }
 
-        for item in order_data.get('items', []):
-            payload['order_items'].append({
-                'name': item['name'],
-                'qty': item['quantity'],
-                'price': item['price']
-            })
+        order_resp = requests.post(orders_url, json=order_payload, headers=_headers(), timeout=15)
+        order_data_resp = order_resp.json()
 
-        resp = requests.post(url, json=payload, headers=_headers(), timeout=15)
-        data = resp.json()
-
-        if resp.status_code in [200, 201] and data.get('status'):
-            shipment = data.get('data', {})
+        if order_resp.status_code not in [200, 201] or not order_data_resp.get('success'):
+            return {
+                'success': False,
+                'message': str(order_data_resp),
+                'awb_number': None
+            }
+            
+        # Extract the created order_id
+        nimbus_order_id = order_data_resp['data']['order_id']
+        
+        # Step 2: Book Shipment (Assign Courier & generate AWB)
+        book_url = f'{NIMBUS_BASE_URL}/shipments/book'
+        book_payload = {
+            'order_id': nimbus_order_id
+        }
+        
+        book_resp = requests.post(book_url, json=book_payload, headers=_headers(), timeout=15)
+        book_data_resp = book_resp.json()
+        
+        if book_resp.status_code in [200, 201] and book_data_resp.get('success'):
+            shipment = book_data_resp.get('data', {})
             return {
                 'success': True,
-                'awb_number': shipment.get('awb_number'),
+                'awb_number': shipment.get('awb'),
                 'courier_name': shipment.get('courier_name'),
-                'tracking_url': shipment.get('tracking_url', ''),
+                'tracking_url': f"https://ship.nimbuspost.com/tracking/{shipment.get('awb')}",
                 'label_url': shipment.get('label', ''),
                 'message': 'Shipment created successfully'
             }
+            
         return {
             'success': False,
-            'message': data.get('message', 'Failed to create shipment'),
+            'message': str(book_data_resp),
             'awb_number': None
         }
+
     except Exception as e:
-        print(f'NimbusPost create shipment error: {e}')
+        print(f'NimbusPost v2 create shipment error: {e}')
         return {'success': False, 'message': str(e), 'awb_number': None}
 
 
@@ -198,16 +237,16 @@ def track_shipment(awb_number):
         }
 
     try:
-        url = f'{NIMBUS_BASE_URL}/shipments/track/{awb_number}'
+        url = f'{NIMBUS_BASE_URL}/tracking/{awb_number}'
         resp = requests.get(url, headers=_headers(), timeout=10)
         data = resp.json()
 
-        if resp.status_code == 200 and data.get('status'):
+        if resp.status_code == 200 and data.get('success'):
             tracking = data.get('data', {})
             history = tracking.get('history', [])
             return {
                 'success': True,
-                'current_status': tracking.get('current_status', 'In Transit'),
+                'current_status': tracking.get('status', 'In Transit'),
                 'estimated_delivery': tracking.get('edd', 'N/A'),
                 'courier_name': tracking.get('courier_name', ''),
                 'history': history,
@@ -215,7 +254,7 @@ def track_shipment(awb_number):
             }
         return {
             'success': False,
-            'message': data.get('message', 'Tracking failed'),
+            'message': str(data),
             'current_status': 'Unknown',
             'history': []
         }
@@ -234,13 +273,13 @@ def cancel_shipment(awb_number):
 
     try:
         url = f'{NIMBUS_BASE_URL}/shipments/cancel'
-        payload = {'awb': awb_number}
+        payload = {'awbs': [awb_number]}
         resp = requests.post(url, json=payload, headers=_headers(), timeout=10)
         data = resp.json()
 
-        if resp.status_code == 200 and data.get('status'):
+        if resp.status_code == 200 and data.get('success'):
             return {'success': True, 'message': 'Shipment cancelled'}
-        return {'success': False, 'message': data.get('message', 'Cancellation failed')}
+        return {'success': False, 'message': str(data)}
     except Exception as e:
         print(f'NimbusPost cancel error: {e}')
         return {'success': False, 'message': str(e)}

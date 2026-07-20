@@ -144,6 +144,10 @@
                   {% if order.payment_status == 'paid' and order.shipping_status == 'processing' %}
                     <form action="/admin/orders/ship/{{ order.id }}" method="POST" class="w-100 m-0 text-end">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <select name="warehouse" class="form-select form-select-sm mb-2 rounded-pill" required>
+                        <option value="Warehouse1 Sindewahi">Warehouse1 Sindewahi</option>
+                        <option value="Warehouse2 Hyderabad">Warehouse2 Hyderabad</option>
+                      </select>
                       <button type="submit" class="btn btn-sm btn-success rounded-pill fw-bold w-100" onclick="return confirm('Generate NimbusPost AWB and mark as shipped?');">
                         <i class="fas fa-truck-fast me-1"></i> Ship
                       </button>
