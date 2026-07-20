@@ -88,6 +88,7 @@ class Product(db.Model):
     price = db.Column(db.String(100), nullable=True)
     image_url = db.Column(db.String(300), nullable=True)
     category = db.Column(db.String(100), nullable=True)
+    stock = db.Column(db.Integer, nullable=True)
     meesho_link = db.Column(db.String(300), nullable=True)
     reviews = db.relationship('ProductReview', backref='product', lazy=True, cascade='all, delete-orphan')
 

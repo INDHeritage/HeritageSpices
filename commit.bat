@@ -1,2 +1,2 @@
-git commit -a -m "Fix: Ensure database tables are created on Render startup"
+git commit -a -m "Hotfix: Restore mistakenly deleted stock column to Product model"
 git push origin main
