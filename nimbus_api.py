@@ -57,10 +57,11 @@ def check_serviceability(delivery_pincode, weight_kg=0.5, payment_mode='prepaid'
             # Map v2 response to our internal format
             mapped_couriers = []
             for c in available_couriers:
+                rate_paise = c.get('result', {}).get('totalPaise', 0)
                 mapped_couriers.append({
                     'courier_company_id': c.get('courierId'),
                     'courier_name': c.get('courierDisplayName', c.get('courierName')),
-                    'rate': c.get('totalPaise', 0) / 100,  # Convert paise to rupees
+                    'rate': rate_paise / 100,  # Convert paise to rupees
                     'estimated_delivery_days': str(c.get('tatDays', 7))
                 })
                 
@@ -99,7 +100,7 @@ def get_shipping_rates(delivery_pincode, weight_kg=0.5):
             'courier_id': courier.get('courier_company_id', ''),
             'courier_name': courier.get('courier_name', 'Standard Delivery'),
             'rate': courier.get('rate', 0),
-            'estimated_days': f"{courier.get('estimated_delivery_days', '5')} days",
+            'estimated_days': courier.get('estimated_delivery_days', '5'),
             'min_weight': courier.get('min_weight', 0.5)
         })
 
@@ -112,7 +113,7 @@ def get_shipping_rates(delivery_pincode, weight_kg=0.5):
             'courier_id': 'default',
             'courier_name': 'Standard Delivery',
             'rate': 60,  # Default ₹60 shipping
-            'estimated_days': '5-7 days',
+            'estimated_days': '5-7',
             'min_weight': 0.5
         }]
 
