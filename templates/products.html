@@ -306,9 +306,6 @@
     letter-spacing: 1px;
   }
 </style>
-{% endblock %}
-
-{% block modals %}
   {% for product in products %}
   <!-- Reviews Modal for {{ product.name }} -->
   <div class="modal fade" id="reviewsModal{{ product.id }}" tabindex="-1" aria-labelledby="reviewsModalLabel{{ product.id }}" aria-hidden="true">
