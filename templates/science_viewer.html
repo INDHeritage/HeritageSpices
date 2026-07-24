@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Class 10 Science Notes | Heritage Spices{% endblock %}
+{% block title %}{{ content_title }} | Heritage Spices{% endblock %}
 
 {% block content %}
 <style>
@@ -15,6 +15,7 @@
         -moz-user-select: none;
         -ms-user-select: none;
         user-select: none;
+        -webkit-touch-callout: none;
     }
 
     /* Watermark container */
@@ -35,7 +36,6 @@
         height: auto;
         display: block;
         margin: 0 auto;
-        /* Image is rendered on canvas, not as an <img> tag */
     }
 
     #watermark-overlay {
@@ -44,37 +44,140 @@
         left: 0;
         width: 100%;
         height: 100%;
-        pointer-events: none; /* Let clicks pass through to canvas/buttons */
+        pointer-events: none;
         z-index: 10;
         overflow: hidden;
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
         align-content: center;
-        opacity: 0.04; /* Very subtle to not distract reading */
-        pointer-events: none;
+        opacity: 0.06;
     }
 
     .watermark-text {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         font-weight: bold;
         color: #000;
         transform: rotate(-30deg);
-        margin: 20px 40px;
+        margin: 15px 30px;
         white-space: nowrap;
     }
+
+    /* Subject navigation pills */
+    .subject-pill {
+        padding: 8px 18px;
+        border-radius: 25px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+    }
+    .subject-pill.active {
+        background: #198754;
+        color: white !important;
+        border-color: #198754;
+    }
+    .subject-pill:not(.active) {
+        background: #f0f0f0;
+        color: #555 !important;
+        border-color: #ddd;
+    }
+    .subject-pill:hover:not(.active) {
+        background: #e0f5e6;
+        border-color: #198754;
+        color: #198754 !important;
+    }
+
+    /* Protection overlay */
+    #protection-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: #000;
+        z-index: 99999;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        color: white;
+    }
+    #protection-overlay.active {
+        display: flex !important;
+    }
+
+    /* Warning toast */
+    .drm-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #1b5e20, #2e7d32);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        z-index: 9999;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        animation: slideIn 0.5s ease, fadeOut 0.5s ease 4s forwards;
+        max-width: 350px;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; display: none; } }
 </style>
 
+<!-- Protection overlay (shown when screenshot/recording detected) -->
+<div id="protection-overlay">
+    <i class="fas fa-shield-alt fa-4x mb-3" style="color: #ff5252;"></i>
+    <h3 class="fw-bold">Content Protected</h3>
+    <p class="text-muted">Screenshots and screen recording are not allowed.</p>
+    <p class="small text-muted">Return to this tab to continue reading.</p>
+</div>
+
+<!-- DRM Warning Toast -->
+<div class="drm-toast" id="drmToast">
+    <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-shield-alt fa-lg"></i>
+        <div>
+            <div class="fw-bold small">Content Protected</div>
+            <div style="font-size: 0.75rem; opacity: 0.9;">Screenshots disabled. Watermarked with your identity.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Bar -->
 <div class="container-fluid py-3 bg-dark text-white">
-    <div class="container d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-bold"><i class="fas fa-lock text-success me-2"></i>Secure Notes Viewer</h5>
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h5 class="mb-0 fw-bold"><i class="fas fa-lock text-success me-2"></i>{{ content_title }}</h5>
         <div>
             <a href="/science-hub" class="btn btn-sm btn-outline-light"><i class="fas fa-times me-1"></i>Close</a>
         </div>
     </div>
 </div>
 
-<div class="container py-4">
+<!-- Subject Navigation -->
+<div class="container py-3">
+    <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
+        {% for key, info in all_subjects.items() %}
+            {% if info.total_pages > 0 or key.startswith('practice-') %}
+            <a href="/science-hub/viewer/{{ key }}" 
+               class="subject-pill {{ 'active' if key == subject else '' }}">
+                {% if key.startswith('practice-') %}
+                    <i class="fas fa-file-alt me-1"></i>
+                {% else %}
+                    <i class="fas fa-book me-1"></i>
+                {% endif %}
+                {{ info.title | replace('SSC 10th - ', '') }}
+            </a>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if total_pages == 0 %}
+    <div class="text-center py-5">
+        <i class="fas fa-folder-open fa-4x text-muted mb-3 d-block opacity-50"></i>
+        <h4 class="text-muted">No pages uploaded yet</h4>
+        <p class="text-secondary">Practice paper pages will appear here once uploaded by the admin.</p>
+        <a href="/science-hub" class="btn btn-outline-success mt-2"><i class="fas fa-arrow-left me-1"></i>Back to Science Hub</a>
+    </div>
+    {% else %}
     <!-- Controls Top -->
     <div class="d-flex justify-content-center align-items-center mb-3 gap-3">
         <button class="btn btn-primary" id="btn-prev" onclick="changePage(-1)" disabled><i class="fas fa-chevron-left me-1"></i> Prev</button>
@@ -85,9 +188,7 @@
     <!-- Viewer -->
     <div id="viewer-container">
         <!-- The Watermark -->
-        <div id="watermark-overlay">
-            <!-- JavaScript will populate this -->
-        </div>
+        <div id="watermark-overlay"></div>
 
         <!-- The Canvas -->
         <canvas id="page-canvas"></canvas>
@@ -106,56 +207,114 @@
         <input type="number" id="page-jump" class="form-control text-center" style="width: 70px;" min="1" max="{{ total_pages }}" value="1" onchange="jumpToPage(this.value)">
         <button class="btn btn-primary" id="btn-next-btm" onclick="changePage(1)">Next <i class="fas fa-chevron-right ms-1"></i></button>
     </div>
+    {% endif %}
 </div>
 
+{% if total_pages > 0 %}
 <!-- ANTI-PIRACY SCRIPTS -->
 <script>
-    // 1. Disable Right Click
+    // === PROTECTION LAYER 1: Disable Right Click ===
     document.addEventListener('contextmenu', event => event.preventDefault());
 
-    // 2. Disable Keyboard Shortcuts (Ctrl+S, Ctrl+P, F12, Ctrl+U)
+    // === PROTECTION LAYER 2: Disable Keyboard Shortcuts ===
     document.addEventListener('keydown', (e) => {
+        // Block Ctrl+S, Ctrl+P, Ctrl+U, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
         if (e.ctrlKey && (e.key === 'p' || e.key === 'P' || e.key === 's' || e.key === 'S' || e.key === 'u' || e.key === 'U')) { 
             e.preventDefault(); 
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+            e.preventDefault();
         }
         if (e.key === 'F12') { 
             e.preventDefault(); 
         }
-    });
-
-    // 2.5 Anti-Screenshot & Screen Recording Protection
-    // Blurs the screen when the window loses focus (e.g. Snipping tool overlay opens)
-    window.addEventListener('blur', () => {
-        document.getElementById('viewer-container').style.filter = 'blur(15px)';
-    });
-    window.addEventListener('focus', () => {
-        document.getElementById('viewer-container').style.filter = 'none';
-    });
-    
-    // Attempt to clear clipboard if PrintScreen is pressed
-    document.addEventListener('keydown', (e) => {
+        // Block PrintScreen
         if (e.key === 'PrintScreen') {
-            navigator.clipboard.writeText('Screenshots are disabled for copyrighted content.');
-            document.getElementById('viewer-container').style.filter = 'blur(15px)';
-            setTimeout(() => { document.getElementById('viewer-container').style.filter = 'none'; }, 2000);
+            e.preventDefault();
+            navigator.clipboard.writeText('Screenshots are disabled for copyrighted content.').catch(() => {});
+            showProtectionOverlay(2000);
         }
     });
 
-    // 3. Setup Watermark
+    // === PROTECTION LAYER 3: Page Visibility API ===
+    document.addEventListener('visibilitychange', () => {
+        const overlay = document.getElementById('protection-overlay');
+        const container = document.getElementById('viewer-container');
+        if (document.hidden) {
+            overlay.classList.add('active');
+            if (container) container.style.filter = 'blur(20px)';
+        } else {
+            overlay.classList.remove('active');
+            if (container) container.style.filter = 'none';
+        }
+    });
+
+    // === PROTECTION LAYER 4: Window Focus/Blur ===
+    window.addEventListener('blur', () => {
+        const container = document.getElementById('viewer-container');
+        if (container) container.style.filter = 'blur(20px)';
+    });
+    window.addEventListener('focus', () => {
+        const container = document.getElementById('viewer-container');
+        if (container) container.style.filter = 'none';
+        document.getElementById('protection-overlay').classList.remove('active');
+    });
+
+    // === PROTECTION LAYER 5: DevTools Detection ===
+    (function detectDevTools() {
+        const threshold = 160;
+        const check = setInterval(() => {
+            const widthDiff = window.outerWidth - window.innerWidth > threshold;
+            const heightDiff = window.outerHeight - window.innerHeight > threshold;
+            if (widthDiff || heightDiff) {
+                const container = document.getElementById('viewer-container');
+                if (container) container.style.filter = 'blur(30px)';
+            }
+        }, 1000);
+    })();
+
+    // === PROTECTION LAYER 6: Prevent Drag & Copy ===
+    document.addEventListener('dragstart', e => e.preventDefault());
+    document.addEventListener('copy', e => { e.preventDefault(); });
+    document.addEventListener('cut', e => { e.preventDefault(); });
+
+    // === PROTECTION LAYER 7: Disable image saving on mobile (long press) ===
+    document.addEventListener('touchstart', (e) => {
+        if (e.target.tagName === 'CANVAS' || e.target.closest('#viewer-container')) {
+            // Prevent long-press context menu on mobile
+            e.target.style.webkitTouchCallout = 'none';
+        }
+    }, { passive: true });
+
+    function showProtectionOverlay(duration) {
+        const overlay = document.getElementById('protection-overlay');
+        overlay.classList.add('active');
+        const container = document.getElementById('viewer-container');
+        if (container) container.style.filter = 'blur(20px)';
+        setTimeout(() => {
+            overlay.classList.remove('active');
+            if (container) container.style.filter = 'none';
+        }, duration);
+    }
+
+    // === WATERMARK SETUP ===
     function setupWatermark() {
         const overlay = document.getElementById('watermark-overlay');
-        const identifier = "{{ user.email }}"; // Could add phone here if available
+        const email = "{{ user.email }}";
+        const name = "{{ user.name }}";
+        const now = new Date().toLocaleDateString();
+        const identifier = `${name} • ${email} • ${now}`;
         let html = '';
-        // Generate enough text to cover the screen
-        for(let i=0; i<30; i++) {
+        for(let i = 0; i < 40; i++) {
             html += `<div class="watermark-text">${identifier}</div>`;
         }
         overlay.innerHTML = html;
     }
 
-    // 4. Page Rendering Logic
+    // === PAGE RENDERING ===
     let currentPage = 1;
-    const totalPages = parseInt("{{ total_pages }}") || 150;
+    const totalPages = parseInt("{{ total_pages }}") || 1;
+    const currentSubject = "{{ subject }}";
     const canvas = document.getElementById('page-canvas');
     const ctx = canvas.getContext('2d');
     const loadingOverlay = document.getElementById('loading-overlay');
@@ -163,27 +322,27 @@
     function renderPage(pageNum) {
         loadingOverlay.classList.remove('d-none');
         
-        // Fetch image through secure route
         const img = new Image();
         img.onload = function() {
-            // Match canvas size to image size
             canvas.width = img.width;
             canvas.height = img.height;
-            // Draw image on canvas
             ctx.drawImage(img, 0, 0);
             loadingOverlay.classList.add('d-none');
         };
         img.onerror = function() {
+            canvas.width = 800;
+            canvas.height = 600;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.font = "30px Arial";
-            ctx.fillStyle = "red";
+            ctx.fillStyle = "#f8f9fa";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = "24px Arial";
+            ctx.fillStyle = "#dc3545";
             ctx.textAlign = "center";
             ctx.fillText("Failed to load page " + pageNum, canvas.width/2, canvas.height/2);
             loadingOverlay.classList.add('d-none');
         }
         
-        // Anti-cache string to ensure fresh load through proxy
-        img.src = `/api/notes/${pageNum}?t=${new Date().getTime()}`;
+        img.src = `/api/notes/${currentSubject}/${pageNum}?t=${new Date().getTime()}`;
     }
 
     function updateControls() {
@@ -193,8 +352,8 @@
         const prevBtns = [document.getElementById('btn-prev'), document.getElementById('btn-prev-btm')];
         const nextBtns = [document.getElementById('btn-next'), document.getElementById('btn-next-btm')];
         
-        prevBtns.forEach(btn => btn.disabled = (currentPage <= 1));
-        nextBtns.forEach(btn => btn.disabled = (currentPage >= totalPages));
+        prevBtns.forEach(btn => { if(btn) btn.disabled = (currentPage <= 1); });
+        nextBtns.forEach(btn => { if(btn) btn.disabled = (currentPage >= totalPages); });
     }
 
     function changePage(delta) {
@@ -214,17 +373,23 @@
             updateControls();
             renderPage(currentPage);
         } else {
-            // reset to current if invalid
             document.getElementById('page-jump').value = currentPage;
         }
     }
 
-    // Initialize
+    // === INITIALIZE ===
     document.addEventListener("DOMContentLoaded", () => {
         setupWatermark();
         renderPage(currentPage);
+        
+        // Auto-hide DRM toast after 5 seconds
+        setTimeout(() => {
+            const toast = document.getElementById('drmToast');
+            if (toast) toast.style.display = 'none';
+        }, 5000);
     });
 </script>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

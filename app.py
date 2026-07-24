@@ -627,19 +627,62 @@ def view_visits():
 
 # ✅ Admin: Unified Dashboard
 @app.route('/admin/dashboard')
+@admin_required
 def admin_dashboard():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
-        abort(403)
+    days = request.args.get('days', '30')
+    start_date = None
     
-    total_users = User.query.count()
-    total_visits = Visit.query.count()
+    if days != 'all':
+        try:
+            start_date = datetime.utcnow() - timedelta(days=int(days))
+        except ValueError:
+            start_date = datetime.utcnow() - timedelta(days=30)
+            
+    # Base queries
+    user_q = User.query
+    visit_q = Visit.query
+    order_q = SpiceOrder.query
+    
+    if start_date:
+        user_q = user_q.filter(User.created_at >= start_date)
+        visit_q = visit_q.filter(Visit.timestamp >= start_date)
+        order_q = order_q.filter(SpiceOrder.created_at >= start_date)
+        
+    total_users = user_q.count()
+    total_visits = visit_q.count()
     total_products = Product.query.count()
     total_blogs = Blog.query.count()
     total_messages = ContactMessage.query.count()
-    total_spice_orders = SpiceOrder.query.count()
-    total_revenue = sum(o.total_amount for o in SpiceOrder.query.filter_by(payment_status='paid').all()) // 100
+    
+    total_spice_orders = order_q.count()
+    total_revenue = sum(o.total_amount for o in order_q.filter_by(payment_status='paid').all()) // 100
     pending_shipments = SpiceOrder.query.filter_by(payment_status='paid', shipping_status='processing').count()
     
+    # Prepare Chart Data (Group by date)
+    chart_labels = []
+    chart_revenue = []
+    chart_orders = []
+    chart_visits = []
+    
+    if days != 'all' and int(days) <= 90:
+        num_days = int(days)
+        # Generate last N days
+        date_list = [(datetime.utcnow() - timedelta(days=x)).date() for x in range(num_days-1, -1, -1)]
+        
+        # Group data
+        for d in date_list:
+            d_start = datetime.combine(d, datetime.min.time())
+            d_end = d_start + timedelta(days=1)
+            
+            day_rev = sum(o.total_amount for o in SpiceOrder.query.filter(SpiceOrder.created_at >= d_start, SpiceOrder.created_at < d_end, SpiceOrder.payment_status=='paid').all()) // 100
+            day_orders = SpiceOrder.query.filter(SpiceOrder.created_at >= d_start, SpiceOrder.created_at < d_end).count()
+            day_visits = Visit.query.filter(Visit.timestamp >= d_start, Visit.timestamp < d_end).count()
+            
+            chart_labels.append(d.strftime('%b %d'))
+            chart_revenue.append(day_rev)
+            chart_orders.append(day_orders)
+            chart_visits.append(day_visits)
+            
     return render_template('admin_dashboard.html', 
                            total_users=total_users, 
                            total_visits=total_visits,
@@ -648,7 +691,65 @@ def admin_dashboard():
                            total_messages=total_messages,
                            total_spice_orders=total_spice_orders,
                            total_revenue=total_revenue,
-                           pending_shipments=pending_shipments)
+                           pending_shipments=pending_shipments,
+                           current_filter=days,
+                           chart_labels=chart_labels,
+                           chart_revenue=chart_revenue,
+                           chart_orders=chart_orders,
+                           chart_visits=chart_visits)
+
+import csv
+import io
+from flask import Response
+
+@app.route('/admin/export/<data_type>')
+@admin_required
+def export_data(data_type):
+    days = request.args.get('days', '30')
+    start_date = None
+    if days != 'all':
+        try:
+            start_date = datetime.utcnow() - timedelta(days=int(days))
+        except ValueError:
+            start_date = datetime.utcnow() - timedelta(days=30)
+            
+    def get_filtered(query, date_field):
+        if start_date:
+            return query.filter(date_field >= start_date).all()
+        return query.all()
+        
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    if data_type == 'orders':
+        orders = get_filtered(SpiceOrder.query, SpiceOrder.created_at)
+        writer.writerow(['Order ID', 'Date', 'Email', 'Customer Name', 'Phone', 'City', 'Pincode', 'Amount (INR)', 'Payment Status', 'Shipping Status'])
+        for o in orders:
+            writer.writerow([o.order_number, o.created_at.strftime('%Y-%m-%d %H:%M'), o.user_email, o.full_name, o.phone, o.city, o.pincode, o.total_amount//100, o.payment_status, o.shipping_status])
+        filename = "spice_orders_export.csv"
+        
+    elif data_type == 'users':
+        users = get_filtered(User.query, User.created_at)
+        writer.writerow(['Name', 'Email', 'Joined Date'])
+        for u in users:
+            writer.writerow([u.name, u.email, u.created_at.strftime('%Y-%m-%d %H:%M')])
+        filename = "users_export.csv"
+        
+    elif data_type == 'visits':
+        visits = get_filtered(Visit.query.order_by(Visit.timestamp.desc()).limit(10000), Visit.timestamp)
+        writer.writerow(['Date', 'IP', 'User Agent', 'Email'])
+        for v in visits:
+            writer.writerow([v.timestamp.strftime('%Y-%m-%d %H:%M') if v.timestamp else '', v.ip, v.user_agent, v.email])
+        filename = "visits_export.csv"
+        
+    else:
+        abort(404)
+        
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename={filename}"}
+    )
 
 # ✅ Admin: View Contact Messages
 @app.route('/admin/messages')
@@ -797,6 +898,14 @@ def faq():
 # 🔬 Science Hub Routes
 # -------------------------
 
+# --- Science Hub Content Configuration ---
+SCIENCE_CONTENT = {
+    'sci1': {'path': 'notes', 'start_page': 1, 'end_page': 148, 'total_pages': 148, 'title': 'SSC 10th - Science 1 Notes'},
+    'sci2': {'path': 'notes', 'start_page': 149, 'end_page': 297, 'total_pages': 149, 'title': 'SSC 10th - Science 2 Notes'},
+    'practice-sci1': {'path': 'notes/practice-sci1', 'start_page': 1, 'end_page': 0, 'total_pages': 0, 'title': 'Practice Papers - Science 1'},
+    'practice-sci2': {'path': 'notes/practice-sci2', 'start_page': 1, 'end_page': 0, 'total_pages': 0, 'title': 'Practice Papers - Science 2'},
+}
+
 @app.route('/science-hub')
 def science_hub():
     user = session.get('user')
@@ -811,9 +920,18 @@ def science_hub():
     digital_enabled = get_setting('science_hub_digital_enabled', 'true') == 'true'
     physical_enabled = get_setting('science_hub_physical_enabled', 'true') == 'true'
 
+    # Count practice paper pages
+    import glob
+    practice_sci1_dir = os.path.join(app.root_path, 'static', 'notes', 'practice-sci1')
+    practice_sci2_dir = os.path.join(app.root_path, 'static', 'notes', 'practice-sci2')
+    practice_sci1_count = len(glob.glob(os.path.join(practice_sci1_dir, 'page_*.png'))) if os.path.exists(practice_sci1_dir) else 0
+    practice_sci2_count = len(glob.glob(os.path.join(practice_sci2_dir, 'page_*.png'))) if os.path.exists(practice_sci2_dir) else 0
+
     return render_template('science_hub.html', user=user, is_logged_in=is_logged_in,
                            has_digital_access=has_digital_access, razorpay_key_id=RAZORPAY_KEY_ID,
-                           digital_enabled=digital_enabled, physical_enabled=physical_enabled)
+                           digital_enabled=digital_enabled, physical_enabled=physical_enabled,
+                           practice_sci1_count=practice_sci1_count, practice_sci2_count=practice_sci2_count,
+                           science_content=SCIENCE_CONTENT)
 
 @app.route('/science-hub/validate-upper-id', methods=['POST'])
 def validate_upper_id():
@@ -955,7 +1073,8 @@ def verify_science_payment():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/science-hub/viewer')
-def science_viewer():
+@app.route('/science-hub/viewer/<subject>')
+def science_viewer(subject='sci1'):
     user = session.get('user')
     if not user:
         flash("Please login to view notes.", "warning")
@@ -966,8 +1085,29 @@ def science_viewer():
     if not access:
         flash("You do not have access to the Science Notes. Please purchase the Online Access.", "danger")
         return redirect('/science-hub')
-        
-    return render_template('science_viewer.html', user=user, total_pages=297) 
+    
+    # Validate subject
+    if subject not in SCIENCE_CONTENT:
+        flash("Invalid subject selected.", "danger")
+        return redirect('/science-hub')
+    
+    content = SCIENCE_CONTENT[subject]
+    
+    # For practice papers, count files dynamically
+    if subject.startswith('practice-'):
+        import glob
+        practice_dir = os.path.join(app.root_path, 'static', content['path'])
+        if os.path.exists(practice_dir):
+            pages = glob.glob(os.path.join(practice_dir, 'page_*.png'))
+            content = dict(content)  # copy
+            content['total_pages'] = len(pages)
+            content['end_page'] = len(pages)
+    
+    return render_template('science_viewer.html', user=user, 
+                           total_pages=content['total_pages'], 
+                           subject=subject,
+                           content_title=content['title'],
+                           all_subjects=SCIENCE_CONTENT)
 
 @app.route('/admin/science-hub', methods=['GET', 'POST'])
 @admin_required
@@ -998,12 +1138,126 @@ def admin_science_hub():
     orders = ScienceOrder.query.order_by(ScienceOrder.created_at.desc()).all()
     access_grants = DigitalAccess.query.order_by(DigitalAccess.granted_at.desc()).all()
     
-    return render_template('admin_science_hub.html', upper_ids=upper_ids, orders=orders, access_grants=access_grants)
+    # Count practice paper pages for admin view
+    import glob
+    practice_sci1_dir = os.path.join(app.root_path, 'static', 'notes', 'practice-sci1')
+    practice_sci2_dir = os.path.join(app.root_path, 'static', 'notes', 'practice-sci2')
+    practice_sci1_count = len(glob.glob(os.path.join(practice_sci1_dir, 'page_*.png'))) if os.path.exists(practice_sci1_dir) else 0
+    practice_sci2_count = len(glob.glob(os.path.join(practice_sci2_dir, 'page_*.png'))) if os.path.exists(practice_sci2_dir) else 0
+    
+    return render_template('admin_science_hub.html', upper_ids=upper_ids, orders=orders, access_grants=access_grants, practice_sci1_count=practice_sci1_count, practice_sci2_count=practice_sci2_count)
+
+@app.route('/admin/science-hub/upload-practice', methods=['POST'])
+@admin_required
+def upload_practice_pages():
+    subject = request.form.get('subject')  # 'practice-sci1' or 'practice-sci2'
+    if subject not in ('practice-sci1', 'practice-sci2'):
+        flash("Invalid subject for upload.", "danger")
+        return redirect('/admin/science-hub')
+    
+    files = request.files.getlist('pages')
+    if not files:
+        flash("No files selected.", "danger")
+        return redirect('/admin/science-hub')
+    
+    content = SCIENCE_CONTENT[subject]
+    upload_dir = os.path.join(app.root_path, 'static', content['path'])
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Find the next page number
+    import glob
+    existing = glob.glob(os.path.join(upload_dir, 'page_*.png'))
+    next_num = len(existing) + 1
+    
+    uploaded_count = 0
+    for f in files:
+        if f and f.filename:
+            filename = f'page_{next_num}.png'
+            f.save(os.path.join(upload_dir, filename))
+            next_num += 1
+            uploaded_count += 1
+    
+    flash(f"Successfully uploaded {uploaded_count} practice paper page(s) to {subject}.", "success")
+    return redirect('/admin/science-hub')
+
+
+@app.route('/admin/science-hub/delete-practice-page', methods=['POST'])
+@admin_required  
+def delete_practice_page():
+    subject = request.form.get('subject')
+    page_num = request.form.get('page_num')
+    
+    if subject not in ('practice-sci1', 'practice-sci2'):
+        flash("Invalid subject.", "danger")
+        return redirect('/admin/science-hub')
+    
+    content = SCIENCE_CONTENT[subject]
+    file_path = os.path.join(app.root_path, 'static', content['path'], f'page_{page_num}.png')
+    
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        # Renumber remaining pages
+        import glob
+        upload_dir = os.path.join(app.root_path, 'static', content['path'])
+        pages = sorted(glob.glob(os.path.join(upload_dir, 'page_*.png')))
+        for i, page_path in enumerate(pages, 1):
+            new_path = os.path.join(upload_dir, f'page_{i}.png')
+            if page_path != new_path:
+                os.rename(page_path, new_path)
+        flash(f"Page deleted and remaining pages renumbered.", "success")
+    else:
+        flash("Page not found.", "danger")
+    
+    return redirect('/admin/science-hub')
+
+@app.route('/admin/science-hub/replace-page', methods=['POST'])
+@admin_required
+def replace_science_page():
+    subject = request.form.get('subject')
+    page_num = request.form.get('page_num')
+    file = request.files.get('page_file')
+    
+    if subject not in SCIENCE_CONTENT:
+        flash("Invalid subject.", "danger")
+        return redirect('/admin/science-hub')
+        
+    if not file or not file.filename:
+        flash("No file selected.", "danger")
+        return redirect('/admin/science-hub')
+        
+    try:
+        page_num = int(page_num)
+    except ValueError:
+        flash("Invalid page number.", "danger")
+        return redirect('/admin/science-hub')
+        
+    content = SCIENCE_CONTENT[subject]
+    
+    # Calculate actual filename
+    if subject in ('sci1', 'sci2'):
+        if page_num < 1 or page_num > content['total_pages']:
+            flash("Page number out of range.", "danger")
+            return redirect('/admin/science-hub')
+        actual_page = content['start_page'] + page_num - 1
+        filepath = os.path.join(app.root_path, 'static', content['path'], f'page_{actual_page}.png')
+    else:
+        # Practice papers
+        import glob
+        practice_dir = os.path.join(app.root_path, 'static', content['path'])
+        pages = glob.glob(os.path.join(practice_dir, 'page_*.png'))
+        if page_num < 1 or page_num > len(pages):
+            flash("Page number out of range.", "danger")
+            return redirect('/admin/science-hub')
+        filepath = os.path.join(practice_dir, f'page_{page_num}.png')
+        
+    # Save file, overwriting the existing one
+    file.save(filepath)
+    flash(f"Successfully replaced page {page_num} for {subject}.", "success")
+    return redirect('/admin/science-hub')
 
 @app.route('/api/notes/<int:page_num>')
-def get_notes_page(page_num):
-    # This route serves the protected notes pages (images)
-    # Only accessible to logged in users with DigitalAccess
+@app.route('/api/notes/<subject>/<int:page_num>')
+def get_notes_page(page_num, subject='sci1'):
     user = session.get('user')
     if not user:
         abort(401)
@@ -1011,13 +1265,27 @@ def get_notes_page(page_num):
     access = DigitalAccess.query.filter_by(user_email=user['email']).first()
     if not access:
         abort(403)
-        
-    # Securely send the image. For now, assuming they are stored in static/notes/
-    # If using Google Drive, this would act as a proxy.
-    try:
-        return send_from_directory('static/notes', f'page_{page_num}.png')
-    except Exception:
+    
+    if subject not in SCIENCE_CONTENT:
         abort(404)
+    
+    content = SCIENCE_CONTENT[subject]
+    
+    # For sci1/sci2, pages are in the same 'notes' directory but with different numbering
+    if subject in ('sci1', 'sci2'):
+        actual_page = content['start_page'] + page_num - 1
+        if actual_page < content['start_page'] or actual_page > content['end_page']:
+            abort(404)
+        try:
+            return send_from_directory(os.path.join('static', content['path']), f'page_{actual_page}.png')
+        except Exception:
+            abort(404)
+    else:
+        # Practice papers: files are in their own directory, numbered from 1
+        try:
+            return send_from_directory(os.path.join('static', content['path']), f'page_{page_num}.png')
+        except Exception:
+            abort(404)
 
 @app.template_filter()
 def truncate(s, length=100):

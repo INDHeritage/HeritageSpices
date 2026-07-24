@@ -8,158 +8,262 @@
         <a href="/admin/dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
     </div>
 
-    <!-- Add Upper ID -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-primary text-white fw-bold">
-            <i class="fas fa-plus-circle me-2"></i>Add Tuition Student Upper ID
-        </div>
-        <div class="card-body">
-            <form method="POST" action="/admin/science-hub" class="row g-3 align-items-end">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="add_id">
-                <div class="col-md-4">
-                    <label class="form-label fw-bold">Upper ID (Code)</label>
-                    <input type="text" name="code" class="form-control" placeholder="e.g. UPPER-2025-001" required>
-                </div>
-                <div class="col-md-5">
-                    <label class="form-label fw-bold">Student Name</label>
-                    <input type="text" name="student_name" class="form-control" placeholder="Student Full Name" required>
-                </div>
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-success w-100"><i class="fas fa-save me-2"></i>Add ID</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <!-- Management Tabs -->
+    <ul class="nav nav-tabs mb-4 border-success" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold text-success" id="access-tab" data-bs-toggle="tab" data-bs-target="#access" type="button" role="tab"><i class="fas fa-key me-2"></i>Access & Orders</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold text-success" id="content-tab" data-bs-toggle="tab" data-bs-target="#content" type="button" role="tab"><i class="fas fa-book-open me-2"></i>Content Management</button>
+        </li>
+    </ul>
 
-    <!-- List Upper IDs -->
-    <div class="card shadow-sm border-0 mb-5">
-        <div class="card-header bg-dark text-white fw-bold">
-            <i class="fas fa-list me-2"></i>Registered Upper IDs
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Code</th>
-                            <th>Student Name</th>
-                            <th>Digital Offer Used</th>
-                            <th>Physical Offer Used</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for uid in upper_ids %}
-                        <tr>
-                            <td><span class="badge bg-secondary font-monospace fs-6">{{ uid.code }}</span></td>
-                            <td>{{ uid.student_name }}</td>
-                            <td>
-                                {% if uid.has_used_digital_offer %}
-                                <span class="badge bg-danger">Used</span>
-                                {% else %}
-                                <span class="badge bg-success">Available</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if uid.has_used_physical_offer %}
-                                <span class="badge bg-danger">Used</span>
-                                {% else %}
-                                <span class="badge bg-success">Available</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <form method="POST" action="/admin/science-hub" onsubmit="return confirm('Are you sure you want to delete this Upper ID?');" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="action" value="delete_id">
-                                    <input type="hidden" name="id" value="{{ uid.id }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-3">No Upper IDs found.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="tab-content" id="adminTabsContent">
+        <!-- ACCESS & ORDERS TAB -->
+        <div class="tab-pane fade show active" id="access" role="tabpanel">
+            <!-- Add Upper ID -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-primary text-white fw-bold">
+                    <i class="fas fa-plus-circle me-2"></i>Add Tuition Student Upper ID
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/admin/science-hub" class="row g-3 align-items-end">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="add_id">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Upper ID (Code)</label>
+                            <input type="text" name="code" class="form-control" placeholder="e.g. UPPER-2025-001" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Student Name</label>
+                            <input type="text" name="student_name" class="form-control" placeholder="Student Full Name" required>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-success w-100"><i class="fas fa-save me-2"></i>Add ID</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div class="row">
-        <!-- List Orders -->
-        <div class="col-lg-8 mb-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-success text-white fw-bold">
-                    <i class="fas fa-shopping-cart me-2"></i>Recent Orders
+            <!-- List Upper IDs -->
+            <div class="card shadow-sm border-0 mb-5">
+                <div class="card-header bg-dark text-white fw-bold">
+                    <i class="fas fa-list me-2"></i>Registered Upper IDs
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Email</th>
-                                    <th>Product</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
+                                    <th>Code</th>
+                                    <th>Student Name</th>
+                                    <th>Digital Offer Used</th>
+                                    <th>Physical Offer Used</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for order in orders %}
+                                {% for uid in upper_ids %}
                                 <tr>
-                                    <td><small>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
-                                    <td>{{ order.user_email }}
-                                        {% if order.upper_id_used %}<br><small class="text-muted">ID: {{ order.upper_id_used }}</small>{% endif %}
-                                        {% if order.product_type == 'physical' %}<br><small class="text-primary">{{ order.full_name }} | {{ order.phone }}</small>{% endif %}
-                                    </td>
+                                    <td><span class="badge bg-secondary font-monospace fs-6">{{ uid.code }}</span></td>
+                                    <td>{{ uid.student_name }}</td>
                                     <td>
-                                        {% if order.product_type == 'digital' %}
-                                        <span class="badge bg-primary">Online Access</span>
+                                        {% if uid.has_used_digital_offer %}
+                                        <span class="badge bg-danger">Used</span>
                                         {% else %}
-                                        <span class="badge bg-warning text-dark">Physical Book</span>
+                                        <span class="badge bg-success">Available</span>
                                         {% endif %}
                                     </td>
-                                    <td>₹{{ order.amount // 100 }}</td>
                                     <td>
-                                        {% if order.payment_status == 'paid' %}
-                                        <span class="badge bg-success">Paid</span>
+                                        {% if uid.has_used_physical_offer %}
+                                        <span class="badge bg-danger">Used</span>
                                         {% else %}
-                                        <span class="badge bg-secondary">Pending</span>
+                                        <span class="badge bg-success">Available</span>
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="/admin/science-hub" onsubmit="return confirm('Are you sure you want to delete this Upper ID?');" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="action" value="delete_id">
+                                            <input type="hidden" name="id" value="{{ uid.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="5" class="text-center text-muted py-3">No orders yet.</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-3">No Upper IDs found.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
+
+            <div class="row">
+                <!-- List Orders -->
+                <div class="col-lg-8 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-success text-white fw-bold">
+                            <i class="fas fa-shopping-cart me-2"></i>Recent Orders
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Email</th>
+                                            <th>Product</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in orders %}
+                                        <tr>
+                                            <td><small>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                                            <td>{{ order.user_email }}
+                                                {% if order.upper_id_used %}<br><small class="text-muted">ID: {{ order.upper_id_used }}</small>{% endif %}
+                                                {% if order.product_type == 'physical' %}<br><small class="text-primary">{{ order.full_name }} | {{ order.phone }}</small>{% endif %}
+                                            </td>
+                                            <td>
+                                                {% if order.product_type == 'digital' %}
+                                                <span class="badge bg-primary">Online Access</span>
+                                                {% else %}
+                                                <span class="badge bg-warning text-dark">Physical Book</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>₹{{ order.amount // 100 }}</td>
+                                            <td>
+                                                {% if order.payment_status == 'paid' %}
+                                                <span class="badge bg-success">Paid</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr><td colspan="5" class="text-center text-muted py-3">No orders yet.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List Digital Access -->
+                <div class="col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-info text-white fw-bold">
+                            <i class="fas fa-key me-2"></i>Active Digital Access
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush">
+                                {% for access in access_grants %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ access.user_email }}</strong><br>
+                                        <small class="text-muted">Granted: {{ access.granted_at.strftime('%Y-%m-%d') }}</small>
+                                    </div>
+                                    <i class="fas fa-check-circle text-success"></i>
+                                </li>
+                                {% else %}
+                                <li class="list-group-item text-center text-muted py-3">No digital access granted yet.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- List Digital Access -->
-        <div class="col-lg-4 mb-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-info text-white fw-bold">
-                    <i class="fas fa-key me-2"></i>Active Digital Access
+        <!-- CONTENT MANAGEMENT TAB -->
+        <div class="tab-pane fade" id="content" role="tabpanel">
+            <div class="row g-4">
+                
+                <!-- Replace Individual Page -->
+                <div class="col-lg-6">
+                    <div class="card shadow-sm border-0 h-100 border-top border-5 border-warning">
+                        <div class="card-header bg-white fw-bold d-flex align-items-center">
+                            <i class="fas fa-exchange-alt text-warning me-2 fa-lg"></i> Replace Existing Page
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Use this to fix typos or add missing diagrams (e.g. Sci 2 pages 115, 126, 128, etc.). The new image will overwrite the old one immediately.</p>
+                            
+                            <form action="/admin/science-hub/replace-page" method="POST" enctype="multipart/form-data">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Select Subject</label>
+                                    <select name="subject" class="form-select" required>
+                                        <option value="sci1">Science 1 Notes (Pages 1-148)</option>
+                                        <option value="sci2">Science 2 Notes (Pages 1-149)</option>
+                                        <option value="practice-sci1">Practice Papers - Sci 1</option>
+                                        <option value="practice-sci2">Practice Papers - Sci 2</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Page Number</label>
+                                    <input type="number" name="page_num" class="form-control" placeholder="e.g. 115" required min="1">
+                                    <div class="form-text">Enter the viewer page number (e.g. Page 1 of Sci 2).</div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">New Image File (.png)</label>
+                                    <input type="file" name="page_file" class="form-control" accept="image/png" required>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-warning w-100 text-dark fw-bold" onclick="return confirm('This will permanently replace the page. Continue?');"><i class="fas fa-upload me-2"></i>Replace Page</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body p-0">
-                    <ul class="list-group list-group-flush">
-                        {% for access in access_grants %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ access.user_email }}</strong><br>
-                                <small class="text-muted">Granted: {{ access.granted_at.strftime('%Y-%m-%d') }}</small>
+
+                <!-- Add Practice Papers -->
+                <div class="col-lg-6">
+                    <div class="card shadow-sm border-0 h-100 border-top border-5 border-success">
+                        <div class="card-header bg-white fw-bold d-flex align-items-center">
+                            <i class="fas fa-plus-square text-success me-2 fa-lg"></i> Add Practice Papers
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Upload new practice paper images. They will be added to the end of the selected subject's practice papers.</p>
+                            
+                            <div class="d-flex justify-content-between mb-4">
+                                <div class="text-center p-3 bg-light rounded border w-100 me-2">
+                                    <div class="h3 mb-0 text-success fw-bold">{{ practice_sci1_count }}</div>
+                                    <div class="small text-muted">Sci 1 Practice Pages</div>
+                                </div>
+                                <div class="text-center p-3 bg-light rounded border w-100 ms-2">
+                                    <div class="h3 mb-0 text-success fw-bold">{{ practice_sci2_count }}</div>
+                                    <div class="small text-muted">Sci 2 Practice Pages</div>
+                                </div>
                             </div>
-                            <i class="fas fa-check-circle text-success"></i>
-                        </li>
-                        {% else %}
-                        <li class="list-group-item text-center text-muted py-3">No digital access granted yet.</li>
-                        {% endfor %}
-                    </ul>
+                            
+                            <form action="/admin/science-hub/upload-practice" method="POST" enctype="multipart/form-data">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Select Subject</label>
+                                    <select name="subject" class="form-select" required>
+                                        <option value="practice-sci1">Practice Papers - Sci 1</option>
+                                        <option value="practice-sci2">Practice Papers - Sci 2</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Images to Upload (.png)</label>
+                                    <input type="file" name="pages" class="form-control" accept="image/png" multiple required>
+                                    <div class="form-text">You can select multiple files at once. They will be numbered automatically.</div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-success w-100 fw-bold"><i class="fas fa-upload me-2"></i>Upload Practice Pages</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>

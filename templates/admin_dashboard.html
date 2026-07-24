@@ -2,10 +2,27 @@
 {% block title %}Admin Dashboard | Heritage Spices{% endblock %}
 
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  .filter-btn.active {
+    background-color: #198754;
+    color: white;
+    border-color: #198754;
+  }
+</style>
+
 <div class="container py-5">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="text-success fw-bold"><i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard</h1>
-    <a href="/" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Site</a>
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <h1 class="text-success fw-bold"><i class="fas fa-tachometer-alt me-2"></i>Analytics Dashboard</h1>
+    
+    <!-- Date Filter Form -->
+    <form action="/admin/dashboard" method="GET" class="d-flex gap-2">
+      <button type="submit" name="days" value="7" class="btn btn-outline-success filter-btn {{ 'active' if current_filter == '7' else '' }}">Last 7 Days</button>
+      <button type="submit" name="days" value="30" class="btn btn-outline-success filter-btn {{ 'active' if current_filter == '30' else '' }}">Last 30 Days</button>
+      <button type="submit" name="days" value="90" class="btn btn-outline-success filter-btn {{ 'active' if current_filter == '90' else '' }}">Last 90 Days</button>
+      <button type="submit" name="days" value="all" class="btn btn-outline-success filter-btn {{ 'active' if current_filter == 'all' else '' }}">All Time</button>
+    </form>
   </div>
 
   <div class="row g-4 mb-5">
@@ -14,11 +31,8 @@
       <div class="card bg-success text-white h-100 shadow-sm border-0">
         <div class="card-body text-center d-flex flex-column justify-content-center">
           <i class="fas fa-eye fa-2x mb-2"></i>
-          <h5 class="card-title">Total Visits</h5>
+          <h5 class="card-title">Visits</h5>
           <h2 class="display-6 fw-bold mb-0">{{ total_visits }}</h2>
-        </div>
-        <div class="card-footer bg-transparent border-0 text-center">
-          <a href="/admin/visits" class="text-white text-decoration-none small" target="_blank">View Raw JSON <i class="fas fa-external-link-alt ms-1"></i></a>
         </div>
       </div>
     </div>
@@ -27,147 +41,166 @@
       <div class="card bg-primary text-white h-100 shadow-sm border-0">
         <div class="card-body text-center d-flex flex-column justify-content-center">
           <i class="fas fa-users fa-2x mb-2"></i>
-          <h5 class="card-title">Registered Users</h5>
+          <h5 class="card-title">New Users</h5>
           <h2 class="display-6 fw-bold mb-0">{{ total_users }}</h2>
         </div>
-        <div class="card-footer bg-transparent border-0 text-center">
-          <a href="/admin/users" class="text-white text-decoration-none small" target="_blank">View Raw JSON <i class="fas fa-external-link-alt ms-1"></i></a>
-        </div>
       </div>
     </div>
-    <!-- Products -->
+    <!-- Orders -->
     <div class="col-md-3">
-      <div class="card bg-warning text-dark h-100 shadow-sm border-0">
-        <div class="card-body text-center d-flex flex-column justify-content-center">
-          <i class="fas fa-box-open fa-2x mb-2"></i>
-          <h5 class="card-title">Products</h5>
-          <h2 class="display-6 fw-bold mb-0">{{ total_products }}</h2>
-        </div>
-        <div class="card-footer bg-transparent border-0 text-center">
-          <a href="/products" class="text-dark text-decoration-none small">Manage Products <i class="fas fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <!-- Blogs -->
-    <div class="col-md-3">
-      <div class="card bg-info text-white h-100 shadow-sm border-0">
-        <div class="card-body text-center d-flex flex-column justify-content-center">
-          <i class="fas fa-blog fa-2x mb-2"></i>
-          <h5 class="card-title">Blog Posts</h5>
-          <h2 class="display-6 fw-bold mb-0">{{ total_blogs }}</h2>
-        </div>
-        <div class="card-footer bg-transparent border-0 text-center">
-          <a href="/admin/blogs" class="text-white text-decoration-none small">Manage Blogs <i class="fas fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 🛒 E-Commerce Stats -->
-  <div class="row g-4 mb-5">
-    <div class="col-md-4">
       <div class="card bg-dark text-white h-100 shadow-sm border-0">
         <div class="card-body text-center d-flex flex-column justify-content-center">
           <i class="fas fa-shopping-bag fa-2x mb-2"></i>
           <h5 class="card-title">Spice Orders</h5>
           <h2 class="display-6 fw-bold mb-0">{{ total_spice_orders }}</h2>
         </div>
-        <div class="card-footer bg-transparent border-0 text-center">
-          <a href="/admin/orders" class="text-white text-decoration-none small">Manage Orders <i class="fas fa-arrow-right ms-1"></i></a>
-        </div>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="card bg-success text-white h-100 shadow-sm border-0">
-        <div class="card-body text-center d-flex flex-column justify-content-center">
-          <i class="fas fa-rupee-sign fa-2x mb-2"></i>
-          <h5 class="card-title">Total Revenue</h5>
-          <h2 class="display-6 fw-bold mb-0">₹{{ total_revenue }}</h2>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
+    <!-- Revenue -->
+    <div class="col-md-3">
       <div class="card bg-warning text-dark h-100 shadow-sm border-0">
         <div class="card-body text-center d-flex flex-column justify-content-center">
-          <i class="fas fa-truck fa-2x mb-2"></i>
-          <h5 class="card-title">Pending Shipments</h5>
-          <h2 class="display-6 fw-bold mb-0">{{ pending_shipments }}</h2>
+          <i class="fas fa-rupee-sign fa-2x mb-2"></i>
+          <h5 class="card-title">Revenue</h5>
+          <h2 class="display-6 fw-bold mb-0">₹{{ total_revenue }}</h2>
         </div>
       </div>
     </div>
   </div>
 
-  <h3 class="mb-4">Quick Actions</h3>
+  {% if current_filter != 'all' and chart_labels %}
+  <div class="row mb-5 g-4">
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white fw-bold">Revenue & Orders (Last {{ current_filter }} Days)</div>
+        <div class="card-body">
+          <canvas id="revenueChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white fw-bold">Daily Visits</div>
+        <div class="card-body">
+          <canvas id="visitsChart" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const labels = {{ chart_labels | tojson }};
+    const revenueData = {{ chart_revenue | tojson }};
+    const ordersData = {{ chart_orders | tojson }};
+    const visitsData = {{ chart_visits | tojson }};
+
+    // Revenue & Orders Chart
+    new Chart(document.getElementById('revenueChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Revenue (₹)',
+            data: revenueData,
+            borderColor: '#ffc107',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Orders',
+            data: ordersData,
+            borderColor: '#212529',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            tension: 0.3,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          y: { type: 'linear', display: true, position: 'left', title: {display: true, text: 'Revenue (₹)'} },
+          y1: { type: 'linear', display: true, position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Orders'} }
+        }
+      }
+    });
+
+    // Visits Chart
+    new Chart(document.getElementById('visitsChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Website Visits',
+          data: visitsData,
+          backgroundColor: '#198754',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  </script>
+  {% endif %}
+
+  <!-- Data Export Section -->
+  <div class="card shadow-sm border-0 mb-5 border-start border-4 border-success">
+    <div class="card-body">
+      <h5 class="fw-bold mb-3"><i class="fas fa-file-csv text-success me-2"></i>Export Data</h5>
+      <p class="text-muted small">Download CSV reports for the currently selected date range ({{ 'All Time' if current_filter == 'all' else 'Last ' ~ current_filter ~ ' Days' }}).</p>
+      <div class="d-flex gap-3 flex-wrap">
+        <a href="/admin/export/orders?days={{ current_filter }}" class="btn btn-dark"><i class="fas fa-download me-1"></i> Orders Report</a>
+        <a href="/admin/export/users?days={{ current_filter }}" class="btn btn-primary"><i class="fas fa-download me-1"></i> Users Report</a>
+        <a href="/admin/export/visits?days={{ current_filter }}" class="btn btn-outline-secondary"><i class="fas fa-download me-1"></i> Traffic Log</a>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="mb-4">Quick Links</h3>
   <div class="row g-3">
-    <div class="col-md-4">
-      <a href="/admin/products/add" class="btn btn-lg btn-outline-warning w-100 d-flex align-items-center justify-content-center py-3">
-        <i class="fas fa-plus-circle fa-lg me-2"></i> Add New Product
+    <!-- Store Settings -->
+    <div class="col-md-3">
+      <a href="/admin/store-settings" class="btn btn-outline-secondary w-100 py-3 fw-bold"><i class="fas fa-cog d-block fa-2x mb-2 text-secondary"></i> Store Settings</a>
+    </div>
+    <!-- Delivery Zones -->
+    <div class="col-md-3">
+      <a href="/admin/delivery-zones" class="btn btn-outline-danger w-100 py-3 fw-bold"><i class="fas fa-map-marker-alt d-block fa-2x mb-2 text-danger"></i> Delivery Zones</a>
+    </div>
+    <!-- Products -->
+    <div class="col-md-3">
+      <a href="/products" class="btn btn-outline-warning w-100 py-3 fw-bold text-dark"><i class="fas fa-box-open d-block fa-2x mb-2 text-warning"></i> Manage Products</a>
+    </div>
+    <!-- Science Hub -->
+    <div class="col-md-3">
+      <a href="/admin/science-hub" class="btn btn-outline-success w-100 py-3 fw-bold"><i class="fas fa-flask d-block fa-2x mb-2 text-success"></i> Science Hub Admin</a>
+    </div>
+    <!-- Orders -->
+    <div class="col-md-3">
+      <a href="/admin/orders" class="btn btn-outline-dark w-100 py-3 fw-bold"><i class="fas fa-shopping-bag d-block fa-2x mb-2 text-dark"></i> View All Orders</a>
+    </div>
+    <!-- Blogs -->
+    <div class="col-md-3">
+      <a href="/admin/blogs" class="btn btn-outline-info w-100 py-3 fw-bold"><i class="fas fa-blog d-block fa-2x mb-2 text-info"></i> Manage Blogs</a>
+    </div>
+    <!-- Messages -->
+    <div class="col-md-3">
+      <a href="/admin/messages" class="btn btn-outline-primary w-100 py-3 fw-bold">
+        <i class="fas fa-envelope d-block fa-2x mb-2 text-primary"></i> Contact Messages 
+        {% if total_messages > 0 %}<span class="badge bg-primary ms-1">{{ total_messages }}</span>{% endif %}
       </a>
     </div>
-    <div class="col-md-4">
-      <a href="/admin/blogs" class="btn btn-lg btn-outline-info w-100 d-flex align-items-center justify-content-center py-3">
-        <i class="fas fa-pen fa-lg me-2"></i> Write New Blog Post
-      </a>
-    </div>
-    <div class="col-md-4">
-      <a href="/admin/orders" class="btn btn-lg btn-outline-dark w-100 d-flex align-items-center justify-content-center py-3">
-        <i class="fas fa-shopping-bag fa-lg me-2"></i> Manage Orders
-      </a>
-    </div>
-    <div class="col-12 mt-4">
-      <div class="card shadow-sm border-0">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h5 class="mb-1"><i class="fas fa-envelope text-primary me-2"></i> Customer Inquiries</h5>
-            <p class="text-muted mb-0 small">You have {{ total_messages }} contact messages from users.</p>
-          </div>
-          <a href="/admin/messages" class="btn btn-primary">View Messages</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 mt-3">
-      <div class="card shadow-sm border-0">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h5 class="mb-1"><i class="fas fa-star text-warning me-2"></i> Product Reviews</h5>
-            <p class="text-muted mb-0 small">Approve or reject customer product reviews before they appear publicly.</p>
-          </div>
-          <a href="/admin/reviews" class="btn btn-warning text-dark fw-bold">Manage Reviews</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 mt-3">
-      <div class="card shadow-sm border-0">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h5 class="mb-1"><i class="fas fa-flask text-success me-2"></i> Science Hub Admin</h5>
-            <p class="text-muted mb-0 small">Manage Upper IDs, Orders, and Digital Access for Class 10 Notes.</p>
-          </div>
-          <a href="/admin/science-hub" class="btn btn-success">Manage Science Hub</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 mt-3">
-      <div class="card shadow-sm border-0">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h5 class="mb-1"><i class="fas fa-cog text-secondary me-2"></i> Store Settings</h5>
-            <p class="text-muted mb-0 small">Toggle store open/close, Science Hub availability, stock management.</p>
-          </div>
-          <a href="/admin/store-settings" class="btn btn-secondary">Settings</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 mt-3">
-      <div class="card shadow-sm border-0">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h5 class="mb-1"><i class="fas fa-map-marker-alt text-danger me-2"></i> Delivery Zones</h5>
-            <p class="text-muted mb-0 small">Manage NimbusPost delivery modes and blacklisted pincodes.</p>
-          </div>
-          <a href="/admin/delivery-zones" class="btn btn-danger">Manage Zones</a>
-        </div>
-      </div>
+    <!-- Reviews -->
+    <div class="col-md-3">
+      <a href="/admin/reviews" class="btn btn-outline-warning text-dark w-100 py-3 fw-bold"><i class="fas fa-star d-block fa-2x mb-2 text-warning"></i> Product Reviews</a>
     </div>
   </div>
 </div>

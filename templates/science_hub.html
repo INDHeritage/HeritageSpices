@@ -5,147 +5,407 @@
 <!-- Include Razorpay Checkout script -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
+<style>
+    .board-tab {
+        padding: 12px 24px;
+        border-radius: 30px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid #ddd;
+        background: white;
+        color: #555;
+    }
+    .board-tab.active {
+        background: linear-gradient(135deg, #1b5e20, #2e7d32);
+        color: white;
+        border-color: #1b5e20;
+        box-shadow: 0 4px 15px rgba(27, 94, 32, 0.3);
+    }
+    .board-tab:hover:not(.active) {
+        border-color: #2e7d32;
+        color: #2e7d32;
+        transform: translateY(-2px);
+    }
+    .board-tab.coming-soon {
+        opacity: 0.6;
+        cursor: default;
+    }
+    .board-tab.coming-soon:hover { transform: none; }
+
+    .subject-card {
+        border: none;
+        border-radius: 18px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    }
+    .subject-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+    }
+
+    .coming-soon-card {
+        background: linear-gradient(135deg, #f5f5f5, #e8e8e8);
+        border: 2px dashed #ccc;
+        border-radius: 18px;
+        padding: 40px;
+        text-align: center;
+        opacity: 0.7;
+    }
+
+    .practice-card {
+        background: linear-gradient(135deg, #fff8e1, #fff3e0);
+        border: 2px solid #ffcc02;
+    }
+
+    .badge-coming { 
+        background: linear-gradient(135deg, #ff9800, #f57c00); 
+        font-size: 0.7rem; 
+        padding: 4px 10px; 
+        border-radius: 20px; 
+    }
+
+    .hero-section {
+        background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 60%, #43a047 100%);
+        color: white;
+        border-radius: 20px;
+        padding: 3rem 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 85% 20%, rgba(255,235,59,0.1) 0%, transparent 50%);
+        pointer-events: none;
+    }
+</style>
+
 <div class="container py-5">
-    <!-- Beautiful Hero Section -->
-    <div class="row align-items-center mb-5 bg-white rounded shadow-sm p-4 border-top border-5 border-success">
-        <div class="col-lg-6 text-center text-lg-start mb-4 mb-lg-0">
-            <span class="badge bg-success mb-3 px-3 py-2 fs-6 rounded-pill">Newly Released!</span>
-            <h1 class="display-4 fw-bolder text-dark mb-3">Class 10 <span class="text-success">Science Notes</span></h1>
-            <p class="lead text-secondary mb-4">
-                Unlock your full potential with our masterfully crafted Class 10 Science notes. 
-                Designed by experts to simplify complex concepts and guarantee maximum board exam scores.
-            </p>
-            <ul class="list-unstyled mb-4">
-                <li class="mb-3 d-flex align-items-center fs-5 text-dark"><i class="fas fa-check-circle text-success me-3 fa-lg"></i> <strong class="me-2">300+ Pages</strong> of Premium High-Yield Content</li>
-                <li class="mb-3 d-flex align-items-center fs-5 text-dark"><i class="fas fa-check-circle text-success me-3 fa-lg"></i> <strong class="me-2">Memory Tricks</strong> & Board Exam Cheat Sheets</li>
-                <li class="mb-3 d-flex align-items-center fs-5 text-dark"><i class="fas fa-check-circle text-success me-3 fa-lg"></i> <strong class="me-2">Commonly Asked</strong> Previous 10 Years Board Questions</li>
-            </ul>
-            <a href="#pricing-section" class="btn btn-success btn-lg px-5 py-3 fw-bold shadow-sm" style="border-radius: 30px;">Get Access Now <i class="fas fa-arrow-down ms-2"></i></a>
+    <!-- Hero Section -->
+    <div class="hero-section mb-5">
+        <div class="row align-items-center">
+            <div class="col-lg-7 mb-4 mb-lg-0">
+                <span class="badge bg-warning text-dark mb-3 px-3 py-2 fs-6 rounded-pill">🔬 Science Hub</span>
+                <h1 class="display-5 fw-bolder mb-3">Master Science with <span style="color: #ffeb3b;">Expert Notes</span></h1>
+                <p class="lead mb-4" style="opacity: 0.9;">
+                    Expertly crafted notes with diagrams, memory tricks, board exam cheat sheets, 
+                    and 10 years of previous questions — all in one secure viewer.
+                </p>
+                <ul class="list-unstyled mb-4">
+                    <li class="mb-2 d-flex align-items-center"><i class="fas fa-check-circle text-warning me-3 fa-lg"></i> <strong>Science 1 & 2</strong> — 297 pages of premium content</li>
+                    <li class="mb-2 d-flex align-items-center"><i class="fas fa-check-circle text-warning me-3 fa-lg"></i> <strong>Practice Papers</strong> — Board exam style with diagrams</li>
+                    <li class="mb-2 d-flex align-items-center"><i class="fas fa-check-circle text-warning me-3 fa-lg"></i> <strong>DRM Protected</strong> — Secure web viewer, no screenshots</li>
+                </ul>
+                <a href="#pricing-section" class="btn btn-warning btn-lg px-5 py-3 fw-bold text-dark shadow-sm" style="border-radius: 30px;">
+                    Get Access Now <i class="fas fa-arrow-down ms-2"></i>
+                </a>
+            </div>
+            <div class="col-lg-5 text-center">
+                <img src="{{ url_for('static', filename='images/science_notes_mockup.png') }}" class="img-fluid rounded shadow-lg" alt="Science Notes Mockup" style="transform: perspective(1000px) rotateY(-10deg); transition: transform 0.3s; max-height: 350px;" onmouseover="this.style.transform='perspective(1000px) rotateY(0deg) scale(1.02)'" onmouseout="this.style.transform='perspective(1000px) rotateY(-10deg)'">
+            </div>
         </div>
-        <div class="col-lg-6 text-center">
-            <img src="{{ url_for('static', filename='images/science_notes_mockup.png') }}" class="img-fluid rounded shadow-lg" alt="Class 10 Science Notes Mockup" style="transform: perspective(1000px) rotateY(-10deg); transition: transform 0.3s;" onmouseover="this.style.transform='perspective(1000px) rotateY(0deg) scale(1.02)'" onmouseout="this.style.transform='perspective(1000px) rotateY(-10deg)'">
-        </div>
-    </div>
-    
-    <div class="text-center mb-4 mt-5" id="pricing-section">
-        <h2 class="fw-bold text-dark">Choose Your Format</h2>
-        <p class="text-muted">Available in both DRM-Protected Digital format and Premium Physical Print.</p>
-        <a href="{{ url_for('static', filename='preview_chapter1.pdf') }}" target="_blank" class="btn btn-outline-primary btn-lg mt-3 fw-bold shadow-sm" style="border-radius: 30px;">
-            <i class="fas fa-file-pdf me-2 text-danger"></i>Download Free Preview (Chapter 1)
-        </a>
     </div>
 
-    <!-- Check Digital Access -->
-    {% if has_digital_access %}
-    <div class="alert alert-success text-center mb-5 shadow-sm">
-        <h4 class="alert-heading fw-bold mb-2"><i class="fas fa-check-circle"></i> You Have Digital Access!</h4>
-        <p class="mb-0">You've successfully purchased the online notes.</p>
-        <hr>
-        <a href="/science-hub/viewer" class="btn btn-success fw-bold px-4 py-2"><i class="fas fa-book-open"></i> Open Notes Viewer</a>
+    <!-- Board Selector Tabs -->
+    <div class="text-center mb-4">
+        <h3 class="fw-bold text-dark mb-3">Select Your Board</h3>
+        <div class="d-flex justify-content-center flex-wrap gap-3">
+            <div class="board-tab active" onclick="showBoard('ssc10')">
+                <i class="fas fa-graduation-cap me-2"></i>SSC Board (10th)
+            </div>
+            <div class="board-tab coming-soon">
+                <i class="fas fa-lock me-1"></i>NCERT (10th) 
+                <span class="badge-coming ms-1">Coming Soon</span>
+            </div>
+            <div class="board-tab coming-soon">
+                <i class="fas fa-lock me-1"></i>NCERT (9th) 
+                <span class="badge-coming ms-1">Coming Soon</span>
+            </div>
+            <div class="board-tab coming-soon">
+                <i class="fas fa-lock me-1"></i>State Board (9th) 
+                <span class="badge-coming ms-1">Coming Soon</span>
+            </div>
+        </div>
     </div>
-    {% endif %}
 
-    <div class="row g-4 justify-content-center">
-        <!-- Digital Access Card -->
-        <div class="col-lg-5">
-            <div class="card h-100 shadow border-0" style="border-radius: 15px; overflow: hidden; background: linear-gradient(145deg, #ffffff, #f8f9fa);">
-                <div class="card-header bg-primary text-white text-center py-4 border-0">
-                    <h3 class="mb-0"><i class="fas fa-laptop-code mb-2 fa-2x"></i><br>Online Access</h3>
-                </div>
-                <div class="card-body p-4 d-flex flex-column">
-                    <div class="text-center mb-4">
-                        <span class="fs-1 fw-bold text-primary" id="digital-price">₹100</span>
-                        <span class="text-muted d-block" id="digital-original-price">Regular Price</span>
+    <!-- SSC 10th Board Content -->
+    <div id="board-ssc10">
+        <!-- Access Banner -->
+        {% if has_digital_access %}
+        <div class="alert alert-success text-center mb-4 shadow-sm rounded-4 border-0" style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9);">
+            <h5 class="alert-heading fw-bold mb-2 text-success"><i class="fas fa-check-circle"></i> You Have Digital Access!</h5>
+            <p class="mb-3 text-dark">Access all Science 1 & 2 Notes + Practice Papers below.</p>
+            <div class="d-flex justify-content-center flex-wrap gap-2">
+                <a href="/science-hub/viewer/sci1" class="btn btn-success fw-bold px-4"><i class="fas fa-book-open me-1"></i>Science 1 Notes</a>
+                <a href="/science-hub/viewer/sci2" class="btn btn-success fw-bold px-4"><i class="fas fa-book-open me-1"></i>Science 2 Notes</a>
+                {% if practice_sci1_count > 0 %}
+                <a href="/science-hub/viewer/practice-sci1" class="btn btn-outline-warning text-dark fw-bold px-4"><i class="fas fa-file-alt me-1"></i>Practice Sci 1</a>
+                {% endif %}
+                {% if practice_sci2_count > 0 %}
+                <a href="/science-hub/viewer/practice-sci2" class="btn btn-outline-warning text-dark fw-bold px-4"><i class="fas fa-file-alt me-1"></i>Practice Sci 2</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Sci 1 & Sci 2 Cards -->
+        <h4 class="fw-bold text-dark mb-3"><i class="fas fa-book text-success me-2"></i>SSC 10th Science Notes</h4>
+        <div class="row g-4 mb-5">
+            <!-- Science 1 -->
+            <div class="col-md-6">
+                <div class="subject-card card h-100">
+                    <div class="card-header text-white text-center py-3 border-0" style="background: linear-gradient(135deg, #1565c0, #1976d2);">
+                        <h5 class="mb-0 fw-bold"><i class="fas fa-flask me-2"></i>Science 1</h5>
                     </div>
-                    
-                    <ul class="list-unstyled mb-4 text-secondary">
-                        <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Instant Access</li>
-                        <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> All 300+ Pages</li>
-                        <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Secure Web Viewer</li>
-                        <li class="mb-2 text-danger"><i class="fas fa-times me-2"></i> No Download/Print</li>
-                    </ul>
-
-                    <div class="mt-auto">
-                        <div class="input-group mb-3">
-                            <input type="text" class="form-control" id="digital-upper-id" placeholder="Upper ID (Optional)">
-                            <button class="btn btn-outline-primary" type="button" onclick="validateUpperId('digital')">Apply</button>
+                    <div class="card-body p-4">
+                        <div class="text-center mb-3">
+                            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">148 Pages</span>
                         </div>
-                        <div id="digital-msg" class="small mb-3"></div>
+                        <ul class="list-unstyled text-secondary small">
+                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Physics & Chemistry chapters</li>
+                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Diagrams & memory tricks</li>
+                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Board exam questions included</li>
+                        </ul>
+                        {% if has_digital_access %}
+                        <a href="/science-hub/viewer/sci1" class="btn btn-primary w-100 fw-bold"><i class="fas fa-book-open me-1"></i>Open Science 1</a>
+                        {% else %}
+                        <a href="#pricing-section" class="btn btn-outline-primary w-100 fw-bold"><i class="fas fa-lock me-1"></i>Buy to Access</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Science 2 -->
+            <div class="col-md-6">
+                <div class="subject-card card h-100">
+                    <div class="card-header text-white text-center py-3 border-0" style="background: linear-gradient(135deg, #2e7d32, #43a047);">
+                        <h5 class="mb-0 fw-bold"><i class="fas fa-dna me-2"></i>Science 2</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="text-center mb-3">
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">149 Pages</span>
+                        </div>
+                        <ul class="list-unstyled text-secondary small">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Biology & Environment chapters</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Diagrams & cheat sheets</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>10 years previous questions</li>
+                        </ul>
+                        {% if has_digital_access %}
+                        <a href="/science-hub/viewer/sci2" class="btn btn-success w-100 fw-bold"><i class="fas fa-book-open me-1"></i>Open Science 2</a>
+                        {% else %}
+                        <a href="#pricing-section" class="btn btn-outline-success w-100 fw-bold"><i class="fas fa-lock me-1"></i>Buy to Access</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Practice Papers Section -->
+        <h4 class="fw-bold text-dark mb-3"><i class="fas fa-file-alt text-warning me-2"></i>Practice Papers (Board Exam Style)</h4>
+        <p class="text-muted mb-3">Free for all students with digital access. Includes diagrams, numericals, and full-length board exam format papers.</p>
+        <div class="row g-4 mb-5">
+            <!-- Practice Sci 1 -->
+            <div class="col-md-6">
+                <div class="subject-card card h-100 practice-card">
+                    <div class="card-body p-4 text-center">
+                        <i class="fas fa-clipboard-list fa-3x text-warning mb-3"></i>
+                        <h5 class="fw-bold">Practice Papers — Sci 1</h5>
+                        <p class="text-muted small">Board exam format practice papers with diagrams</p>
+                        <span class="badge bg-warning text-dark mb-3">{{ practice_sci1_count }} Pages Available</span>
+                        {% if not has_digital_access %}
+                        <div class="alert alert-light border small py-2 mb-3"><i class="fas fa-lock me-1"></i>Purchase digital access to unlock practice papers</div>
+                        {% endif %}
+                        {% if has_digital_access and practice_sci1_count > 0 %}
+                        <a href="/science-hub/viewer/practice-sci1" class="btn btn-warning text-dark w-100 fw-bold"><i class="fas fa-eye me-1"></i>View Practice Papers</a>
+                        {% elif has_digital_access and practice_sci1_count == 0 %}
+                        <button class="btn btn-outline-secondary w-100" disabled><i class="fas fa-clock me-1"></i>Coming Soon</button>
+                        {% else %}
+                        <a href="#pricing-section" class="btn btn-outline-warning w-100 fw-bold text-dark"><i class="fas fa-lock me-1"></i>Buy Access First</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Practice Sci 2 -->
+            <div class="col-md-6">
+                <div class="subject-card card h-100 practice-card">
+                    <div class="card-body p-4 text-center">
+                        <i class="fas fa-clipboard-list fa-3x text-warning mb-3"></i>
+                        <h5 class="fw-bold">Practice Papers — Sci 2</h5>
+                        <p class="text-muted small">Board exam format practice papers with diagrams</p>
+                        <span class="badge bg-warning text-dark mb-3">{{ practice_sci2_count }} Pages Available</span>
+                        {% if not has_digital_access %}
+                        <div class="alert alert-light border small py-2 mb-3"><i class="fas fa-lock me-1"></i>Purchase digital access to unlock practice papers</div>
+                        {% endif %}
+                        {% if has_digital_access and practice_sci2_count > 0 %}
+                        <a href="/science-hub/viewer/practice-sci2" class="btn btn-warning text-dark w-100 fw-bold"><i class="fas fa-eye me-1"></i>View Practice Papers</a>
+                        {% elif has_digital_access and practice_sci2_count == 0 %}
+                        <button class="btn btn-outline-secondary w-100" disabled><i class="fas fa-clock me-1"></i>Coming Soon</button>
+                        {% else %}
+                        <a href="#pricing-section" class="btn btn-outline-warning w-100 fw-bold text-dark"><i class="fas fa-lock me-1"></i>Buy Access First</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Free Preview -->
+        <div class="text-center mb-4">
+            <a href="{{ url_for('static', filename='preview_chapter1.pdf') }}" target="_blank" class="btn btn-outline-primary btn-lg fw-bold shadow-sm" style="border-radius: 30px;">
+                <i class="fas fa-file-pdf me-2 text-danger"></i>Download Free Preview (Chapter 1)
+            </a>
+        </div>
+
+        <!-- Pricing Section -->
+        <div class="text-center mb-4" id="pricing-section">
+            <h3 class="fw-bold text-dark">Choose Your Format</h3>
+            <p class="text-muted">One purchase gives you access to Sci 1, Sci 2, AND all Practice Papers.</p>
+        </div>
+
+        <div class="row g-4 justify-content-center mb-5">
+            <!-- Digital Access Card -->
+            <div class="col-lg-5">
+                <div class="card h-100 shadow border-0" style="border-radius: 15px; overflow: hidden; background: linear-gradient(145deg, #ffffff, #f8f9fa);">
+                    <div class="card-header bg-primary text-white text-center py-4 border-0">
+                        <h3 class="mb-0"><i class="fas fa-laptop-code mb-2 fa-2x"></i><br>Online Access</h3>
+                    </div>
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="text-center mb-4">
+                            <span class="fs-1 fw-bold text-primary" id="digital-price">₹100</span>
+                            <span class="text-muted d-block" id="digital-original-price">Regular Price</span>
+                        </div>
                         
-                        {% if not digital_enabled %}
-                        <button class="btn btn-secondary w-100 py-2 fw-bold" disabled><i class="fas fa-ban me-2"></i>Currently Unavailable</button>
-                        {% elif not is_logged_in %}
-                        <button class="btn btn-primary w-100 py-2 fw-bold" onclick="alert('Please login first to purchase.')"><i class="fas fa-lock me-2"></i>Login to Purchase</button>
-                        {% elif has_digital_access %}
-                        <button class="btn btn-secondary w-100 py-2 fw-bold" disabled>Already Purchased</button>
-                        {% else %}
-                        <button class="btn btn-primary w-100 py-2 fw-bold" id="btn-buy-digital" onclick="initiateCheckout('digital')"><i class="fas fa-shopping-cart me-2"></i>Buy Now</button>
-                        {% endif %}
+                        <ul class="list-unstyled mb-4 text-secondary">
+                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Instant Access</li>
+                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Science 1 + Science 2 (297 pages)</li>
+                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> All Practice Papers (Free)</li>
+                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Secure Web Viewer</li>
+                            <li class="mb-2 text-danger"><i class="fas fa-times me-2"></i> No Download/Print</li>
+                        </ul>
+
+                        <div class="mt-auto">
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" id="digital-upper-id" placeholder="Upper ID (Optional)">
+                                <button class="btn btn-outline-primary" type="button" onclick="validateUpperId('digital')">Apply</button>
+                            </div>
+                            <div id="digital-msg" class="small mb-3"></div>
+                            
+                            {% if not digital_enabled %}
+                            <button class="btn btn-secondary w-100 py-2 fw-bold" disabled><i class="fas fa-ban me-2"></i>Currently Unavailable</button>
+                            {% elif not is_logged_in %}
+                            <button class="btn btn-primary w-100 py-2 fw-bold" onclick="alert('Please login first to purchase.')"><i class="fas fa-lock me-2"></i>Login to Purchase</button>
+                            {% elif has_digital_access %}
+                            <button class="btn btn-secondary w-100 py-2 fw-bold" disabled>Already Purchased</button>
+                            {% else %}
+                            <button class="btn btn-primary w-100 py-2 fw-bold" id="btn-buy-digital" onclick="initiateCheckout('digital')"><i class="fas fa-shopping-cart me-2"></i>Buy Now</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Physical Book Card -->
+            <div class="col-lg-5">
+                <div class="card h-100 shadow border-0" style="border-radius: 15px; overflow: hidden; background: linear-gradient(145deg, #ffffff, #f8f9fa);">
+                    <div class="card-header bg-success text-white text-center py-4 border-0">
+                        <h3 class="mb-0"><i class="fas fa-book mb-2 fa-2x"></i><br>Physical Book</h3>
+                    </div>
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="text-center mb-4">
+                            <span class="fs-1 fw-bold text-success" id="physical-price">₹350</span>
+                            <span class="text-muted d-block" id="physical-original-price">Regular Price</span>
+                        </div>
+                        
+                        <ul class="list-unstyled mb-4 text-secondary">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> High Quality Print</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Spiral Bound</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Home Delivery</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Best for offline study</li>
+                        </ul>
+
+                        <!-- Delivery Details Form -->
+                        <div id="delivery-form" class="mb-3 d-none p-3 bg-light rounded border border-success">
+                            <h6 class="text-success fw-bold mb-3"><i class="fas fa-truck me-2"></i>Delivery Details</h6>
+                            <input type="text" id="dlv-name" class="form-control form-control-sm mb-2" placeholder="Full Name">
+                            <input type="tel" id="dlv-phone" class="form-control form-control-sm mb-2" placeholder="Phone Number">
+                            <textarea id="dlv-address" class="form-control form-control-sm mb-2" placeholder="Complete Address" rows="2"></textarea>
+                            <input type="text" id="dlv-pincode" class="form-control form-control-sm" placeholder="PIN Code">
+                        </div>
+
+                        <div class="mt-auto">
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" id="physical-upper-id" placeholder="Upper ID (Optional)">
+                                <button class="btn btn-outline-success" type="button" onclick="validateUpperId('physical')">Apply</button>
+                            </div>
+                            <div id="physical-msg" class="small mb-3"></div>
+
+                            {% if not physical_enabled %}
+                            <button class="btn btn-secondary w-100 py-2 fw-bold" disabled><i class="fas fa-ban me-2"></i>Currently Unavailable</button>
+                            {% elif not is_logged_in %}
+                            <button class="btn btn-success w-100 py-2 fw-bold" onclick="alert('Please login first to purchase.')"><i class="fas fa-lock me-2"></i>Login to Purchase</button>
+                            {% else %}
+                            <button class="btn btn-success w-100 py-2 fw-bold" id="btn-buy-physical" onclick="showDeliveryForm()"><i class="fas fa-shopping-cart me-2"></i>Buy Now</button>
+                            <button class="btn btn-success w-100 py-2 fw-bold d-none" id="btn-confirm-physical" onclick="initiateCheckout('physical')"><i class="fas fa-credit-card me-2"></i>Proceed to Payment</button>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Physical Book Card -->
-        <div class="col-lg-5">
-            <div class="card h-100 shadow border-0" style="border-radius: 15px; overflow: hidden; background: linear-gradient(145deg, #ffffff, #f8f9fa);">
-                <div class="card-header bg-success text-white text-center py-4 border-0">
-                    <h3 class="mb-0"><i class="fas fa-book mb-2 fa-2x"></i><br>Physical Book</h3>
-                </div>
-                <div class="card-body p-4 d-flex flex-column">
-                    <div class="text-center mb-4">
-                        <span class="fs-1 fw-bold text-success" id="physical-price">₹350</span>
-                        <span class="text-muted d-block" id="physical-original-price">Regular Price</span>
-                    </div>
-                    
-                    <ul class="list-unstyled mb-4 text-secondary">
-                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i> High Quality Print</li>
-                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Spiral Bound</li>
-                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Home Delivery</li>
-                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Best for offline study</li>
-                    </ul>
-
-                    <!-- Delivery Details Form -->
-                    <div id="delivery-form" class="mb-3 d-none p-3 bg-light rounded border border-success">
-                        <h6 class="text-success fw-bold mb-3"><i class="fas fa-truck me-2"></i>Delivery Details</h6>
-                        <input type="text" id="dlv-name" class="form-control form-control-sm mb-2" placeholder="Full Name">
-                        <input type="tel" id="dlv-phone" class="form-control form-control-sm mb-2" placeholder="Phone Number">
-                        <textarea id="dlv-address" class="form-control form-control-sm mb-2" placeholder="Complete Address" rows="2"></textarea>
-                        <input type="text" id="dlv-pincode" class="form-control form-control-sm" placeholder="PIN Code">
-                    </div>
-
-                    <div class="mt-auto">
-                        <div class="input-group mb-3">
-                            <input type="text" class="form-control" id="physical-upper-id" placeholder="Upper ID (Optional)">
-                            <button class="btn btn-outline-success" type="button" onclick="validateUpperId('physical')">Apply</button>
-                        </div>
-                        <div id="physical-msg" class="small mb-3"></div>
-
-                        {% if not physical_enabled %}
-                        <button class="btn btn-secondary w-100 py-2 fw-bold" disabled><i class="fas fa-ban me-2"></i>Currently Unavailable</button>
-                        {% elif not is_logged_in %}
-                        <button class="btn btn-success w-100 py-2 fw-bold" onclick="alert('Please login first to purchase.')"><i class="fas fa-lock me-2"></i>Login to Purchase</button>
-                        {% else %}
-                        <button class="btn btn-success w-100 py-2 fw-bold" id="btn-buy-physical" onclick="showDeliveryForm()"><i class="fas fa-shopping-cart me-2"></i>Buy Now</button>
-                        <button class="btn btn-success w-100 py-2 fw-bold d-none" id="btn-confirm-physical" onclick="initiateCheckout('physical')"><i class="fas fa-credit-card me-2"></i>Proceed to Payment</button>
-                        {% endif %}
-                    </div>
-                </div>
+    <!-- Coming Soon Board Content (hidden) -->
+    <div id="board-coming-soon" class="d-none">
+        <div class="coming-soon-card">
+            <i class="fas fa-tools fa-4x text-muted mb-3"></i>
+            <h3 class="fw-bold text-dark">Coming Soon!</h3>
+            <p class="text-muted mb-4">We're working hard to bring you expert notes for this board. Stay tuned!</p>
+            <div class="input-group mx-auto" style="max-width: 400px;">
+                <input type="email" class="form-control" id="notify-email" placeholder="Enter your email to get notified">
+                <button class="btn btn-success" onclick="subscribeNotify()"><i class="fas fa-bell me-1"></i>Notify Me</button>
             </div>
+            <div id="notify-msg" class="small mt-2"></div>
         </div>
     </div>
 </div>
 
 <script>
-    // State variables
-    let currentPrices = {
-        'digital': 100,
-        'physical': 350
-    };
-    let validatedUpperIds = {
-        'digital': null,
-        'physical': null
-    };
+    // Board tab switching
+    function showBoard(board) {
+        if (board === 'ssc10') {
+            document.getElementById('board-ssc10').classList.remove('d-none');
+            document.getElementById('board-coming-soon').classList.add('d-none');
+        }
+    }
+
+    // Notify Me subscription
+    function subscribeNotify() {
+        const email = document.getElementById('notify-email').value.trim();
+        const msgEl = document.getElementById('notify-msg');
+        if (!email) {
+            msgEl.innerHTML = '<span class="text-danger">Please enter your email.</span>';
+            return;
+        }
+        // Use existing subscribe endpoint
+        fetch('/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: 'email=' + encodeURIComponent(email)
+        }).then(() => {
+            msgEl.innerHTML = '<span class="text-success fw-bold"><i class="fas fa-check-circle"></i> We\'ll notify you when it launches!</span>';
+            document.getElementById('notify-email').value = '';
+        }).catch(() => {
+            msgEl.innerHTML = '<span class="text-danger">Something went wrong. Try again.</span>';
+        });
+    }
+
+    // === PRICING & CHECKOUT LOGIC ===
+    let currentPrices = { 'digital': 100, 'physical': 350 };
+    let validatedUpperIds = { 'digital': null, 'physical': null };
 
     function validateUpperId(type) {
         const inputEl = document.getElementById(`${type}-upper-id`);
@@ -161,10 +421,7 @@
 
         fetch('/science-hub/validate-upper-id', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
             body: JSON.stringify({ code: code, product_type: type })
         })
         .then(response => response.json())
@@ -196,7 +453,6 @@
         const btnId = type === 'digital' ? 'btn-buy-digital' : 'btn-confirm-physical';
         const btn = document.getElementById(btnId);
         
-        // Validation for physical
         let deliveryData = {};
         if (type === 'physical') {
             deliveryData = {
@@ -205,7 +461,6 @@
                 address: document.getElementById('dlv-address').value.trim(),
                 pincode: document.getElementById('dlv-pincode').value.trim()
             };
-            
             if (!deliveryData.full_name || !deliveryData.phone || !deliveryData.address || !deliveryData.pincode) {
                 alert("Please fill all delivery details!");
                 return;
@@ -216,19 +471,10 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
         btn.disabled = true;
 
-        const payload = {
-            product_type: type,
-            upper_id: validatedUpperIds[type],
-            ...deliveryData
-        };
-
         fetch('/science-hub/create-order', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify(payload)
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify({ product_type: type, upper_id: validatedUpperIds[type], ...deliveryData })
         })
         .then(res => res.json())
         .then(data => {
@@ -238,36 +484,21 @@
                 btn.disabled = false;
                 return;
             }
-
-            // Launch Razorpay Checkout
             var options = {
-                "key": data.key, 
-                "amount": data.amount, 
-                "currency": data.currency,
+                "key": data.key, "amount": data.amount, "currency": data.currency,
                 "name": "Heritage Spices",
                 "description": type === 'digital' ? "Science Notes (Online)" : "Science Notes (Physical)",
                 "image": "https://indianheritagespices.com/static/images/favicon.png",
                 "order_id": data.order_id,
-                "handler": function (response){
-                    // Verify payment
+                "handler": function (response) {
                     verifyPayment(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature, type);
                 },
-                "prefill": {
-                    "name": "{{ user.name if user else '' }}",
-                    "email": "{{ user.email if user else '' }}"
-                },
-                "theme": {
-                    "color": "#198754"
-                },
-                "modal": {
-                    "ondismiss": function(){
-                        btn.innerHTML = originalBtnHtml;
-                        btn.disabled = false;
-                    }
-                }
+                "prefill": { "name": "{{ user.name if user else '' }}", "email": "{{ user.email if user else '' }}" },
+                "theme": { "color": "#198754" },
+                "modal": { "ondismiss": function() { btn.innerHTML = originalBtnHtml; btn.disabled = false; } }
             };
             var rzp = new Razorpay(options);
-            rzp.on('payment.failed', function (response){
+            rzp.on('payment.failed', function (response) {
                 alert("Payment Failed: " + response.error.description);
                 btn.innerHTML = originalBtnHtml;
                 btn.disabled = false;
@@ -284,21 +515,14 @@
     function verifyPayment(payment_id, order_id, signature, type) {
         fetch('/science-hub/verify-payment', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                razorpay_payment_id: payment_id,
-                razorpay_order_id: order_id,
-                razorpay_signature: signature
-            })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify({ razorpay_payment_id: payment_id, razorpay_order_id: order_id, razorpay_signature: signature })
         })
         .then(res => res.json())
         .then(data => {
             if(data.success) {
                 if (type === 'digital') {
-                    window.location.href = '/science-hub/viewer';
+                    window.location.href = '/science-hub/viewer/sci1';
                 } else {
                     alert("Payment successful! Your physical book order is placed.");
                     window.location.reload();
