@@ -639,16 +639,14 @@ def admin_dashboard():
             start_date = datetime.utcnow() - timedelta(days=30)
             
     # Base queries
-    user_q = User.query
     visit_q = Visit.query
     order_q = SpiceOrder.query
     
     if start_date:
-        user_q = user_q.filter(User.created_at >= start_date)
         visit_q = visit_q.filter(Visit.timestamp >= start_date)
         order_q = order_q.filter(SpiceOrder.created_at >= start_date)
         
-    total_users = user_q.count()
+    total_users = User.query.count() # Users don't have created_at, showing all-time
     total_visits = visit_q.count()
     total_products = Product.query.count()
     total_blogs = Blog.query.count()
@@ -729,10 +727,10 @@ def export_data(data_type):
         filename = "spice_orders_export.csv"
         
     elif data_type == 'users':
-        users = get_filtered(User.query, User.created_at)
-        writer.writerow(['Name', 'Email', 'Joined Date'])
+        users = User.query.all()
+        writer.writerow(['Name', 'Email'])
         for u in users:
-            writer.writerow([u.name, u.email, u.created_at.strftime('%Y-%m-%d %H:%M')])
+            writer.writerow([u.name, u.email])
         filename = "users_export.csv"
         
     elif data_type == 'visits':
