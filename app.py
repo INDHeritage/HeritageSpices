@@ -638,6 +638,16 @@ def view_visits():
         'email': v.email
     } for v in visits])
 
+@app.route('/test-telegram')
+@admin_required
+def test_telegram():
+    try:
+        msg = "👋 <b>TEST MESSAGE!</b>\n\nIf you are reading this on your phone, your Heritage Spices Telegram integration is working perfectly! 🚀"
+        send_telegram_notification(msg)
+        return "Test message sent! Check your Telegram app. (If it didn't arrive, double-check that your TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are correct in Render)."
+    except Exception as e:
+        return f"Error: {e}"
+
 # ✅ Admin: Unified Dashboard
 @app.route('/admin/dashboard')
 @admin_required
