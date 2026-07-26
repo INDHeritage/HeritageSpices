@@ -248,6 +248,19 @@ def set_setting(key, value):
     else:
         setting = SiteSetting(key=key, value=str(value))
         db.session.add(setting)
+
+# --- Telegram Bot Notification ---
+def send_telegram_notification(message):
+    token = os.getenv('TELEGRAM_BOT_TOKEN')
+    chat_id = os.getenv('TELEGRAM_CHAT_ID')
+    if not token or not chat_id:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+        requests.post(url, json=payload, timeout=5)
+    except Exception as e:
+        print(f"Telegram notification error: {e}")
     db.session.commit()
 
 # --- DB Initialization Command ---
@@ -1044,6 +1057,10 @@ def verify_science_payment():
         order.payment_status = 'paid'
         order.razorpay_payment_id = razorpay_payment_id
         
+        # Send Telegram Notification
+        msg = f"🚨 <b>NEW SCIENCE HUB ORDER!</b>\n\n<b>Order ID:</b> {order.razorpay_order_id}\n<b>User:</b> {user['email']}\n<b>Type:</b> {order.product_type}\n<b>Amount:</b> ₹{order.amount / 100}"
+        send_telegram_notification(msg)
+        
         # Mark Upper ID as used if applicable
         if order.upper_id_used:
             upper_id = UpperID.query.filter_by(code=order.upper_id_used).first()
@@ -1648,6 +1665,12 @@ def verify_checkout_payment():
         CartItem.query.filter_by(user_email=user['email']).delete()
         
         db.session.commit()
+        
+        # Send Telegram Notification
+        item_text = ", ".join([f"{i.quantity}x {i.product_name}" for i in order.items])
+        msg = f"🚨 <b>NEW SPICE ORDER!</b>\n\n<b>Order:</b> {order.order_number}\n<b>Customer:</b> {order.full_name}\n<b>Amount:</b> ₹{order.total_amount / 100}\n<b>Items:</b> {item_text}"
+        send_telegram_notification(msg)
+        
         return jsonify({'success': True, 'message': 'Payment successful!', 'order_number': order.order_number})
         
     except razorpay.errors.SignatureVerificationError:
