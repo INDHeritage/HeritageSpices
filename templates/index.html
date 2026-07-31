@@ -29,27 +29,15 @@
   "@context": "https://schema.org",
   "@type": "ItemList",
   "itemListElement": [
+    {% for product in products %}
     {
       "@type": "ListItem",
-      "position": 1,
-      "url": "https://indianheritagespices.com/products",
-      "name": "Indian Heritage Garam Masala",
-      "image": "https://indianheritagespices.com/static/images/garam_masala.jpg"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "url": "https://indianheritagespices.com/products",
-      "name": "Indian Heritage Goda Masala",
-      "image": "https://indianheritagespices.com/static/images/goda_masala.jpg"
-    },
-    {
-      "@type": "ListItem",
-      "position": 3,
-      "url": "https://indianheritagespices.com/products",
-      "name": "Organic Turmeric Powder",
-      "image": "https://indianheritagespices.com/static/images/turmeric.jpg"
-    }
+      "position": {{ loop.index }},
+      "url": "https://indianheritagespices.com/products#details{{ product.id }}",
+      "name": {{ product.name | tojson }},
+      "image": {{ (product.image_url if product.image_url else 'https://indianheritagespices.com/static/images/placeholder.png') | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
   ]
 }
 </script>

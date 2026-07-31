@@ -676,7 +676,9 @@ def admin_dashboard():
     total_spice_orders = order_q.count()
     total_revenue = sum(o.total_amount for o in order_q.filter_by(payment_status='paid').all()) // 100
     pending_shipments = SpiceOrder.query.filter_by(payment_status='paid', shipping_status='processing').count()
-    
+
+    low_stock_products = Product.query.filter(Product.stock != None, Product.stock <= 5).order_by(Product.stock.asc()).all()
+
     # Prepare Chart Data (Group by date)
     chart_labels = []
     chart_revenue = []
@@ -711,6 +713,7 @@ def admin_dashboard():
                            total_spice_orders=total_spice_orders,
                            total_revenue=total_revenue,
                            pending_shipments=pending_shipments,
+                           low_stock_products=low_stock_products,
                            current_filter=days,
                            chart_labels=chart_labels,
                            chart_revenue=chart_revenue,

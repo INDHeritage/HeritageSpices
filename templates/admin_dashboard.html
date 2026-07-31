@@ -25,6 +25,27 @@
     </form>
   </div>
 
+  {% if pending_shipments > 0 or low_stock_products %}
+  <div class="row g-3 mb-4">
+    {% if pending_shipments > 0 %}
+    <div class="col-md-6">
+      <a href="/admin/orders" class="alert alert-warning d-flex align-items-center justify-content-between mb-0 text-decoration-none shadow-sm">
+        <span><i class="fas fa-truck-loading me-2"></i><strong>{{ pending_shipments }}</strong> order{{ 's' if pending_shipments != 1 else '' }} paid and waiting to be shipped</span>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+    {% endif %}
+    {% if low_stock_products %}
+    <div class="col-md-6">
+      <a href="/products" class="alert alert-danger d-flex align-items-center justify-content-between mb-0 text-decoration-none shadow-sm" title="{{ low_stock_products | map(attribute='name') | join(', ') }}">
+        <span><i class="fas fa-box-open me-2"></i><strong>{{ low_stock_products|length }}</strong> product{{ 's' if low_stock_products|length != 1 else '' }} low or out of stock</span>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="row g-4 mb-5">
     <!-- Visits -->
     <div class="col-md-3">
