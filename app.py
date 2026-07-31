@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, redirect, url_for, session, request, jsonify, flash
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-from flask_cors import CORS
 import os
 import csv
 from functools import wraps
@@ -43,7 +42,6 @@ def admin_required(f):
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or "default-fallback-secret-key-12345"
-CORS(app, supports_credentials=True)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 csrf = CSRFProtect(app)
 
@@ -248,6 +246,7 @@ def set_setting(key, value):
     else:
         setting = SiteSetting(key=key, value=str(value))
         db.session.add(setting)
+    db.session.commit()
 
 # --- Telegram Bot Notification ---
 def send_telegram_notification(message):
@@ -261,7 +260,6 @@ def send_telegram_notification(message):
         requests.post(url, json=payload, timeout=5)
     except Exception as e:
         print(f"Telegram notification error: {e}")
-    db.session.commit()
 
 # --- DB Initialization Command ---
 @app.cli.command("init-db")
@@ -1919,16 +1917,31 @@ def cancel_order(order_id):
     return redirect('/admin/orders')
 
 # NimbusPost Webhook
+# Verification per https://api-v2.nimbuspost.com/docs/reference/v2 (Webhooks section):
+# each delivery is signed with HMAC-SHA256 of the raw body in the x-nimbus-signature header.
 @app.route('/api/nimbus/webhook', methods=['POST'])
 @csrf.exempt
 def nimbus_webhook():
+    webhook_secret = os.getenv('NIMBUS_WEBHOOK_SECRET')
+    signature = request.headers.get('x-nimbus-signature', '')
+    if not webhook_secret or not signature:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    expected_signature = hmac.new(
+        webhook_secret.encode('utf-8'), request.get_data(), hashlib.sha256
+    ).hexdigest()
+    if not hmac.compare_digest(expected_signature, signature):
+        return jsonify({'error': 'Unauthorized'}), 403
+
     data = request.json
     if not data:
         return jsonify({'error': 'No data'}), 400
-    
-    awb = data.get('awb_number') or data.get('awb')
+
+    print(f"NimbusPost webhook payload: {data}")
+
+    awb = data.get('awb_number') or data.get('awb') or data.get('awbNumber')
     status = data.get('current_status') or data.get('status')
-    
+
     if awb and status:
         order = SpiceOrder.query.filter_by(awb_number=awb).first()
         if order:
@@ -1941,6 +1954,7 @@ def nimbus_webhook():
 
 
 @app.route('/admin/test-nimbus-login')
+@admin_required
 def test_nimbus_login():
     import os, requests
     email = os.getenv('NIMBUS_EMAIL')
