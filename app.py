@@ -739,29 +739,37 @@ def export_data(data_type):
         if start_date:
             return query.filter(date_field >= start_date).all()
         return query.all()
-        
+
+    def csv_safe(value):
+        # Prevent CSV/formula injection: neutralize leading =, +, -, @ which
+        # spreadsheet apps can interpret as formulas when the file is opened.
+        s = '' if value is None else str(value)
+        if s and s[0] in ('=', '+', '-', '@'):
+            return "'" + s
+        return s
+
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     if data_type == 'orders':
         orders = get_filtered(SpiceOrder.query, SpiceOrder.created_at)
         writer.writerow(['Order ID', 'Date', 'Email', 'Customer Name', 'Phone', 'City', 'Pincode', 'Amount (INR)', 'Payment Status', 'Shipping Status'])
         for o in orders:
-            writer.writerow([o.order_number, o.created_at.strftime('%Y-%m-%d %H:%M'), o.user_email, o.full_name, o.phone, o.city, o.pincode, o.total_amount//100, o.payment_status, o.shipping_status])
+            writer.writerow([csv_safe(o.order_number), o.created_at.strftime('%Y-%m-%d %H:%M'), csv_safe(o.user_email), csv_safe(o.full_name), csv_safe(o.phone), csv_safe(o.city), csv_safe(o.pincode), o.total_amount//100, o.payment_status, o.shipping_status])
         filename = "spice_orders_export.csv"
-        
+
     elif data_type == 'users':
         users = User.query.all()
         writer.writerow(['Name', 'Email'])
         for u in users:
-            writer.writerow([u.name, u.email])
+            writer.writerow([csv_safe(u.name), csv_safe(u.email)])
         filename = "users_export.csv"
-        
+
     elif data_type == 'visits':
         visits = get_filtered(Visit.query.order_by(Visit.timestamp.desc()).limit(10000), Visit.timestamp)
         writer.writerow(['Date', 'IP', 'User Agent', 'Email'])
         for v in visits:
-            writer.writerow([v.timestamp.strftime('%Y-%m-%d %H:%M') if v.timestamp else '', v.ip, v.user_agent, v.email])
+            writer.writerow([v.timestamp.strftime('%Y-%m-%d %H:%M') if v.timestamp else '', csv_safe(v.ip), csv_safe(v.user_agent), csv_safe(v.email)])
         filename = "visits_export.csv"
         
     else:
@@ -1553,30 +1561,45 @@ def create_checkout_order():
     city = data.get('city', '').strip()
     state = data.get('state', '').strip()
     pincode = data.get('pincode', '').strip()
-    shipping_rate = int(data.get('shipping_rate', 60))
-    
+
     if not all([full_name, phone, address, city, state, pincode]):
         return jsonify({'error': 'Please fill in all delivery details'}), 400
-    
+
     # Check blacklist again
     blacklisted = BlacklistedPincode.query.filter_by(pincode=pincode).first()
     if blacklisted:
         return jsonify({'error': 'Delivery not available to this pincode'}), 400
-    
+
     # Get cart items
     cart_items = CartItem.query.filter_by(user_email=user['email']).all()
     if not cart_items:
         return jsonify({'error': 'Cart is empty'}), 400
-    
+
     # Check stock for all items
     for item in cart_items:
         if item.product.stock is not None and item.product.stock < item.quantity:
             return jsonify({'error': f'{item.product.name} has only {item.product.stock} left in stock'}), 400
-    
+
+    # Recompute shipping server-side instead of trusting the client-submitted rate
+    # (the checkout UI only ever offers the cheapest computed option, so this is
+    # the same value a legitimate request would have sent).
+    total_weight_kg = 0.0
+    for item in cart_items:
+        price = float(item.product.price) if item.product.price else 0
+        item_weight = 0.06 if price <= 45 else 0.11
+        total_weight_kg += item_weight * item.quantity
+
+    delivery_mode = get_setting('delivery_mode', 'hybrid')
+    if delivery_mode == 'manual':
+        shipping_rate = 40
+    else:
+        computed_rates = nimbus_api.get_shipping_rates(pincode, total_weight_kg)
+        shipping_rate = computed_rates[0]['rate'] if computed_rates else 60
+
     # Calculate totals
     subtotal_rupees = sum(int(float(item.product.price)) * item.quantity for item in cart_items)
     subtotal_paise = subtotal_rupees * 100
-    shipping_paise = shipping_rate * 100
+    shipping_paise = int(shipping_rate) * 100
     total_paise = subtotal_paise + shipping_paise
     
     if not razorpay_client:
@@ -2012,19 +2035,6 @@ def test_csrf():
         </form>
     ''')
 
-# -------------------------
-# 🚀 Run App
-# -------------------------
-# --- TEMP: Create DB tables if missing ---
-with app.app_context():
-    db.create_all()
-    print("Database tables created/verified!")
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
-    
-
 # --- Product Review Routes ---
 @app.route('/product/<int:product_id>/review', methods=['POST'])
 def submit_review(product_id):
@@ -2091,3 +2101,14 @@ def delete_review(review_id):
     db.session.commit()
     flash('Review deleted.', 'danger')
     return redirect(url_for('admin_reviews'))
+
+# -------------------------
+# 🚀 Run App
+# -------------------------
+# --- TEMP: Create DB tables if missing ---
+with app.app_context():
+    db.create_all()
+    print("Database tables created/verified!")
+
+if __name__ == '__main__':
+    app.run(debug=True)
