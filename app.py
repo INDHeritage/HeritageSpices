@@ -725,7 +725,8 @@ def admin_dashboard():
     total_products = Product.query.count()
     total_blogs = Blog.query.count()
     total_messages = ContactMessage.query.count()
-    
+    total_wholesale_inquiries = WholesaleInquiry.query.count()
+
     total_spice_orders = order_q.count()
     total_revenue = sum(o.total_amount for o in order_q.filter_by(payment_status='paid').all()) // 100
     pending_shipments = SpiceOrder.query.filter_by(payment_status='paid', shipping_status='processing').count()
@@ -763,6 +764,7 @@ def admin_dashboard():
                            total_products=total_products,
                            total_blogs=total_blogs,
                            total_messages=total_messages,
+                           total_wholesale_inquiries=total_wholesale_inquiries,
                            total_spice_orders=total_spice_orders,
                            total_revenue=total_revenue,
                            pending_shipments=pending_shipments,
@@ -854,6 +856,27 @@ def delete_message(id):
     db.session.commit()
     flash('Message deleted successfully.', 'success')
     return redirect('/admin/messages')
+
+# ✅ Admin: View Wholesale Inquiries
+@app.route('/admin/wholesale-inquiries')
+def admin_wholesale_inquiries():
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    inquiries = WholesaleInquiry.query.order_by(WholesaleInquiry.timestamp.desc()).all()
+    return render_template('admin_wholesale.html', inquiries=inquiries)
+
+# ✅ Admin: Delete Wholesale Inquiry
+@app.route('/admin/wholesale-inquiries/delete/<int:id>', methods=['POST'])
+def delete_wholesale_inquiry(id):
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    inquiry = WholesaleInquiry.query.get_or_404(id)
+    db.session.delete(inquiry)
+    db.session.commit()
+    flash('Wholesale inquiry deleted successfully.', 'success')
+    return redirect('/admin/wholesale-inquiries')
 
 # ✅ Frontend Analytics
 @app.route('/track-visit', methods=['POST'])

@@ -223,6 +223,13 @@
     <div class="col-md-3">
       <a href="/admin/reviews" class="btn btn-outline-warning text-dark w-100 py-3 fw-bold"><i class="fas fa-star d-block fa-2x mb-2 text-warning"></i> Product Reviews</a>
     </div>
+    <!-- Wholesale Inquiries -->
+    <div class="col-md-3">
+      <a href="/admin/wholesale-inquiries" class="btn btn-outline-success w-100 py-3 fw-bold">
+        <i class="fas fa-store d-block fa-2x mb-2 text-success"></i> Wholesale Inquiries
+        {% if total_wholesale_inquiries > 0 %}<span class="badge bg-success ms-1">{{ total_wholesale_inquiries }}</span>{% endif %}
+      </a>
+    </div>
   </div>
 </div>
 {% endblock %}
