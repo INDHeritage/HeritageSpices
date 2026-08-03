@@ -758,13 +758,43 @@ def admin_dashboard():
             chart_orders.append(day_orders)
             chart_visits.append(day_visits)
             
-    return render_template('admin_dashboard.html', 
-                           total_users=total_users, 
+    # Recent activity feed (latest orders, wholesale inquiries, and messages combined)
+    recent_activity = []
+    for o in SpiceOrder.query.order_by(SpiceOrder.created_at.desc()).limit(5).all():
+        recent_activity.append({
+            'icon': 'fa-shopping-bag', 'color': 'dark',
+            'title': f"New order {o.order_number}",
+            'subtitle': f"{o.full_name} · ₹{o.total_amount // 100}",
+            'timestamp': o.created_at,
+            'link': '/admin/orders'
+        })
+    for i in WholesaleInquiry.query.order_by(WholesaleInquiry.timestamp.desc()).limit(5).all():
+        recent_activity.append({
+            'icon': 'fa-store', 'color': 'success',
+            'title': f"Wholesale inquiry: {i.business_name}",
+            'subtitle': f"{i.city} · {i.phone}",
+            'timestamp': i.timestamp,
+            'link': '/admin/wholesale-inquiries'
+        })
+    for m in ContactMessage.query.order_by(ContactMessage.timestamp.desc()).limit(5).all():
+        recent_activity.append({
+            'icon': 'fa-envelope', 'color': 'primary',
+            'title': f"Message from {m.name}",
+            'subtitle': (m.message[:60] + '...') if len(m.message) > 60 else m.message,
+            'timestamp': m.timestamp,
+            'link': '/admin/messages'
+        })
+    recent_activity.sort(key=lambda x: x['timestamp'], reverse=True)
+    recent_activity = recent_activity[:8]
+
+    return render_template('admin_dashboard.html',
+                           total_users=total_users,
                            total_visits=total_visits,
                            total_products=total_products,
                            total_blogs=total_blogs,
                            total_messages=total_messages,
                            total_wholesale_inquiries=total_wholesale_inquiries,
+                           recent_activity=recent_activity,
                            total_spice_orders=total_spice_orders,
                            total_revenue=total_revenue,
                            pending_shipments=pending_shipments,
