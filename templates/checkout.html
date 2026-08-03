@@ -259,7 +259,7 @@
               <div class="fw-bold text-success"><i class="fas fa-truck-fast me-1"></i> Best Delivery Option (${cheapestRate.courier_name})</div>
               <small class="text-muted">Est. Delivery: ${cheapestRate.estimated_days} Days</small>
             </div>
-            <div class="fw-bold text-success fs-5">₹${cheapestRate.rate}</div>
+            <div class="fw-bold text-success fs-5">₹${Math.floor(cheapestRate.rate)}</div>
           </label>
         `;
         shippingList.appendChild(div);
@@ -282,15 +282,18 @@
 
   // Update Totals UI
   function updateTotals(shipping) {
+    // Round down to whole rupees to match the backend, which truncates
+    // the shipping rate to a whole rupee when creating the payment.
+    shipping = Math.floor(shipping);
     selectedShippingRate = shipping;
     const grand = subtotal + shipping;
-    
+
     if (shipping > 0) {
       document.getElementById('shipping-cost-display').innerHTML = `<span class="fw-semibold text-dark">₹${shipping}</span>`;
     } else {
       document.getElementById('shipping-cost-display').innerText = 'Enter pincode to calculate';
     }
-    
+
     document.getElementById('grand-total-display').innerText = `₹${grand}`;
     document.getElementById('pay-btn-amount').innerText = `₹${grand}`;
   }

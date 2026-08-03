@@ -1768,14 +1768,18 @@ def admin_store_settings():
             set_setting('science_hub_physical_enabled', physical)
             flash("Science Hub settings updated!", "success")
         
-        elif action == 'update_stock':
+        elif action == 'update_product':
             product_id = request.form.get('product_id')
             new_stock = request.form.get('stock', type=int)
+            new_price = request.form.get('price', type=float)
             product = Product.query.get(product_id)
             if product and new_stock is not None:
                 product.stock = new_stock
+            if product and new_price is not None:
+                product.price = new_price
+            if product:
                 db.session.commit()
-                flash(f"Stock updated for {product.name}", "success")
+                flash(f"Stock and price updated for {product.name}", "success")
         
         elif action == 'update_notice':
             notice = request.form.get('shipping_notice', '')

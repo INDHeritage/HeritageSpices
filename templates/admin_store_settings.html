@@ -158,6 +158,7 @@
             <tr>
               <th class="fw-semibold"><i class="fas fa-tag me-1 text-muted"></i>Product Name</th>
               <th class="fw-semibold text-center"><i class="fas fa-cubes me-1 text-muted"></i>Current Stock</th>
+              <th class="fw-semibold text-center"><i class="fas fa-rupee-sign me-1 text-muted"></i>Price</th>
               <th class="fw-semibold text-end"><i class="fas fa-pen me-1 text-muted"></i>Action</th>
             </tr>
           </thead>
@@ -182,15 +183,21 @@
                   <span class="badge bg-secondary px-3 py-2">N/A</span>
                 {% endif %}
               </td>
+              <td class="text-center">
+                <span class="text-muted">₹{{ product.price }}</span>
+              </td>
               <td>
                 <form method="POST" action="/admin/store-settings" class="d-flex align-items-center justify-content-end gap-2">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="action" value="update_stock">
+                  <input type="hidden" name="action" value="update_product">
                   <input type="hidden" name="product_id" value="{{ product.id }}">
                   <input type="number" name="stock" class="form-control form-control-sm"
-                         style="width: 80px; border-radius: 8px;"
-                         value="{{ product.stock if product.stock is defined else 0 }}" min="0" required>
-                  <button type="submit" class="btn btn-sm btn-outline-success" title="Update stock">
+                         style="width: 75px; border-radius: 8px;"
+                         value="{{ product.stock if product.stock is defined else 0 }}" min="0" required title="Stock">
+                  <input type="number" name="price" step="0.01" class="form-control form-control-sm"
+                         style="width: 85px; border-radius: 8px;"
+                         value="{{ product.price }}" min="0" required title="Price">
+                  <button type="submit" class="btn btn-sm btn-outline-success" title="Save stock and price">
                     <i class="fas fa-check"></i>
                   </button>
                 </form>
