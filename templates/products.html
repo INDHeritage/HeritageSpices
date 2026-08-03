@@ -10,7 +10,7 @@
   <div class="shop-hero text-center mb-5 animate__animated animate__fadeIn">
     <div class="shop-hero-overlay"></div>
     <div class="shop-hero-content position-relative z-1 py-4">
-      <span class="badge bg-warning text-dark fw-bold mb-2 text-uppercase tracking-wider">Heritage Spices Store</span>
+      <span class="badge bg-warning text-dark fw-bold mb-2 text-uppercase tracking-wider">Spice up your kitchen</span>
       <h1 class="display-4 fw-bold mb-3">Authentic Kerala Spices</h1>
       <p class="lead mx-auto" style="max-width: 600px;">
         100% organic, hand-milled, and sourced directly from trusted local farmers in Kerala. Purity in every pinch.
@@ -229,13 +229,15 @@
 <style>
   /* Shop Hero Styling */
   .shop-hero {
-    background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 60%, #4caf50 100%);
+    background:
+      linear-gradient(135deg, rgba(27,67,50,0.90) 0%, rgba(27,67,50,0.80) 60%, rgba(27,67,50,0.70) 100%),
+      url('{{ url_for("static", filename="images/close-up-picture-of-red-thai-dry-bird-eye-chilli-photo.jpg") }}') center / cover;
     color: white;
     border-radius: 20px;
     padding: 3.5rem 2rem;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(27, 94, 32, 0.12);
+    box-shadow: 0 10px 30px rgba(27, 67, 50, 0.2);
   }
   .shop-hero-overlay {
     position: absolute;

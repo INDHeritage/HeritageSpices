@@ -1,88 +1,50 @@
-<!-- 🌟 Hero Carousel -->
-<div id="heroCarousel" class="carousel slide carousel-fade">
-  <div class="carousel-inner">
+<!-- 🌟 Hero -->
+<div id="hero" class="position-relative">
+  <div class="hero-parallax-wrap" style="height: 600px; overflow: hidden; position: relative;">
+    <img id="heroParallaxImg" src="{{ url_for('static', filename='images/hero-poster.webp') }}" class="d-block w-100" style="height: 130%; object-fit: cover; object-position: center; position: absolute; top: -8%; left: 0;" alt="Indian Heritage Spices">
 
-    <!-- Slide 1 -->
-    <div class="carousel-item active">
-      <div class="hero-parallax-wrap" style="height: 600px; overflow: hidden; position: relative;">
-        <img id="heroParallaxImg" src="{{ url_for('static', filename='images/hero-poster.webp') }}" class="d-block w-100" style="height: 130%; object-fit: cover; object-position: center; position: absolute; top: -8%; left: 0;" alt="Indian Heritage Spices">
-      </div>
-      <div class="carousel-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
-        <h2 class="fw-bold text-warning">Upholding Indian Heritage</h2>
-        <p class="text-light">Bringing 100% organic and authentic spices from Kerala farms.</p>
-        <a href="#products" class="btn btn-warning mt-2 shadow">Shop Now</a>
-      </div>
-    </div>
-
-    <!-- Slide 2 -->
-    <div class="carousel-item">
-      <img src="{{ url_for('static', filename='images/close-up-picture-of-red-thai-dry-bird-eye-chilli-photo.jpg') }}" class="d-block w-100" alt="Red Chillies">
-      <div class="carousel-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">  
-        <h2 class="fw-bold text-warning">Spice Up Your Kitchen</h2>
-        <p class="text-light">Enjoy our premium range: Garam Masala, Goda Masala & more.</p>
-        <a href="#products" class="btn btn-outline-light mt-2 shadow-sm">View Products</a>
-      </div>
-    </div>
-
-    <!-- Slide 3 -->
-    <div class="carousel-item">
-      <img src="{{ url_for('static', filename='images/hero-slide3.webp') }}" class="d-block w-100" alt="Spice Collection">
-      <div class="carousel-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
-        <h2 class="fw-bold text-warning">Pure. Ethical. Trusted.</h2>
-        <p class="text-light">Directly sourced from farms. No middlemen. No chemicals.</p>
-        <a href="#mission" class="btn btn-success mt-2 shadow-sm">Our Mission</a>
-      </div>
-    </div>
-
-    <!-- Slide 4 -->
-    <div class="carousel-item">
-      <img src="{{ url_for('static', filename='images/360_F_102589163_hk02O92vzEYP0rZbVyvDTbkje1GaUDk1.jpg') }}" class="d-block w-100" alt="Authentic Indian Flavors">
-      <div class="carousel-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
-        <h2 class="fw-bold text-warning">Sealed with Authenticity</h2>
-        <p class="text-light">Taste the real flavor of India, straight from the source.</p>
-        <a href="#wholesale" class="btn btn-outline-warning mt-2 shadow-sm">Wholesale Inquiry</a>
-      </div>
+    <!-- Floating spice silhouettes: lightweight CSS/SVG "3D" depth layer.
+         Outer wrapper carries the ambient drift keyframe; inner svg carries
+         the mousemove-driven translate — separate elements so the two
+         transforms compose instead of one overwriting the other. -->
+    <div class="hero-spice-layer" aria-hidden="true">
+      <div class="hero-spice-wrap hero-spice-1"><svg class="hero-spice" viewBox="0 0 64 64" width="70" height="70"><path d="M20 44c-6-8-4-20 6-28 4 10 10 14 16 14 2 10-6 20-16 20-2 0-4-2-6-6z" fill="#d97706"/></svg></div>
+      <div class="hero-spice-wrap hero-spice-2"><svg class="hero-spice" viewBox="0 0 64 64" width="46" height="46"><rect x="26" y="6" width="12" height="52" rx="6" fill="#1b4332"/></svg></div>
+      <div class="hero-spice-wrap hero-spice-3"><svg class="hero-spice" viewBox="0 0 64 64" width="54" height="54"><ellipse cx="32" cy="32" rx="18" ry="12" fill="#d97706"/></svg></div>
+      <div class="hero-spice-wrap hero-spice-4"><svg class="hero-spice" viewBox="0 0 64 64" width="40" height="40"><path d="M32 4l8 20 20 8-20 8-8 20-8-20-20-8 20-8z" fill="#1b4332"/></svg></div>
     </div>
   </div>
 
-  <!-- Carousel Controls -->
-  <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
-    <span class="carousel-control-prev-icon"></span>
-  </button>
-  <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
-    <span class="carousel-control-next-icon"></span>
-  </button>
-
-  <!-- Optional Indicators -->
-  <div class="carousel-indicators">
-    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
-    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
-    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
-    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="3"></button>
+  <div class="hero-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
+    <h2 class="fw-bold text-warning">Upholding Indian Heritage</h2>
+    <p class="text-light">Bringing 100% organic and authentic spices from Kerala farms.</p>
+    <a href="#products" class="btn btn-warning mt-2 shadow">Shop Now</a>
   </div>
 </div>
 
-<!-- Optional Style for Captions -->
+<!-- Optional Style for Caption -->
 <style>
-  .carousel-caption {
+  .hero-caption {
+    position: absolute;
+    bottom: 15%;
+    left: 0;
+    right: 0;
     background: rgba(0, 0, 0, 0.4);
     padding: 1.5rem;
     border-radius: 0.5rem;
     max-width: 90%;
     margin: auto;
     text-align: center;
-    transition: all 0.4s ease-in-out;
-    bottom: 15%;
   }
 
-  .carousel-caption h2 {
+  .hero-caption h2 {
     font-size: 2.2rem;
     color: #ffc107;
     font-weight: 700;
     text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.6);
   }
 
-  .carousel-caption p {
+  .hero-caption p {
     font-size: 1.2rem;
     color: #fff;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
@@ -90,46 +52,85 @@
     margin-bottom: 1rem;
   }
 
-  .carousel-caption .btn {
+  .hero-caption .btn {
     padding: 0.5rem 1.2rem;
     font-size: 1rem;
     transition: transform 0.3s ease;
   }
 
-  .carousel-caption .btn:hover {
+  .hero-caption .btn:hover {
     transform: scale(1.05);
   }
 
+  .hero-spice-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .hero-spice-wrap {
+    position: absolute;
+  }
+
+  .hero-spice {
+    display: block;
+    opacity: 0.28;
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,0.15));
+    will-change: transform;
+    transition: transform 0.2s ease-out;
+  }
+
+  .hero-spice-1 { top: 12%; left: 8%; animation: hero-drift-1 9s ease-in-out infinite; }
+  .hero-spice-2 { top: 20%; right: 12%; animation: hero-drift-2 11s ease-in-out infinite; }
+  .hero-spice-3 { bottom: 18%; left: 14%; animation: hero-drift-1 13s ease-in-out infinite reverse; }
+  .hero-spice-4 { top: 8%; right: 30%; animation: hero-drift-2 8s ease-in-out infinite; }
+
+  @keyframes hero-drift-1 {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-16px) rotate(12deg); }
+  }
+
+  @keyframes hero-drift-2 {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(14px) rotate(-10deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-spice-wrap { animation: none !important; }
+  }
+
   @media (max-width: 768px) {
-    .carousel-caption {
+    .hero-caption {
       bottom: 10%;
       padding: 1rem;
     }
 
-    .carousel-caption h2 {
+    .hero-caption h2 {
       font-size: 1.5rem;
     }
 
-    .carousel-caption p {
+    .hero-caption p {
       font-size: 1rem;
     }
+
+    .hero-spice { transform: scale(0.7); }
   }
 
   @media (max-width: 480px) {
-    .carousel-caption {
+    .hero-caption {
       padding: 0.75rem;
       bottom: 8%;
     }
 
-    .carousel-caption h2 {
+    .hero-caption h2 {
       font-size: 1.25rem;
     }
 
-    .carousel-caption p {
+    .hero-caption p {
       font-size: 0.9rem;
     }
 
-    .carousel-caption .btn {
+    .hero-caption .btn {
       font-size: 0.9rem;
       padding: 0.4rem 1rem;
     }
@@ -137,13 +138,6 @@
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const carouselEl = document.getElementById('heroCarousel');
-  new bootstrap.Carousel(carouselEl, {
-    interval: 5000,
-    ride: 'carousel',
-    wrap: true
-  });
-
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const parallaxImg = document.getElementById('heroParallaxImg');
   if (parallaxImg && !reduceMotion) {
@@ -151,6 +145,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const offset = Math.min(window.scrollY * 0.15, 60);
       parallaxImg.style.transform = `translateY(${offset}px)`;
     }, { passive: true });
+  }
+
+  const canTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches && !reduceMotion;
+  const hero = document.getElementById('hero');
+  const spices = document.querySelectorAll('.hero-spice');
+  if (canTilt && hero && spices.length) {
+    hero.addEventListener('mousemove', (e) => {
+      const rect = hero.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width - 0.5;
+      const py = (e.clientY - rect.top) / rect.height - 0.5;
+      spices.forEach((el, i) => {
+        const depth = (i + 1) * 6;
+        el.style.transform = `translate(${px * depth}px, ${py * depth}px)`;
+      });
+    });
+    hero.addEventListener('mouseleave', () => {
+      spices.forEach(el => { el.style.transform = ''; });
+    });
   }
 });
 </script>

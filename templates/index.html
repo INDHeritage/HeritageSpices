@@ -77,30 +77,15 @@
     });
 
     // Hero Text Spring Animation (runs on load)
-    const activeCaption = document.querySelector(".carousel-item.active .carousel-caption");
-    if (activeCaption) {
+    const heroCaption = document.querySelector(".hero-caption");
+    if (heroCaption) {
       animate(
-        activeCaption,
+        heroCaption,
         { opacity: [0, 1], y: [30, 0], scale: [0.95, 1] },
         { duration: 0.8, easing: [0.175, 0.885, 0.32, 1.275] }
       );
     }
   }, 100);
-
-  // Re-trigger animation when Bootstrap carousel slides
-  const heroCarousel = document.getElementById('heroCarousel');
-  if (heroCarousel) {
-    heroCarousel.addEventListener('slid.bs.carousel', (e) => {
-      const caption = e.relatedTarget.querySelector('.carousel-caption');
-      if (caption) {
-        animate(
-          caption,
-          { opacity: [0, 1], y: [30, 0], scale: [0.95, 1] },
-          { duration: 0.8, easing: [0.175, 0.885, 0.32, 1.275] }
-        );
-      }
-    });
-  }
 </script>
 
 <script>
