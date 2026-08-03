@@ -1,12 +1,16 @@
 <!-- 🌿 Mission Carousel -->
-<section id="mission" class="container my-5 motion-section">
+<section id="mission" class="mission-band motion-section">
+<div class="container py-5">
   <div class="text-center mb-4">
-    <h4 class="fw-semibold text-primary" style="font-size: 1rem; color: #2e7d32 !important; background: linear-gradient(90deg, #e8f5e9 0%, #fff 100%); display: inline-block; padding: 12px 24px; border-radius: 16px; box-shadow: 0 2px 8px rgba(76,175,80,0.07); animation: fadeInUp 1.2s; line-height: 1.6;">
-      <span style="font-size:1.2em; vertical-align:middle;">🌿</span>
-      <span class="fw-bold text-success">Pure. Trusted. Direct.</span> Experience the true taste of India with spices sourced straight from our partner farmers—100% authentic, chemical-free, and freshly packed to preserve every note of flavor and nutrition. We honor tradition, support healthy living, and promise unwavering quality for your family’s table. <span style="font-size:1.2em; vertical-align:middle;">🤝</span>
+    <h4 class="fw-semibold" style="font-size: 1rem; color: #1b4332 !important; background: linear-gradient(90deg, #f7fcf9 0%, #ffffff 100%); display: inline-block; padding: 12px 24px; border-radius: 16px; box-shadow: 0 2px 8px rgba(27,67,50,0.07); animation: fadeInUp 1.2s; line-height: 1.6;">
+      <i class="fas fa-leaf me-1" style="color: #1b4332;"></i>
+      <span class="fw-bold text-success">Pure. Trusted. Direct.</span> Experience the true taste of India with spices sourced straight from our partner farmers—100% authentic, chemical-free, and freshly packed to preserve every note of flavor and nutrition. We honor tradition, support healthy living, and promise unwavering quality for your family’s table. <i class="fas fa-handshake ms-1" style="color: #1b4332;"></i>
     </h4>
   </div>
   <style>
+    .mission-band {
+      background: var(--bg-cream-dark);
+    }
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(30px); }
       to { opacity: 1; transform: translateY(0); }
@@ -90,6 +94,7 @@
       <button type="button" data-bs-target="#missionCarousel" data-bs-slide-to="3"></button>
     </div>
   </div>
+</div>
 </section>
 
 <!-- Optional CSS for cleaner transitions -->
