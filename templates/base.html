@@ -171,14 +171,30 @@
     }
 
     /* Unify stray Bootstrap default colors (green #198754, blue #0d6efd, cyan)
-       across every page onto the brand forest-green / saffron system. */
-    .text-success { color: var(--primary-color) !important; }
-    .bg-success { background-color: var(--primary-color) !important; }
-    .bg-success-subtle { background-color: var(--card-bg-light) !important; }
-    .border-success { border-color: var(--primary-color) !important; }
+       across every page onto the brand forest-green / saffron system.
+       Redefining Bootstrap's own CSS variables (rather than overriding each
+       utility class directly) keeps bg-opacity-N / text-opacity-N modifiers,
+       subtle badges, and alerts working correctly instead of turning solid. */
+    :root {
+      --bs-success: #1b4332;
+      --bs-success-rgb: 27, 67, 50;
+      --bs-success-text-emphasis: #081c15;
+      --bs-success-bg-subtle: #f7fcf9;
+      --bs-success-border-subtle: #cfe3d6;
 
-    .text-primary { color: var(--accent-color) !important; }
-    .bg-primary { background-color: var(--accent-color) !important; }
+      --bs-primary: #d97706;
+      --bs-primary-rgb: 217, 119, 6;
+      --bs-primary-text-emphasis: #b45309;
+      --bs-primary-bg-subtle: #fdf1e0;
+      --bs-primary-border-subtle: #f0d4a8;
+
+      --bs-info: #b45309;
+      --bs-info-rgb: 180, 83, 9;
+      --bs-info-text-emphasis: #7c3a06;
+      --bs-info-bg-subtle: #fcf8ee;
+      --bs-info-border-subtle: #f0d4a8;
+    }
+
     .btn-primary {
       background-color: var(--accent-color) !important;
       border-color: var(--accent-color) !important;
@@ -198,9 +214,6 @@
       background-color: var(--accent-color) !important;
       color: #ffffff !important;
     }
-
-    .bg-info, .bg-info-subtle { background-color: var(--bg-cream-dark) !important; }
-    .text-info { color: var(--accent-hover) !important; }
 
     .nav-link {
       color: #555555 !important;
