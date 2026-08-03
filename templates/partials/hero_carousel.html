@@ -2,17 +2,6 @@
 <div id="hero" class="position-relative">
   <div class="hero-parallax-wrap" style="height: 600px; overflow: hidden; position: relative;">
     <img id="heroParallaxImg" src="{{ url_for('static', filename='images/hero-poster.webp') }}" class="d-block w-100" style="height: 130%; object-fit: cover; object-position: center; position: absolute; top: -8%; left: 0;" alt="Indian Heritage Spices">
-
-    <!-- Floating spice silhouettes: lightweight CSS/SVG "3D" depth layer.
-         Outer wrapper carries the ambient drift keyframe; inner svg carries
-         the mousemove-driven translate — separate elements so the two
-         transforms compose instead of one overwriting the other. -->
-    <div class="hero-spice-layer" aria-hidden="true">
-      <div class="hero-spice-wrap hero-spice-1"><svg class="hero-spice" viewBox="0 0 64 64" width="70" height="70"><path d="M20 44c-6-8-4-20 6-28 4 10 10 14 16 14 2 10-6 20-16 20-2 0-4-2-6-6z" fill="#d97706"/></svg></div>
-      <div class="hero-spice-wrap hero-spice-2"><svg class="hero-spice" viewBox="0 0 64 64" width="46" height="46"><rect x="26" y="6" width="12" height="52" rx="6" fill="#1b4332"/></svg></div>
-      <div class="hero-spice-wrap hero-spice-3"><svg class="hero-spice" viewBox="0 0 64 64" width="54" height="54"><ellipse cx="32" cy="32" rx="18" ry="12" fill="#d97706"/></svg></div>
-      <div class="hero-spice-wrap hero-spice-4"><svg class="hero-spice" viewBox="0 0 64 64" width="40" height="40"><path d="M32 4l8 20 20 8-20 8-8 20-8-20-20-8 20-8z" fill="#1b4332"/></svg></div>
-    </div>
   </div>
 
   <div class="hero-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
@@ -62,43 +51,6 @@
     transform: scale(1.05);
   }
 
-  .hero-spice-layer {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-
-  .hero-spice-wrap {
-    position: absolute;
-  }
-
-  .hero-spice {
-    display: block;
-    opacity: 0.95;
-    filter: drop-shadow(0 0 3px rgba(255,255,255,0.9)) drop-shadow(0 0 8px rgba(255,255,255,0.6)) drop-shadow(0 6px 10px rgba(0,0,0,0.25));
-    will-change: transform;
-    transition: transform 0.2s ease-out;
-  }
-
-  .hero-spice-1 { top: 12%; left: 8%; animation: hero-drift-1 9s ease-in-out infinite; }
-  .hero-spice-2 { top: 20%; right: 12%; animation: hero-drift-2 11s ease-in-out infinite; }
-  .hero-spice-3 { bottom: 18%; left: 14%; animation: hero-drift-1 13s ease-in-out infinite reverse; }
-  .hero-spice-4 { top: 8%; right: 30%; animation: hero-drift-2 8s ease-in-out infinite; }
-
-  @keyframes hero-drift-1 {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-16px) rotate(12deg); }
-  }
-
-  @keyframes hero-drift-2 {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(14px) rotate(-10deg); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .hero-spice-wrap { animation: none !important; }
-  }
-
   @media (max-width: 768px) {
     .hero-caption {
       bottom: 10%;
@@ -112,8 +64,6 @@
     .hero-caption p {
       font-size: 1rem;
     }
-
-    .hero-spice { transform: scale(0.7); }
   }
 
   @media (max-width: 480px) {
@@ -145,24 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const offset = Math.min(window.scrollY * 0.15, 60);
       parallaxImg.style.transform = `translateY(${offset}px)`;
     }, { passive: true });
-  }
-
-  const canTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches && !reduceMotion;
-  const hero = document.getElementById('hero');
-  const spices = document.querySelectorAll('.hero-spice');
-  if (canTilt && hero && spices.length) {
-    hero.addEventListener('mousemove', (e) => {
-      const rect = hero.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width - 0.5;
-      const py = (e.clientY - rect.top) / rect.height - 0.5;
-      spices.forEach((el, i) => {
-        const depth = (i + 1) * 6;
-        el.style.transform = `translate(${px * depth}px, ${py * depth}px)`;
-      });
-    });
-    hero.addEventListener('mouseleave', () => {
-      spices.forEach(el => { el.style.transform = ''; });
-    });
   }
 });
 </script>
