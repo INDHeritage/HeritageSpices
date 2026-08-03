@@ -212,6 +212,7 @@ class SpiceOrder(db.Model):
     courier_name = db.Column(db.String(100))
     shipping_status = db.Column(db.String(50), default='processing')
     estimated_delivery = db.Column(db.String(50))
+    label_url = db.Column(db.String(500))
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     items = db.relationship('OrderItem', backref='order', lazy=True)
@@ -1911,6 +1912,7 @@ def ship_order(order_id):
         order.courier_name = result.get('courier_name', 'NimbusPost')
         order.shipping_status = 'shipped'
         order.estimated_delivery = result.get('estimated_delivery', '')
+        order.label_url = result.get('label_url')
         db.session.commit()
         flash(f"Order {order.order_number} shipped! AWB: {order.awb_number}", "success")
     else:
