@@ -494,7 +494,7 @@
                     verifyPayment(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature, type);
                 },
                 "prefill": { "name": "{{ user.name if user else '' }}", "email": "{{ user.email if user else '' }}" },
-                "theme": { "color": "#198754" },
+                "theme": { "color": "#1b4332" },
                 "modal": { "ondismiss": function() { btn.innerHTML = originalBtnHtml; btn.disabled = false; } }
             };
             var rzp = new Razorpay(options);
