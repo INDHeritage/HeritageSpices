@@ -78,6 +78,16 @@ class ContactMessage(db.Model):
     message = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
 
+# --- Wholesale Inquiry Model ---
+class WholesaleInquiry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(200), nullable=False)
+    business_name = db.Column(db.String(200), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    city = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=True)
+    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+
 # --- Product Model ---
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -403,6 +413,48 @@ def contact():
         flash('Thank you for contacting us! We will get back to you soon.', 'success')
         return redirect('/contact')
     return render_template('contact.html')
+
+@app.route('/wholesale-inquiry', methods=['GET', 'POST'])
+def wholesale_inquiry():
+    user = session.get('user')
+    if not user:
+        flash('Please login to submit a wholesale inquiry.', 'warning')
+        return redirect('/login')
+
+    if request.method == 'POST':
+        business_name = request.form.get('business_name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        city = request.form.get('city', '').strip()
+        message = request.form.get('message', '').strip()
+
+        if not business_name or not phone or not city:
+            flash('Business name, phone number, and city are required.', 'danger')
+            return render_template('wholesale_form.html', user=user, is_logged_in=True,
+                                    business_name=business_name, phone=phone, city=city, message=message)
+
+        inquiry = WholesaleInquiry(
+            user_email=user['email'],
+            business_name=business_name,
+            phone=phone,
+            city=city,
+            message=message or None
+        )
+        db.session.add(inquiry)
+        db.session.commit()
+
+        send_telegram_notification(
+            f"🏢 <b>New Wholesale Inquiry</b>\n"
+            f"Business: {business_name}\n"
+            f"Phone: {phone}\n"
+            f"City: {city}\n"
+            f"Email: {user['email']}\n"
+            f"Message: {message or '-'}"
+        )
+
+        flash('Thank you! Your wholesale inquiry has been submitted. Our team will reach out within 48 hours.', 'success')
+        return redirect('/#wholesale')
+
+    return render_template('wholesale_form.html', user=user, is_logged_in=True)
 
 @app.route('/ads.txt')
 def ads_txt():
