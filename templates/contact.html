@@ -8,13 +8,16 @@
       <form method="POST" action="/contact">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-3">
-          <input type="text" class="form-control" name="name" placeholder="Your Name" required autocomplete="name">
+          <label for="contact-name" class="form-label fw-semibold">Your Name</label>
+          <input type="text" class="form-control" id="contact-name" name="name" placeholder="Jane Doe" required autocomplete="name">
         </div>
         <div class="mb-3">
-          <input type="email" class="form-control" name="email" placeholder="Your Email" required autocomplete="email">
+          <label for="contact-email" class="form-label fw-semibold">Your Email</label>
+          <input type="email" class="form-control" id="contact-email" name="email" placeholder="jane@example.com" required autocomplete="email">
         </div>
         <div class="mb-3">
-          <textarea class="form-control" name="message" rows="5" placeholder="Your Message" required></textarea>
+          <label for="contact-message" class="form-label fw-semibold">Your Message</label>
+          <textarea class="form-control" id="contact-message" name="message" rows="5" placeholder="How can we help?" required></textarea>
         </div>
         <button class="btn btn-success" type="submit">Send Message</button>
       </form>

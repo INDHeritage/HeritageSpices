@@ -487,14 +487,14 @@
       top: 90px;
       right: 20px;
       z-index: 1080;
-      background: #0d0d0d;
+      background: #1b4332;
       color: #fff;
-      border: 1px solid #ff6a00;
+      border: 1px solid #d97706;
       border-radius: 14px;
       padding: 16px 18px;
       width: 220px;
       text-align: center;
-      box-shadow: 0 0 8px #ff6a00, 0 0 20px rgba(255, 106, 0, 0.5), 0 8px 24px rgba(0,0,0,0.4);
+      box-shadow: 0 0 8px rgba(217,119,6,0.6), 0 0 20px rgba(217,119,6,0.35), 0 8px 24px rgba(0,0,0,0.3);
       opacity: 0;
       transform: translateX(30px);
       transition: opacity 0.4s ease, transform 0.4s ease;
@@ -511,20 +511,20 @@
       right: 10px;
       background: none;
       border: none;
-      color: #ff6a00;
+      color: #d97706;
       font-size: 1.1rem;
       line-height: 1;
       cursor: pointer;
     }
     .welcome-offer-flame {
       font-size: 1.8rem;
-      color: #ff6a00;
-      text-shadow: 0 0 6px #ff6a00, 0 0 16px #ff4500;
+      color: #d97706;
+      text-shadow: 0 0 6px rgba(217,119,6,0.6), 0 0 14px rgba(217,119,6,0.4);
       animation: welcome-flame-flicker 1.4s ease-in-out infinite alternate;
     }
     @keyframes welcome-flame-flicker {
-      0% { text-shadow: 0 0 6px #ff6a00, 0 0 16px #ff4500; transform: scale(1); }
-      100% { text-shadow: 0 0 10px #ffae00, 0 0 24px #ff6a00; transform: scale(1.08); }
+      0% { text-shadow: 0 0 6px rgba(217,119,6,0.6), 0 0 14px rgba(217,119,6,0.4); transform: scale(1); }
+      100% { text-shadow: 0 0 10px rgba(184,97,4,0.7), 0 0 20px rgba(217,119,6,0.5); transform: scale(1.08); }
     }
     .welcome-offer-text {
       font-size: 0.85rem;
@@ -534,13 +534,12 @@
     .welcome-offer-highlight {
       font-weight: 700;
       font-size: 1.1rem;
-      color: #ff8c00;
-      text-shadow: 0 0 6px rgba(255, 140, 0, 0.7);
+      color: #fbbf5c;
     }
     .welcome-offer-btn {
       display: inline-block;
-      background: #ff6a00;
-      color: #0d0d0d;
+      background: #d97706;
+      color: #ffffff;
       font-weight: 700;
       padding: 6px 16px;
       border-radius: 20px;
@@ -550,7 +549,7 @@
     }
     .welcome-offer-btn:hover {
       transform: scale(1.05);
-      color: #0d0d0d;
+      color: #ffffff;
     }
     @media (max-width: 480px) {
       .welcome-offer-popup { right: 12px; left: 12px; width: auto; top: 80px; }
@@ -617,92 +616,6 @@
     });
   });
 </script>
-
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const isLoggedIn = localStorage.getItem("userLoggedIn") === "true";
-
-    // ✅ Handle modal cleanup on Skip and Close
-    const cleanupModal = () => {
-      document.body.classList.remove('modal-open');
-      document.body.style.overflow = 'auto';
-
-      const backdrop = document.querySelector('.modal-backdrop');
-      if (backdrop) backdrop.remove();
-    };
-
-    const skipBtn = document.getElementById('skipLogin');
-    if (skipBtn) {
-      skipBtn.addEventListener('click', () => {
-        sessionStorage.setItem("loginPromptSkipped", "true");
-        cleanupModal();
-      });
-    }
-
-    const closeBtn = document.querySelector('#loginPrompt .btn-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', cleanupModal);
-    }
-
-    // Optional: if someone presses Esc key
-    const loginPromptEl = document.getElementById('loginPrompt');
-    if (loginPromptEl) {
-      loginPromptEl.addEventListener('hidden.bs.modal', cleanupModal);
-    }
-  });
-</script>
-
-
-
-
-{#
-<!-- 🔐 Google Login Modal -->
-<div class="modal fade" id="loginPrompt" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center">
-      <div class="modal-header">
-        <h5 class="modal-title">Login Required</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p class="mb-3">Please log in with Google to access this feature.</p>
-        <a href="{{ url_for('login') }}" class="btn btn-success">Login with Google</a>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="skipLogin">Skip</button>
-      </div>
-    </div>
-  </div>
-</div>
-#}
-
-
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const isLoggedIn = "{{ 'true' if is_logged_in is defined and is_logged_in else 'false' }}";
-    const loginSkipped = sessionStorage.getItem("loginPromptSkipped") === "true";
-
-    const loginPromptEl = document.getElementById('loginPrompt');
-    if (loginPromptEl && isLoggedIn !== "true" && !loginSkipped) {
-      const loginModal = new bootstrap.Modal(loginPromptEl);
-      loginModal.show();
-    }
-
-    // Store login status in localStorage
-    if (isLoggedIn === "true") {
-      localStorage.setItem("userLoggedIn", "true");
-    } else {
-      localStorage.removeItem("userLoggedIn");
-    }
-  });
-</script>
-
-
-<!-- Debug -->
-<script>
-  console.log("Is Logged In (from Jinja):", "{{ is_logged_in if is_logged_in is defined else false }}");
-</script>
-
 
 {% block scripts %}
 <!--Start of Tawk.to Script-->

@@ -24,11 +24,6 @@
 {% include "partials/wholesale.html" %}
 
 
-<!-- 💬 WhatsApp Button (Login Required) -->
-{# <a href="https://wa.me/918999449765" target="_blank" class="whatsapp-float login-required" title="Chat with us on WhatsApp">
-  <i class="fab fa-whatsapp"></i>
-</a> #}
-
 <!-- ✅ Structured Data for Rich Snippets (Product Carousel) -->
 <script type="application/ld+json">
 {
@@ -92,50 +87,6 @@
       );
     }
   }, 100);
-</script>
-
-<script>
-  const isLoggedIn = {{ 'true' if is_logged_in else 'false' | safe }};
-  localStorage.setItem("userLoggedIn", isLoggedIn);
-
-  document.addEventListener("DOMContentLoaded", () => {
-    // 🔐 Show login modal on first visit if not logged in
-    /*
-    if (!isLoggedIn && !sessionStorage.getItem("loginPromptSkipped")) {
-      const modal = new bootstrap.Modal(document.getElementById("loginPrompt"));
-      modal.show();
-
-      document.getElementById("skipLogin")?.addEventListener("click", () => {
-        sessionStorage.setItem("loginPromptSkipped", "true");
-      });
-    }
-    */
-
-
-
-
-    // 🔐 Enforce Login on Clicks
-    document.querySelectorAll(".login-required").forEach((link) => {
-      link.addEventListener("click", (e) => {
-        if (!isLoggedIn) {
-          e.preventDefault();
-          const modal = new bootstrap.Modal(document.getElementById("loginPrompt"));
-          modal.show();
-        }
-      });
-    });
-
-    // 🍪 Cookie Consent
-    const banner = document.getElementById("cookie-banner");
-    const acceptBtn = document.getElementById("accept-cookies");
-    if (banner && !localStorage.getItem("cookiesAccepted")) {
-      banner.style.display = "block";
-      acceptBtn?.addEventListener("click", () => {
-        localStorage.setItem("cookiesAccepted", "true");
-        banner.style.display = "none";
-      });
-    }
-  });
 </script>
 
 {% endblock %}
