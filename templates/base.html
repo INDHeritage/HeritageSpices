@@ -342,7 +342,7 @@
           <li class="nav-item ms-lg-3 mt-3 mt-lg-0">
             {% if not user %}
               <a href="{{ url_for('login') }}" class="btn btn-success d-flex align-items-center justify-content-center" style="gap: 8px; padding: 8px 16px;">
-                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" style="height: 22px; width: 22px; background: #fff; border-radius: 50%; padding: 3px; box-shadow: 0 1px 3px rgba(60,60,60,0.08);"> 
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" style="height: 22px; width: 22px; background: #fff; border-radius: 50%; padding: 3px; box-shadow: 0 1px 3px rgba(60,60,60,0.08);">
                 <span class="fw-semibold">Login with Google</span>
               </a>
             {% else %}
@@ -468,6 +468,129 @@
 #}
 
 
+
+  {% if not user and welcome_offer_text %}
+  <!-- 🔥 First-visit offer popup: shows once, triggered by engagement, auto-dismisses -->
+  <div id="welcome-offer-popup" class="welcome-offer-popup">
+    <button type="button" id="welcome-offer-close" aria-label="Close" class="welcome-offer-close">&times;</button>
+    <div class="welcome-offer-flame"><i class="fas fa-fire"></i></div>
+    <div class="welcome-offer-text">
+      Sign up now &amp; get<br><span class="welcome-offer-highlight">{{ welcome_offer_text }}</span> your first order
+    </div>
+    <a href="{{ url_for('login') }}" class="welcome-offer-btn">Claim Offer</a>
+  </div>
+  <style>
+    .welcome-offer-popup {
+      position: fixed;
+      top: 90px;
+      right: 20px;
+      z-index: 1080;
+      background: #0d0d0d;
+      color: #fff;
+      border: 1px solid #ff6a00;
+      border-radius: 14px;
+      padding: 16px 18px;
+      width: 220px;
+      text-align: center;
+      box-shadow: 0 0 8px #ff6a00, 0 0 20px rgba(255, 106, 0, 0.5), 0 8px 24px rgba(0,0,0,0.4);
+      opacity: 0;
+      transform: translateX(30px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      pointer-events: none;
+    }
+    .welcome-offer-popup.show {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+    .welcome-offer-close {
+      position: absolute;
+      top: 6px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #ff6a00;
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .welcome-offer-flame {
+      font-size: 1.8rem;
+      color: #ff6a00;
+      text-shadow: 0 0 6px #ff6a00, 0 0 16px #ff4500;
+      animation: welcome-flame-flicker 1.4s ease-in-out infinite alternate;
+    }
+    @keyframes welcome-flame-flicker {
+      0% { text-shadow: 0 0 6px #ff6a00, 0 0 16px #ff4500; transform: scale(1); }
+      100% { text-shadow: 0 0 10px #ffae00, 0 0 24px #ff6a00; transform: scale(1.08); }
+    }
+    .welcome-offer-text {
+      font-size: 0.85rem;
+      margin: 8px 0 12px;
+      line-height: 1.4;
+    }
+    .welcome-offer-highlight {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #ff8c00;
+      text-shadow: 0 0 6px rgba(255, 140, 0, 0.7);
+    }
+    .welcome-offer-btn {
+      display: inline-block;
+      background: #ff6a00;
+      color: #0d0d0d;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 20px;
+      text-decoration: none;
+      font-size: 0.8rem;
+      transition: transform 0.2s ease;
+    }
+    .welcome-offer-btn:hover {
+      transform: scale(1.05);
+      color: #0d0d0d;
+    }
+    @media (max-width: 480px) {
+      .welcome-offer-popup { right: 12px; left: 12px; width: auto; top: 80px; }
+    }
+  </style>
+  <script>
+  (function() {
+    var popup = document.getElementById('welcome-offer-popup');
+    var closeBtn = document.getElementById('welcome-offer-close');
+    if (!popup || sessionStorage.getItem('welcomeOfferShown')) return;
+
+    var shown = false;
+    function showPopup() {
+      if (shown) return;
+      shown = true;
+      sessionStorage.setItem('welcomeOfferShown', '1');
+      popup.classList.add('show');
+      setTimeout(function() { popup.classList.remove('show'); }, 6000);
+    }
+
+    closeBtn.addEventListener('click', function() {
+      popup.classList.remove('show');
+    });
+
+    // Trigger on engagement: scrolling to the products section, or a dwell-time fallback
+    var productsSection = document.getElementById('products');
+    if (productsSection && 'IntersectionObserver' in window) {
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            showPopup();
+            observer.disconnect();
+          }
+        });
+      }, { threshold: 0.3 });
+      observer.observe(productsSection);
+    }
+
+    setTimeout(showPopup, 12000);
+  })();
+  </script>
+  {% endif %}
 
   <!-- ✅ Cookie Consent -->
   <div id="cookie-banner" class="alert alert-warning fixed-bottom text-center m-0 rounded-0" style="display: none; z-index: 9999;">

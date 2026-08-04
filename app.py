@@ -1095,10 +1095,26 @@ def privacy():
 @app.context_processor
 def inject_globals():
     user = session.get('user')
+    welcome_offer_text = None
+    if not user and get_setting('welcome_coupon_enabled', 'true') == 'true':
+        w_type = get_setting('welcome_coupon_type', 'percent')
+        w_value = get_setting('welcome_coupon_value', '10')
+        w_max = get_setting('welcome_coupon_max', '')
+        try:
+            if w_type == 'percent':
+                welcome_offer_text = f"{int(float(w_value))}% off"
+                if w_max:
+                    welcome_offer_text += f" (up to ₹{int(float(w_max))})"
+            else:
+                welcome_offer_text = f"₹{int(float(w_value))} off"
+        except (TypeError, ValueError):
+            welcome_offer_text = None
+
     return {
         'year': datetime.now().year,
         'is_logged_in': bool(user),
-        'user': user
+        'user': user,
+        'welcome_offer_text': welcome_offer_text
     }
 
 
