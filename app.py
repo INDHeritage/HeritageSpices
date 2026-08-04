@@ -23,6 +23,8 @@ import nimbus_api
 import io
 import qrcode
 from flask import send_file
+import bleach
+from sqlalchemy.orm import joinedload
 
 # -------------------------
 # 🔐 Load environment
@@ -39,13 +41,53 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+_BLOG_ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'code', 'pre',
+    'span', 'div', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr'
+]
+_BLOG_ALLOWED_ATTRS = {
+    'a': ['href', 'title', 'target', 'rel'],
+    'img': ['src', 'alt', 'title', 'width', 'height'],
+    '*': ['class']
+}
+
+def sanitize_blog_html(content):
+    """Blog content is authored as raw HTML by the admin (plain textarea,
+    no WYSIWYG) -- sanitize before saving so this can never become a stored
+    XSS vector even if the admin account itself is ever compromised."""
+    return bleach.clean(content, tags=_BLOG_ALLOWED_TAGS, attributes=_BLOG_ALLOWED_ATTRS, strip=True)
+
 
 
 
 
 app = Flask(__name__, template_folder='templates')
-app.secret_key = os.getenv("FLASK_SECRET_KEY") or "default-fallback-secret-key-12345"
+_flask_secret_key = os.getenv("FLASK_SECRET_KEY")
+if not _flask_secret_key:
+    # Never fall back to a fixed, guessable string -- that would let anyone
+    # forge a session cookie (e.g. claiming the admin email) and get full
+    # admin access. A fresh random key per process start is still not
+    # ideal (sessions won't survive a restart), but it closes the real
+    # vulnerability. Set FLASK_SECRET_KEY in the environment for stable
+    # sessions across deploys/restarts.
+    import secrets as _secrets
+    _flask_secret_key = _secrets.token_hex(32)
+    print("WARNING: FLASK_SECRET_KEY is not set. Using a random one-time key "
+          "for this process -- all sessions will be invalidated on restart. "
+          "Set FLASK_SECRET_KEY in your environment for production.")
+app.secret_key = _flask_secret_key
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Session cookie hardening. SECURE is gated on Render's own env var (set
+# automatically in their runtime) so local dev over plain HTTP still works --
+# a Secure cookie is silently dropped by browsers on non-HTTPS origins.
+app.config['SESSION_COOKIE_SECURE'] = bool(os.getenv('RENDER'))
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB request body cap
+
 csrf = CSRFProtect(app)
 
 # --- SQLAlchemy Setup ---
@@ -201,7 +243,7 @@ class SiteSetting(db.Model):
 class Coupon(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(30), unique=True, nullable=False)
-    user_email = db.Column(db.String(200), nullable=False)
+    user_email = db.Column(db.String(200), nullable=False, index=True)
     discount_type = db.Column(db.String(10), nullable=False)  # 'percent' or 'flat'
     discount_value = db.Column(db.Float, nullable=False)
     max_discount = db.Column(db.Integer, nullable=True)  # optional cap in rupees, percent coupons only
@@ -242,7 +284,7 @@ class Referral(db.Model):
 # --- Points Ledger (balance is always the sum of a user's transactions) ---
 class PointsTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_email = db.Column(db.String(200), nullable=False)
+    user_email = db.Column(db.String(200), nullable=False, index=True)
     points = db.Column(db.Integer, nullable=False)  # positive = earned, negative = redeemed
     reason = db.Column(db.String(200), nullable=False)
     order_id = db.Column(db.Integer, db.ForeignKey('spice_order.id'), nullable=True)
@@ -255,7 +297,7 @@ def get_points_balance(email):
 # --- Cart Item ---
 class CartItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_email = db.Column(db.String(200), nullable=False)
+    user_email = db.Column(db.String(200), nullable=False, index=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     quantity = db.Column(db.Integer, default=1)
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -265,7 +307,7 @@ class CartItem(db.Model):
 class SpiceOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(50), unique=True, nullable=False)
-    user_email = db.Column(db.String(200), nullable=False)
+    user_email = db.Column(db.String(200), nullable=False, index=True)
     
     # Customer delivery details
     full_name = db.Column(db.String(200), nullable=False)
@@ -285,7 +327,7 @@ class SpiceOrder(db.Model):
     points_discount_amount = db.Column(db.Integer, default=0)
 
     # Payment (Razorpay only, no COD)
-    razorpay_order_id = db.Column(db.String(100))
+    razorpay_order_id = db.Column(db.String(100), index=True)
     razorpay_payment_id = db.Column(db.String(100))
     payment_status = db.Column(db.String(20), default='pending')
     
@@ -432,6 +474,24 @@ def issue_welcome_coupon(email):
     return code
 
 # --- Refer & Earn helpers ---
+
+# --- Simple in-process rate limiter for coupon/points endpoints ---
+# A logged-in user could otherwise brute-force short coupon codes with
+# unlimited attempts. In-memory is fine at this app's scale (single
+# instance); resets on restart, which is an acceptable tradeoff for a
+# small store rather than adding a new dependency/storage backend.
+_redeem_attempts = {}
+_REDEEM_MAX_ATTEMPTS = 10
+_REDEEM_WINDOW_SECONDS = 300
+
+def _redeem_rate_limited(user_email):
+    now = datetime.utcnow().timestamp()
+    attempts = _redeem_attempts.setdefault(user_email, [])
+    attempts[:] = [t for t in attempts if now - t < _REDEEM_WINDOW_SECONDS]
+    if len(attempts) >= _REDEEM_MAX_ATTEMPTS:
+        return True
+    attempts.append(now)
+    return False
 
 def get_or_create_referral_code(user_email):
     """Lazily generate a unique referral code for a user the first time it's needed."""
@@ -830,7 +890,7 @@ def manage_blogs():
 
     if request.method == 'POST':
         title = request.form['title']
-        content = request.form['content']
+        content = sanitize_blog_html(request.form['content'])
         category = request.form.get('category', 'General')
         slug = title.lower().replace(' ', '-').replace(',', '').replace('.', '')
         # Handle duplicate slug collision
@@ -907,7 +967,7 @@ def edit_blog(blog_id):
     blog = Blog.query.get_or_404(blog_id)
     if request.method == 'POST':
         blog.title = request.form['title']
-        blog.content = request.form['content']
+        blog.content = sanitize_blog_html(request.form['content'])
         # Handle image upload to imgbb
         if 'image' in request.files and request.files['image'].filename:
             image = request.files['image']
@@ -1177,7 +1237,7 @@ def admin_carts():
     if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
         abort(403)
 
-    items = CartItem.query.order_by(CartItem.added_at.desc()).all()
+    items = CartItem.query.options(joinedload(CartItem.product)).order_by(CartItem.added_at.desc()).all()
     carts_by_email = {}
     for item in items:
         if not item.product:
@@ -1766,12 +1826,20 @@ def upload_practice_pages():
 @admin_required  
 def delete_practice_page():
     subject = request.form.get('subject')
-    page_num = request.form.get('page_num')
-    
+    page_num_raw = request.form.get('page_num')
+
     if subject not in ('practice-sci1', 'practice-sci2'):
         flash("Invalid subject.", "danger")
         return redirect('/admin/science-hub')
-    
+
+    try:
+        page_num = int(page_num_raw)
+        if page_num < 1:
+            raise ValueError
+    except (TypeError, ValueError):
+        flash("Invalid page number.", "danger")
+        return redirect('/admin/science-hub')
+
     content = SCIENCE_CONTENT[subject]
     file_path = os.path.join(app.root_path, 'static', content['path'], f'page_{page_num}.png')
     
@@ -2032,6 +2100,9 @@ def apply_points():
     if not user:
         return jsonify({'error': 'Please login first'}), 401
 
+    if _redeem_rate_limited(user['email']):
+        return jsonify({'error': 'Too many attempts. Please wait a few minutes and try again.'}), 429
+
     requested = (request.json or {}).get('points', 0)
     try:
         requested = int(requested)
@@ -2062,6 +2133,9 @@ def apply_coupon():
     user = session.get('user')
     if not user:
         return jsonify({'error': 'Please login first'}), 401
+
+    if _redeem_rate_limited(user['email']):
+        return jsonify({'error': 'Too many attempts. Please wait a few minutes and try again.'}), 429
 
     code = (request.json or {}).get('code', '').strip().upper()
     if not code:
@@ -2209,11 +2283,31 @@ def create_checkout_order():
     # discount amount, same principle already applied to the shipping rate.
     coupon = None
     discount_rupees = 0
+    coupon_claimed = False
     coupon_code = (data.get('coupon_code') or '').strip().upper()
     if coupon_code:
         coupon = Coupon.query.filter_by(code=coupon_code).first()
         if not coupon or not coupon.is_valid_for(user['email']):
             return jsonify({'error': 'This coupon is invalid, expired, already used, or not valid for your account.'}), 400
+
+        # Atomically claim the coupon right now rather than only marking it
+        # used at payment-verify time. Prevents two concurrent checkout
+        # attempts with the same coupon both succeeding (a real race
+        # before this fix -- coupon.used was only set much later). The
+        # conditional UPDATE + rowcount check is the atomic part: if
+        # another request claimed it between our validity check and here,
+        # rowcount is 0 and we reject cleanly instead of double-applying
+        # the discount. Released back below if order creation fails for
+        # any other reason (e.g. Razorpay API error) so a coupon is never
+        # burned by something unrelated to the customer actually paying.
+        claim_rowcount = Coupon.query.filter_by(id=coupon.id, used=False).update({
+            'used': True, 'used_at': datetime.utcnow()
+        })
+        db.session.commit()
+        if claim_rowcount == 0:
+            return jsonify({'error': 'This coupon was just used. Please try a different code.'}), 400
+        coupon_claimed = True
+
         discount_rupees = coupon.compute_discount(subtotal_rupees)
 
     # Points are capped against what's left AFTER the coupon discount, so
@@ -2236,6 +2330,9 @@ def create_checkout_order():
     total_paise = subtotal_paise - discount_paise - points_discount_paise + shipping_paise
 
     if not razorpay_client:
+        if coupon_claimed:
+            Coupon.query.filter_by(id=coupon.id).update({'used': False, 'used_at': None})
+            db.session.commit()
         return jsonify({'error': 'Payment system not configured'}), 500
 
     try:
@@ -2294,6 +2391,14 @@ def create_checkout_order():
     except Exception as e:
         print("Checkout order creation error:", e)
         db.session.rollback()
+        if coupon_claimed:
+            # The coupon claim above was already committed as its own
+            # transaction, so this rollback doesn't touch it -- release it
+            # explicitly so a Razorpay API error or similar doesn't
+            # permanently burn the customer's coupon for something that
+            # wasn't their fault.
+            Coupon.query.filter_by(id=coupon.id).update({'used': False, 'used_at': None})
+            db.session.commit()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/checkout/verify-payment', methods=['POST'])
@@ -2326,21 +2431,26 @@ def verify_checkout_payment():
         order.payment_status = 'paid'
         order.razorpay_payment_id = razorpay_payment_id
 
-        # Mark the coupon used only now -- on confirmed payment, never on an
-        # abandoned/failed checkout attempt
-        if order.coupon_id:
-            coupon = Coupon.query.get(order.coupon_id)
-            if coupon:
-                coupon.used = True
-                coupon.used_at = datetime.utcnow()
-
-        # Same principle for points: only actually deducted from the balance
-        # once payment is confirmed, never on an abandoned checkout
+        # The coupon is already atomically claimed (marked used) at order
+        # creation time -- see create_checkout_order -- so nothing to do
+        # here for it. Points, however, are only actually deducted from the
+        # balance now, on confirmed payment, never on an abandoned
+        # checkout. Re-check the LIVE balance right before writing the
+        # debit and clamp to it -- this is the defense against a race where
+        # two concurrent unpaid orders both redeemed against the same
+        # undebited balance: the balance can never go negative, even
+        # though in that rare race one of the two orders may end up with
+        # less of a points discount "honored" than it displayed at
+        # checkout (bounded, one-time, and far preferable to balance
+        # corruption).
         if order.points_redeemed:
-            db.session.add(PointsTransaction(
-                user_email=user['email'], points=-order.points_redeemed,
-                reason='Redeemed at checkout', order_id=order.id
-            ))
+            live_balance = get_points_balance(user['email'])
+            actual_debit = min(order.points_redeemed, live_balance)
+            if actual_debit > 0:
+                db.session.add(PointsTransaction(
+                    user_email=user['email'], points=-actual_debit,
+                    reason='Redeemed at checkout', order_id=order.id
+                ))
 
         # Decrement stock
         for item in order.items:
@@ -2354,8 +2464,15 @@ def verify_checkout_payment():
         db.session.commit()
 
         # Referral reward -- only fires on the referred person's first paid
-        # order, and only once per referral (see process_referral_reward)
-        process_referral_reward(user['email'], order.id)
+        # order, and only once per referral (see process_referral_reward).
+        # Isolated in its own try/except: the payment has already succeeded
+        # and been committed above, so a failure here (bad setting value,
+        # DB hiccup) must never turn a successful payment into an error
+        # response for the customer.
+        try:
+            process_referral_reward(user['email'], order.id)
+        except Exception as e:
+            print("Referral reward processing error (order still paid successfully):", e)
 
         # Send Telegram Notification
         item_text = ", ".join([f"{i.quantity}x {i.product_name}" for i in order.items])
@@ -2778,12 +2895,16 @@ def test_nimbus_login():
         url = 'https://api.nimbuspost.com/v1/users/login'
         payload = {'email': email, 'password': password}
         resp = requests.post(url, json=payload, timeout=10)
+        # Don't echo the raw response body -- it can contain a live auth
+        # token. Just confirm whether login succeeded.
+        body = resp.json() if resp.headers.get('content-type', '').startswith('application/json') else {}
         return jsonify({
             'status_code': resp.status_code,
-            'response': resp.json()
+            'login_ok': bool(resp.status_code == 200 and body.get('status')),
         })
     except Exception as e:
-        return str(e)
+        print("Nimbus login test error:", e)
+        return jsonify({'error': 'Request failed, see server logs.'}), 500
 
 # -------------------------
 # Update existing routes

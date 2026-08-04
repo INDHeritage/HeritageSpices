@@ -10,3 +10,4 @@ gunicorn==23.0.0
 psycopg2-binary
 razorpay
 qrcode[pil]
+bleach
