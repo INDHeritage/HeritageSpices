@@ -20,6 +20,9 @@ import razorpay
 import hmac
 import hashlib
 import nimbus_api
+import io
+import qrcode
+from flask import send_file
 
 # -------------------------
 # 🔐 Load environment
@@ -86,6 +89,15 @@ class WholesaleInquiry(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     city = db.Column(db.String(100), nullable=False)
     message = db.Column(db.Text, nullable=True)
+    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+
+# --- Product QR Scan Model (anonymous analytics, no personal data collected) ---
+class ProductScan(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product_name = db.Column(db.String(200), nullable=False)
+    ip = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(300), nullable=True)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
 
 # --- Product Model ---
@@ -948,6 +960,62 @@ def products():
     products = Product.query.all()
     user = session.get('user')
     return render_template('products.html', products=products, user=user)
+
+# --- QR Code Scan Tracking ---
+# No personal data is collected here -- just an anonymous log of which
+# product's QR code was scanned, so the owner can see which products get
+# scanned most. Redirects straight to the shop page.
+@app.route('/scan/<int:product_id>')
+def scan_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    try:
+        db.session.add(ProductScan(
+            product_id=product.id,
+            product_name=product.name,
+            ip=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', '')[:300]
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("ProductScan logging error:", e)
+    return redirect('/products')
+
+# --- Admin: QR Codes for products (generate + download, view scan counts) ---
+@app.route('/admin/qr-codes')
+def admin_qr_codes():
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    products = Product.query.all()
+    scan_counts = dict(
+        db.session.query(ProductScan.product_id, db.func.count(ProductScan.id))
+        .group_by(ProductScan.product_id).all()
+    )
+    last_scanned = dict(
+        db.session.query(ProductScan.product_id, db.func.max(ProductScan.timestamp))
+        .group_by(ProductScan.product_id).all()
+    )
+    return render_template('admin_qr_codes.html', products=products,
+                           scan_counts=scan_counts, last_scanned=last_scanned)
+
+# --- Admin: Serve a generated QR code PNG for a product ---
+@app.route('/admin/qr-codes/<int:product_id>.png')
+def admin_qr_code_image(product_id):
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    product = Product.query.get_or_404(product_id)
+    scan_url = url_for('scan_product', product_id=product.id, _external=True)
+
+    img = qrcode.make(scan_url, box_size=10, border=2)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    safe_name = secure_filename(product.name) or f"product-{product.id}"
+    as_attachment = request.args.get('download') == '1'
+    return send_file(buf, mimetype='image/png', as_attachment=as_attachment,
+                     download_name=f"qr-{safe_name}.png")
 
 # --- Admin Add Product Route ---
 @app.route('/admin/products/add', methods=['GET', 'POST'])
