@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Referrals | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h1 class="text-primary fw-bold"><i class="fas fa-user-plus me-2"></i>Refer & Earn</h1>
+    <div class="d-flex gap-2">
+      <a href="/admin/store-settings" class="btn btn-outline-success"><i class="fas fa-cog me-1"></i>Settings</a>
+      <a href="/admin/dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-3 bg-light">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small text-uppercase">Total Referrals</div>
+          <div class="fs-3 fw-bold text-dark">{{ total_referrals }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-3 bg-light">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small text-uppercase">Rewarded (converted)</div>
+          <div class="fs-3 fw-bold text-success">{{ rewarded }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-3 bg-light">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small text-uppercase">Points Outstanding</div>
+          <div class="fs-3 fw-bold text-warning">{{ total_points_outstanding }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if referrals %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle bg-white shadow-sm rounded-3 overflow-hidden">
+        <thead class="table-light">
+          <tr>
+            <th>Referrer (A)</th>
+            <th>Referred (B)</th>
+            <th>Signed Up</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in referrals %}
+          <tr>
+            <td>{{ r.referrer_email }}</td>
+            <td>{{ r.referred_email }}</td>
+            <td>{{ r.signup_at.strftime('%Y-%m-%d') if r.signup_at else '' }}</td>
+            <td>
+              {% if r.status == 'rewarded' %}
+                <span class="badge bg-success">Rewarded {{ r.rewarded_at.strftime('%Y-%m-%d') if r.rewarded_at else '' }}</span>
+              {% elif r.status == 'capped' %}
+                <span class="badge bg-secondary">Referrer hit reward cap</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">Pending first order</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info text-center py-5">
+      <i class="fas fa-user-plus fa-3x mb-3 text-muted"></i>
+      <h5>No referrals yet</h5>
+      <p class="text-muted mb-0">When customers share their referral link and someone signs up, it'll show up here.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

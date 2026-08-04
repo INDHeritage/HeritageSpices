@@ -39,6 +39,15 @@
           </div>
           <div id="coupon-result" class="small mb-3"></div>
 
+          {% if points_balance and points_balance > 0 %}
+          <!-- Points Redemption -->
+          <div class="input-group input-group-sm mb-3">
+            <input type="number" min="1" max="{{ points_balance }}" class="form-control" id="points-to-redeem" placeholder="Points to use (you have {{ points_balance }})">
+            <button class="btn btn-outline-warning text-dark fw-semibold" type="button" id="btn-apply-points">Use Points</button>
+          </div>
+          <div id="points-result" class="small mb-3"></div>
+          {% endif %}
+
           <hr class="border-secondary opacity-25">
 
           <!-- Totals -->
@@ -50,6 +59,11 @@
           <div class="d-flex justify-content-between mb-2 d-none" id="discount-row">
             <span class="text-muted">Discount</span>
             <span class="fw-semibold text-success" id="discount-display">-₹0</span>
+          </div>
+
+          <div class="d-flex justify-content-between mb-2 d-none" id="points-row">
+            <span class="text-muted">Points discount</span>
+            <span class="fw-semibold text-warning" id="points-discount-display">-₹0</span>
           </div>
 
           <div class="d-flex justify-content-between mb-3" id="shipping-row">
@@ -203,6 +217,8 @@
   let selectedShippingRate = 0;
   let appliedDiscount = 0;
   let appliedCouponCode = '';
+  let appliedPointsDiscount = 0;
+  let appliedPointsUsed = 0;
 
   // Apply Coupon
   document.getElementById('btn-apply-coupon').addEventListener('click', async function() {
@@ -254,6 +270,60 @@
       btn.disabled = false;
     }
   });
+
+  // Apply Points
+  const btnApplyPoints = document.getElementById('btn-apply-points');
+  if (btnApplyPoints) {
+    btnApplyPoints.addEventListener('click', async function() {
+      const pointsInput = document.getElementById('points-to-redeem');
+      const points = parseInt(pointsInput.value) || 0;
+      const pointsResult = document.getElementById('points-result');
+      const pointsRow = document.getElementById('points-row');
+      const btn = this;
+
+      if (points <= 0) {
+        pointsResult.innerHTML = '<span class="text-danger">Enter how many points to use.</span>';
+        return;
+      }
+
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/checkout/apply-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          body: JSON.stringify({ points })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          appliedPointsDiscount = data.discount;
+          appliedPointsUsed = data.points_used;
+          pointsResult.innerHTML = `<span class="text-success"><i class="fas fa-check-circle"></i> ${data.points_used} points applied! -₹${data.discount}</span>`;
+          document.getElementById('points-discount-display').innerText = `-₹${data.discount}`;
+          pointsRow.classList.remove('d-none');
+          pointsInput.disabled = true;
+          btn.disabled = true;
+          btn.innerHTML = 'Applied';
+          updateTotals(selectedShippingRate);
+        } else {
+          appliedPointsDiscount = 0;
+          appliedPointsUsed = 0;
+          pointsRow.classList.add('d-none');
+          pointsResult.innerHTML = `<span class="text-danger">${data.error || 'Could not apply points.'}</span>`;
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          updateTotals(selectedShippingRate);
+        }
+      } catch (err) {
+        pointsResult.innerHTML = '<span class="text-danger">Network error. Please try again.</span>';
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    });
+  }
 
   // Auto-check on typing 6 digits
   pincodeInput.addEventListener('input', function() {
@@ -351,7 +421,7 @@
     // the shipping rate to a whole rupee when creating the payment.
     shipping = Math.floor(shipping);
     selectedShippingRate = shipping;
-    const grand = Math.max(0, subtotal - appliedDiscount) + shipping;
+    const grand = Math.max(0, subtotal - appliedDiscount - appliedPointsDiscount) + shipping;
 
     if (shipping > 0) {
       document.getElementById('shipping-cost-display').innerHTML = `<span class="fw-semibold text-dark">₹${shipping}</span>`;
@@ -382,7 +452,8 @@
       state: document.getElementById('state').value,
       pincode: pincodeInput.value,
       shipping_rate: selectedShippingRate,
-      coupon_code: appliedCouponCode
+      coupon_code: appliedCouponCode,
+      points_to_redeem: appliedPointsUsed
     };
 
     try {

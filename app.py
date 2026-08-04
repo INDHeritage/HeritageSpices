@@ -140,6 +140,8 @@ class User(db.Model):
     name = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(200), unique=True, nullable=False)
     picture = db.Column(db.String(500))
+    referral_code = db.Column(db.String(12), unique=True, nullable=True)
+    referred_by_email = db.Column(db.String(200), nullable=True)
 
 # --- Visit Model (replaces visits.csv) ---
 class Visit(db.Model):
@@ -227,6 +229,29 @@ class Coupon(db.Model):
         # negative or exceeds the cart -- that would increase what's charged.
         return max(0, int(min(amount, subtotal_rupees)))
 
+# --- Referral (A refers B; reward only granted after B's first paid order) ---
+class Referral(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    referrer_email = db.Column(db.String(200), nullable=False)   # A
+    referred_email = db.Column(db.String(200), nullable=False, unique=True)  # B -- one referrer per person
+    status = db.Column(db.String(20), default='pending')  # pending | rewarded
+    signup_at = db.Column(db.DateTime, server_default=db.func.now())
+    rewarded_at = db.Column(db.DateTime, nullable=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('spice_order.id'), nullable=True)
+
+# --- Points Ledger (balance is always the sum of a user's transactions) ---
+class PointsTransaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(200), nullable=False)
+    points = db.Column(db.Integer, nullable=False)  # positive = earned, negative = redeemed
+    reason = db.Column(db.String(200), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('spice_order.id'), nullable=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+def get_points_balance(email):
+    total = db.session.query(db.func.sum(PointsTransaction.points)).filter_by(user_email=email).scalar()
+    return total or 0
+
 # --- Cart Item ---
 class CartItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -256,7 +281,9 @@ class SpiceOrder(db.Model):
     total_amount = db.Column(db.Integer, nullable=False)
     coupon_id = db.Column(db.Integer, db.ForeignKey('coupon.id'), nullable=True)
     discount_amount = db.Column(db.Integer, default=0)
-    
+    points_redeemed = db.Column(db.Integer, default=0)
+    points_discount_amount = db.Column(db.Integer, default=0)
+
     # Payment (Razorpay only, no COD)
     razorpay_order_id = db.Column(db.String(100))
     razorpay_payment_id = db.Column(db.String(100))
@@ -404,6 +431,102 @@ def issue_welcome_coupon(email):
     db.session.commit()
     return code
 
+# --- Refer & Earn helpers ---
+
+def get_or_create_referral_code(user_email):
+    """Lazily generate a unique referral code for a user the first time it's needed."""
+    import secrets, string
+    user = User.query.filter_by(email=user_email).first()
+    if not user:
+        return None
+    if user.referral_code:
+        return user.referral_code
+    for _ in range(10):
+        code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+        if not User.query.filter_by(referral_code=code).first():
+            user.referral_code = code
+            db.session.commit()
+            return code
+    return None  # exhausted retries -- astronomically unlikely at this scale
+
+def issue_referral_reward_coupon(email):
+    """Flat rs-off coupon for the referrer (A), issued once B's first order is paid."""
+    if get_setting('referral_enabled', 'true') != 'true':
+        return None
+    amount = float(get_setting('referral_reward_amount', '50') or 50)
+    expiry_days = int(get_setting('referral_reward_expiry_days', '30') or 30)
+    code = f"REFER-{uuid.uuid4().hex[:6].upper()}"
+    coupon = Coupon(
+        code=code,
+        user_email=email,
+        discount_type='flat',
+        discount_value=amount,
+        expires_at=(datetime.utcnow() + timedelta(days=expiry_days)) if expiry_days else None
+    )
+    db.session.add(coupon)
+    db.session.commit()
+    return code
+
+def award_referral_points(email, order_id):
+    """Points credit for the referred person (B), issued once their first order is paid."""
+    points = int(get_setting('referral_points_awarded', '50') or 50)
+    db.session.add(PointsTransaction(user_email=email, points=points, reason='Referral bonus - first purchase', order_id=order_id))
+    db.session.commit()
+    return points
+
+def process_referral_reward(referred_email, order_id):
+    """Called right after an order is confirmed paid. Only rewards on the
+    referred person's FIRST paid order, and only once per referral."""
+    if get_setting('referral_enabled', 'true') != 'true':
+        return
+    referral = Referral.query.filter_by(referred_email=referred_email, status='pending').first()
+    if not referral:
+        return
+
+    # Confirm this is genuinely their first paid order (excluding the one just paid)
+    prior_paid = SpiceOrder.query.filter(
+        SpiceOrder.user_email == referred_email,
+        SpiceOrder.payment_status == 'paid',
+        SpiceOrder.id != order_id
+    ).count()
+    if prior_paid > 0:
+        return
+
+    min_order_raw = get_setting('referral_min_order_value', '')
+    if min_order_raw:
+        order = SpiceOrder.query.get(order_id)
+        if order and (order.total_amount / 100.0) < float(min_order_raw):
+            return
+
+    max_referrals_raw = get_setting('referral_max_per_referrer', '')
+    if max_referrals_raw:
+        already_rewarded = Referral.query.filter_by(referrer_email=referral.referrer_email, status='rewarded').count()
+        if already_rewarded >= int(max_referrals_raw):
+            referral.status = 'capped'
+            db.session.commit()
+            return
+
+    issue_referral_reward_coupon(referral.referrer_email)
+    award_referral_points(referred_email, order_id)
+    referral.status = 'rewarded'
+    referral.rewarded_at = datetime.utcnow()
+    referral.order_id = order_id
+    db.session.commit()
+
+def compute_points_redemption(requested_points, subtotal_rupees, balance):
+    """Returns (points_to_actually_deduct, rupee_discount), clamped by the
+    user's real balance and the admin-configured max-% of order cap."""
+    points_per_rupee = float(get_setting('points_per_rupee', '10') or 10)
+    max_percent = float(get_setting('max_points_redeem_percent', '50') or 50)
+    if points_per_rupee <= 0 or requested_points <= 0:
+        return 0, 0
+    requested_points = max(0, min(int(requested_points), balance))
+    max_rupees_cap = subtotal_rupees * (max_percent / 100.0)
+    max_points_cap = int(max_rupees_cap * points_per_rupee)
+    used_points = min(requested_points, max_points_cap)
+    discount_rupees = int(used_points / points_per_rupee)
+    return used_points, discount_rupees
+
 def track_visit(user=None):
     """Log each visit to database"""
     visit = Visit(
@@ -426,7 +549,16 @@ def index():
     is_logged_in = bool(user)
     track_visit(user)
     products = Product.query.limit(3).all()
-    return render_template("index.html", user=user, is_logged_in=is_logged_in, products=products)
+    return render_template("index.html", user=user, is_logged_in=is_logged_in, products=products,
+                           referral_enabled=get_setting('referral_enabled', 'true') == 'true',
+                           refer_reward_amount=get_setting('referral_reward_amount', '50'),
+                           refer_points_awarded=get_setting('referral_points_awarded', '50'))
+
+@app.before_request
+def capture_referral_code():
+    ref = request.args.get('ref')
+    if ref:
+        session['ref_code'] = ref.strip().upper()[:12]
 
 # ✅ Login via Google
 @app.route('/login')
@@ -448,6 +580,20 @@ def auth():
         }
 
         is_new_user = save_user(user_info)
+
+        # Link this signup to whoever referred them, if a ?ref= code is
+        # sitting in their session and it resolves to a real (different) user.
+        # Only ever set once, at signup -- never overwritten afterward.
+        if is_new_user:
+            ref_code = session.pop('ref_code', None)
+            if ref_code:
+                referrer = User.query.filter_by(referral_code=ref_code).first()
+                if referrer and referrer.email.lower() != user_info['email'].lower():
+                    new_user = User.query.filter_by(email=user_info['email']).first()
+                    new_user.referred_by_email = referrer.email
+                    db.session.add(Referral(referrer_email=referrer.email, referred_email=user_info['email']))
+                    db.session.commit()
+
         has_any_coupon = Coupon.query.filter_by(user_email=user_info['email']).first() is not None
 
         # Treat "never received a welcome coupon before" the same as "new" --
@@ -1049,6 +1195,19 @@ def admin_coupons():
     welcome_used = len([c for c in welcome_coupons if c.used])
     return render_template('admin_coupons.html', coupons=coupons, now=datetime.utcnow(),
                            welcome_issued=welcome_issued, welcome_used=welcome_used)
+
+@app.route('/admin/referrals')
+def admin_referrals():
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    referrals = Referral.query.order_by(Referral.signup_at.desc()).all()
+    total_referrals = len(referrals)
+    rewarded = len([r for r in referrals if r.status == 'rewarded'])
+    total_points_outstanding = db.session.query(db.func.sum(PointsTransaction.points)).scalar() or 0
+
+    return render_template('admin_referrals.html', referrals=referrals, total_referrals=total_referrals,
+                           rewarded=rewarded, total_points_outstanding=total_points_outstanding)
 
 @app.route('/admin/coupons/create', methods=['GET', 'POST'])
 def admin_create_coupon():
@@ -1849,9 +2008,42 @@ def checkout():
         return redirect('/cart')
     
     cart_total = sum(int(float(item.product.price)) * item.quantity for item in cart_items if item.product)
-    
+    points_balance = get_points_balance(user['email'])
+
     return render_template('checkout.html', cart_items=cart_items, cart_total=cart_total,
-                           user=user, is_logged_in=True, razorpay_key_id=RAZORPAY_KEY_ID)
+                           user=user, is_logged_in=True, razorpay_key_id=RAZORPAY_KEY_ID,
+                           points_balance=points_balance)
+
+@app.route('/checkout/apply-points', methods=['POST'])
+def apply_points():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+
+    requested = (request.json or {}).get('points', 0)
+    try:
+        requested = int(requested)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid points amount'}), 400
+
+    if get_setting('referral_enabled', 'true') != 'true':
+        return jsonify({'error': 'Points redemption is currently unavailable.'}), 400
+
+    balance = get_points_balance(user['email'])
+    if requested <= 0 or requested > balance:
+        return jsonify({'error': f'You only have {balance} points available.'}), 400
+
+    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    if not cart_items:
+        return jsonify({'error': 'Your cart is empty'}), 400
+
+    subtotal_rupees = sum(int(float(item.product.price)) * item.quantity for item in cart_items if item.product)
+    used_points, discount = compute_points_redemption(requested, subtotal_rupees, balance)
+
+    if used_points == 0:
+        return jsonify({'error': 'Points redemption is capped for this order size. Try a smaller amount.'}), 400
+
+    return jsonify({'success': True, 'points_used': used_points, 'discount': discount, 'balance': balance})
 
 @app.route('/checkout/apply-coupon', methods=['POST'])
 def apply_coupon():
@@ -2012,10 +2204,24 @@ def create_checkout_order():
             return jsonify({'error': 'This coupon is invalid, expired, already used, or not valid for your account.'}), 400
         discount_rupees = coupon.compute_discount(subtotal_rupees)
 
+    # Points are capped against what's left AFTER the coupon discount, so
+    # the two combined can never exceed the subtotal.
+    remaining_after_coupon = max(0, subtotal_rupees - discount_rupees)
+    used_points, points_discount_rupees = 0, 0
+    requested_points = data.get('points_to_redeem', 0)
+    try:
+        requested_points = int(requested_points)
+    except (TypeError, ValueError):
+        requested_points = 0
+    if requested_points > 0 and get_setting('referral_enabled', 'true') == 'true':
+        balance = get_points_balance(user['email'])
+        used_points, points_discount_rupees = compute_points_redemption(requested_points, remaining_after_coupon, balance)
+
     subtotal_paise = subtotal_rupees * 100
     discount_paise = discount_rupees * 100
+    points_discount_paise = points_discount_rupees * 100
     shipping_paise = int(shipping_rate) * 100
-    total_paise = subtotal_paise - discount_paise + shipping_paise
+    total_paise = subtotal_paise - discount_paise - points_discount_paise + shipping_paise
 
     if not razorpay_client:
         return jsonify({'error': 'Payment system not configured'}), 500
@@ -2045,6 +2251,8 @@ def create_checkout_order():
             total_amount=total_paise,
             coupon_id=coupon.id if coupon else None,
             discount_amount=discount_paise,
+            points_redeemed=used_points,
+            points_discount_amount=points_discount_paise,
             razorpay_order_id=rzp_order['id']
         )
         db.session.add(new_order)
@@ -2114,22 +2322,34 @@ def verify_checkout_payment():
                 coupon.used = True
                 coupon.used_at = datetime.utcnow()
 
+        # Same principle for points: only actually deducted from the balance
+        # once payment is confirmed, never on an abandoned checkout
+        if order.points_redeemed:
+            db.session.add(PointsTransaction(
+                user_email=user['email'], points=-order.points_redeemed,
+                reason='Redeemed at checkout', order_id=order.id
+            ))
+
         # Decrement stock
         for item in order.items:
             product = Product.query.get(item.product_id)
             if product and product.stock is not None:
                 product.stock = max(0, product.stock - item.quantity)
-        
+
         # Clear the cart
         CartItem.query.filter_by(user_email=user['email']).delete()
-        
+
         db.session.commit()
-        
+
+        # Referral reward -- only fires on the referred person's first paid
+        # order, and only once per referral (see process_referral_reward)
+        process_referral_reward(user['email'], order.id)
+
         # Send Telegram Notification
         item_text = ", ".join([f"{i.quantity}x {i.product_name}" for i in order.items])
         msg = f"🚨 <b>NEW SPICE ORDER!</b>\n\n<b>Order:</b> {order.order_number}\n<b>Customer:</b> {order.full_name}\n<b>Amount:</b> ₹{order.total_amount / 100}\n<b>Items:</b> {item_text}"
         send_telegram_notification(msg)
-        
+
         return jsonify({'success': True, 'message': 'Payment successful!', 'order_number': order.order_number})
         
     except razorpay.errors.SignatureVerificationError:
@@ -2162,6 +2382,25 @@ def my_coupons():
 
     coupons = Coupon.query.filter_by(user_email=user['email']).order_by(Coupon.created_at.desc()).all()
     return render_template('my_coupons.html', coupons=coupons, user=user, is_logged_in=True, now=datetime.utcnow())
+
+@app.route('/refer')
+def refer_and_earn():
+    user = session.get('user')
+    if not user:
+        flash("Please login to get your referral link.", "warning")
+        return redirect('/login')
+
+    code = get_or_create_referral_code(user['email'])
+    referral_link = url_for('index', _external=True, ref=code) if code else None
+
+    referrals = Referral.query.filter_by(referrer_email=user['email']).order_by(Referral.signup_at.desc()).all()
+    points_balance = get_points_balance(user['email'])
+
+    return render_template('refer_and_earn.html', user=user, is_logged_in=True,
+                           referral_link=referral_link, referrals=referrals, points_balance=points_balance,
+                           reward_amount=get_setting('referral_reward_amount', '50'),
+                           points_awarded=get_setting('referral_points_awarded', '50'),
+                           referral_enabled=get_setting('referral_enabled', 'true') == 'true')
 
 @app.route('/orders/<int:order_id>/track')
 def track_order(order_id):
@@ -2280,6 +2519,30 @@ def admin_store_settings():
             set_setting('welcome_coupon_expiry_days', str(expiry_days))
             flash("First-login coupon settings updated!", "success")
 
+        elif action == 'update_referral':
+            enabled = 'true' if request.form.get('referral_enabled') else 'false'
+            reward_amount = request.form.get('referral_reward_amount', type=float) or 50
+            reward_expiry_days = request.form.get('referral_reward_expiry_days', type=int) or 30
+            points_awarded = request.form.get('referral_points_awarded', type=int) or 50
+            points_per_rupee = request.form.get('points_per_rupee', type=float) or 10
+            max_redeem_percent = request.form.get('max_points_redeem_percent', type=float) or 50
+            max_per_referrer = request.form.get('referral_max_per_referrer', type=int)
+            min_order_value = request.form.get('referral_min_order_value', type=float)
+
+            if reward_amount <= 0 or points_awarded <= 0 or points_per_rupee <= 0 or not (0 < max_redeem_percent <= 100):
+                flash("Please enter valid, positive values for the referral reward settings.", "danger")
+                return redirect('/admin/store-settings')
+
+            set_setting('referral_enabled', enabled)
+            set_setting('referral_reward_amount', str(reward_amount))
+            set_setting('referral_reward_expiry_days', str(reward_expiry_days))
+            set_setting('referral_points_awarded', str(points_awarded))
+            set_setting('points_per_rupee', str(points_per_rupee))
+            set_setting('max_points_redeem_percent', str(max_redeem_percent))
+            set_setting('referral_max_per_referrer', str(max_per_referrer) if max_per_referrer else '')
+            set_setting('referral_min_order_value', str(min_order_value) if min_order_value else '')
+            flash("Refer & Earn settings updated!", "success")
+
         return redirect('/admin/store-settings')
 
     settings = {
@@ -2291,7 +2554,15 @@ def admin_store_settings():
         'welcome_coupon_type': get_setting('welcome_coupon_type', 'percent'),
         'welcome_coupon_value': get_setting('welcome_coupon_value', '10'),
         'welcome_coupon_max': get_setting('welcome_coupon_max', '100'),
-        'welcome_coupon_expiry_days': get_setting('welcome_coupon_expiry_days', '30')
+        'welcome_coupon_expiry_days': get_setting('welcome_coupon_expiry_days', '30'),
+        'referral_enabled': get_setting('referral_enabled', 'true'),
+        'referral_reward_amount': get_setting('referral_reward_amount', '50'),
+        'referral_reward_expiry_days': get_setting('referral_reward_expiry_days', '30'),
+        'referral_points_awarded': get_setting('referral_points_awarded', '50'),
+        'points_per_rupee': get_setting('points_per_rupee', '10'),
+        'max_points_redeem_percent': get_setting('max_points_redeem_percent', '50'),
+        'referral_max_per_referrer': get_setting('referral_max_per_referrer', ''),
+        'referral_min_order_value': get_setting('referral_min_order_value', '')
     }
     products = Product.query.all()
     

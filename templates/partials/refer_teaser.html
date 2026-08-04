@@ -1,0 +1,23 @@
+{% if referral_enabled %}
+<!-- 🎁 Refer & Earn Teaser -->
+<section id="refer-teaser" class="container my-5 motion-section">
+  <div class="card border-0 shadow-sm rounded-4 refer-teaser-card">
+    <div class="card-body p-4 p-md-5 text-center text-white">
+      <i class="fas fa-user-plus fa-2x mb-3"></i>
+      <h3 class="fw-bold mb-2">Refer & Earn</h3>
+      <p class="mb-4" style="opacity: 0.9;">
+        Share your link with friends. When they sign up and place their first order, you get
+        <strong>₹{{ refer_reward_amount | int }} off</strong> and they get
+        <strong>{{ refer_points_awarded | int }} points</strong> to spend on their next purchase.
+      </p>
+      <a href="/refer" class="btn btn-warning fw-bold px-4">Get My Referral Link</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .refer-teaser-card {
+    background: linear-gradient(135deg, #1b4332 0%, #14332a 100%);
+  }
+</style>
+{% endif %}

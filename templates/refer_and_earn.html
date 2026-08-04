@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Refer & Earn | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row mb-5">
+    <div class="col-12 text-center">
+      <h1 class="display-5 fw-bold text-success mb-3 animate__animated animate__fadeInDown">Refer & Earn</h1>
+      <p class="lead text-muted">Share your link. When a friend signs up and completes their first order, you both win.</p>
+    </div>
+  </div>
+
+  {% if not referral_enabled %}
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="alert alert-warning text-center">Refer & Earn is temporarily unavailable. Check back soon.</div>
+    </div>
+  </div>
+  {% else %}
+  <div class="row justify-content-center g-4">
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4 p-md-5 text-center">
+          <i class="fas fa-gift fa-2x text-success mb-3"></i>
+          <h5 class="fw-bold">You get ₹{{ reward_amount | int }} off &middot; They get {{ points_awarded | int }} points</h5>
+          <p class="text-muted">Once your friend signs up with your link and completes their first paid order, you'll get a coupon and they'll get points to use on their next purchase.</p>
+
+          <div class="input-group mt-4 mb-2">
+            <input type="text" class="form-control bg-light text-center fw-semibold" id="referral-link-input" value="{{ referral_link }}" readonly>
+            <button class="btn btn-success fw-bold px-4" type="button" id="btn-copy-referral">
+              <i class="fas fa-copy me-1"></i>Copy Link
+            </button>
+          </div>
+          <small class="text-muted">Share this link with friends and family.</small>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm rounded-3 bg-light">
+            <div class="card-body text-center py-3">
+              <div class="text-muted small text-uppercase">Your Points Balance</div>
+              <div class="fs-3 fw-bold text-success">{{ points_balance }}</div>
+              <a href="/checkout" class="small">Use at checkout</a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm rounded-3 bg-light">
+            <div class="card-body text-center py-3">
+              <div class="text-muted small text-uppercase">Friends Referred</div>
+              <div class="fs-3 fw-bold text-dark">{{ referrals|length }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if referrals %}
+      <div class="card shadow-sm border-0 rounded-4 mt-4">
+        <div class="card-header bg-white fw-bold">Your Referrals</div>
+        <ul class="list-group list-group-flush">
+          {% for r in referrals %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ r.referred_email }}</span>
+            {% if r.status == 'rewarded' %}
+              <span class="badge bg-success">Reward earned</span>
+            {% elif r.status == 'capped' %}
+              <span class="badge bg-secondary">Referral limit reached</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">Waiting on first order</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  document.getElementById('btn-copy-referral')?.addEventListener('click', function() {
+    const input = document.getElementById('referral-link-input');
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => {
+      const btn = document.getElementById('btn-copy-referral');
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
+      setTimeout(() => { btn.innerHTML = original; }, 2000);
+    });
+  });
+</script>
+{% endblock %}

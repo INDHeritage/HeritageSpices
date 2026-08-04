@@ -315,6 +315,75 @@
     </div>
   </div>
 
+  <!-- Refer & Earn -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-user-plus text-success me-2"></i>Refer & Earn
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        A customer shares their link; when someone signs up through it and completes their first paid order, the referrer gets a coupon and the new customer gets points.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      <form method="POST" action="/admin/store-settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="update_referral">
+
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" role="switch" id="referral_enabled" name="referral_enabled"
+                 {% if settings.get('referral_enabled') == 'true' %}checked{% endif %}>
+          <label class="form-check-label fw-semibold" for="referral_enabled">Enable Refer & Earn</label>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Referrer reward (₹ off)</label>
+            <input type="number" step="0.01" min="0.01" class="form-control" name="referral_reward_amount"
+                   value="{{ settings.get('referral_reward_amount', '50') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Reward valid for (days)</label>
+            <input type="number" min="1" class="form-control" name="referral_reward_expiry_days"
+                   value="{{ settings.get('referral_reward_expiry_days', '30') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Points awarded to new customer</label>
+            <input type="number" min="1" class="form-control" name="referral_points_awarded"
+                   value="{{ settings.get('referral_points_awarded', '50') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Points per ₹1 (redemption rate)</label>
+            <input type="number" step="0.01" min="0.01" class="form-control" name="points_per_rupee"
+                   value="{{ settings.get('points_per_rupee', '10') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Max % of order payable with points</label>
+            <input type="number" step="0.01" min="0.01" max="100" class="form-control" name="max_points_redeem_percent"
+                   value="{{ settings.get('max_points_redeem_percent', '50') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Max rewarded referrals per person</label>
+            <input type="number" min="1" class="form-control" name="referral_max_per_referrer"
+                   value="{{ settings.get('referral_max_per_referrer', '') }}" placeholder="Blank = unlimited">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Minimum order value to qualify (₹)</label>
+            <input type="number" step="0.01" min="0.01" class="form-control" name="referral_min_order_value"
+                   value="{{ settings.get('referral_min_order_value', '') }}" placeholder="Blank = any amount">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-success mt-4 px-4">
+          <i class="fas fa-save me-1"></i>Save Refer & Earn Settings
+        </button>
+        <small class="text-muted mt-2 d-block">
+          <i class="fas fa-lightbulb me-1 text-warning"></i>Rewards are only granted after the referred customer's first order is actually paid for -- never at signup.
+        </small>
+      </form>
+    </div>
+  </div>
+
 </div>
 
 <!-- Hover lift animation for cards -->
