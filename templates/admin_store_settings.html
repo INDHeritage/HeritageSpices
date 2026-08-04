@@ -259,6 +259,62 @@
     </div>
   </div>
 
+  <!-- First-Login Coupon -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 px-4">
+      <h5 class="fw-bold mb-0">
+        <i class="fas fa-ticket text-success me-2"></i>First-Login Coupon
+      </h5>
+      <p class="text-muted small mt-1 mb-0">
+        Automatically given to every customer the first time they sign in with Google.
+      </p>
+    </div>
+    <div class="card-body px-4 pb-4 pt-3">
+      <form method="POST" action="/admin/store-settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="update_welcome_coupon">
+
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" role="switch" id="welcome_coupon_enabled" name="welcome_coupon_enabled"
+                 {% if settings.get('welcome_coupon_enabled') == 'true' %}checked{% endif %}>
+          <label class="form-check-label fw-semibold" for="welcome_coupon_enabled">Give new sign-ups a welcome coupon</label>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Discount type</label>
+            <select class="form-select" name="welcome_coupon_type">
+              <option value="percent" {% if settings.get('welcome_coupon_type') == 'percent' %}selected{% endif %}>Percent off</option>
+              <option value="flat" {% if settings.get('welcome_coupon_type') == 'flat' %}selected{% endif %}>Flat amount off</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Discount value</label>
+            <input type="number" step="0.01" min="0.01" class="form-control" name="welcome_coupon_value"
+                   value="{{ settings.get('welcome_coupon_value', '10') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Max discount (₹, percent only)</label>
+            <input type="number" min="1" class="form-control" name="welcome_coupon_max"
+                   value="{{ settings.get('welcome_coupon_max', '') }}" placeholder="Optional cap">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Valid for (days)</label>
+            <input type="number" min="1" class="form-control" name="welcome_coupon_expiry_days"
+                   value="{{ settings.get('welcome_coupon_expiry_days', '30') }}">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-success mt-4 px-4">
+          <i class="fas fa-save me-1"></i>Save Coupon Settings
+        </button>
+        <small class="text-muted mt-2 d-block">
+          <i class="fas fa-lightbulb me-1 text-warning"></i>Changes only apply to new sign-ups from now on -- coupons already issued keep their original terms.
+        </small>
+      </form>
+    </div>
+  </div>
+
 </div>
 
 <!-- Hover lift animation for cards -->

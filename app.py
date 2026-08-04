@@ -365,15 +365,26 @@ def save_user(user_info):
     return False
 
 def issue_welcome_coupon(email):
-    """One-time first-signup coupon: 10% off, capped at Rs.100, valid 30 days."""
-    code = f"WELCOME10-{uuid.uuid4().hex[:6].upper()}"
+    """One-time first-signup coupon. Discount type/value/cap/expiry are all
+    admin-editable via Store Settings; returns None if disabled there."""
+    if get_setting('welcome_coupon_enabled', 'true') != 'true':
+        return None
+
+    discount_type = get_setting('welcome_coupon_type', 'percent')
+    discount_value = float(get_setting('welcome_coupon_value', '10') or 10)
+    max_discount_raw = get_setting('welcome_coupon_max', '100')
+    max_discount = int(max_discount_raw) if max_discount_raw else None
+    expiry_days = int(get_setting('welcome_coupon_expiry_days', '30') or 30)
+
+    prefix = 'WELCOME' if discount_type == 'percent' else 'WELCOMEFLAT'
+    code = f"{prefix}-{uuid.uuid4().hex[:6].upper()}"
     coupon = Coupon(
         code=code,
         user_email=email,
-        discount_type='percent',
-        discount_value=10,
-        max_discount=100,
-        expires_at=datetime.utcnow() + timedelta(days=30)
+        discount_type=discount_type,
+        discount_value=discount_value,
+        max_discount=max_discount if discount_type == 'percent' else None,
+        expires_at=(datetime.utcnow() + timedelta(days=expiry_days)) if expiry_days else None
     )
     db.session.add(coupon)
     db.session.commit()
@@ -425,7 +436,15 @@ def auth():
         is_new_user = save_user(user_info)
         if is_new_user:
             code = issue_welcome_coupon(user_info['email'])
-            flash(f"Welcome! Here's 10% off your first order (up to ₹100): use code {code} at checkout.", 'success')
+            if code:
+                coupon = Coupon.query.filter_by(code=code).first()
+                if coupon.discount_type == 'percent':
+                    desc = f"{int(coupon.discount_value)}% off your first order"
+                    if coupon.max_discount:
+                        desc += f" (up to ₹{coupon.max_discount})"
+                else:
+                    desc = f"₹{int(coupon.discount_value)} off your first order"
+                flash(f"Welcome! Here's {desc}: use code {code} at checkout.", 'success')
 
         return redirect('/')
     except Exception as e:
@@ -2138,14 +2157,37 @@ def admin_store_settings():
             notice = request.form.get('shipping_notice', '')
             set_setting('shipping_notice', notice)
             flash("Shipping notice updated!", "success")
-        
+
+        elif action == 'update_welcome_coupon':
+            enabled = 'true' if request.form.get('welcome_coupon_enabled') else 'false'
+            discount_type = request.form.get('welcome_coupon_type', 'percent')
+            discount_value = request.form.get('welcome_coupon_value', type=float) or 10
+            max_discount = request.form.get('welcome_coupon_max', type=int)
+            expiry_days = request.form.get('welcome_coupon_expiry_days', type=int) or 30
+
+            if discount_type not in ('percent', 'flat') or discount_value <= 0:
+                flash("Please enter a valid discount type and value.", "danger")
+                return redirect('/admin/store-settings')
+
+            set_setting('welcome_coupon_enabled', enabled)
+            set_setting('welcome_coupon_type', discount_type)
+            set_setting('welcome_coupon_value', str(discount_value))
+            set_setting('welcome_coupon_max', str(max_discount) if max_discount else '')
+            set_setting('welcome_coupon_expiry_days', str(expiry_days))
+            flash("First-login coupon settings updated!", "success")
+
         return redirect('/admin/store-settings')
-    
+
     settings = {
         'store_open': get_setting('store_open', 'true'),
         'science_hub_digital_enabled': get_setting('science_hub_digital_enabled', 'true'),
         'science_hub_physical_enabled': get_setting('science_hub_physical_enabled', 'true'),
-        'shipping_notice': get_setting('shipping_notice', '')
+        'shipping_notice': get_setting('shipping_notice', ''),
+        'welcome_coupon_enabled': get_setting('welcome_coupon_enabled', 'true'),
+        'welcome_coupon_type': get_setting('welcome_coupon_type', 'percent'),
+        'welcome_coupon_value': get_setting('welcome_coupon_value', '10'),
+        'welcome_coupon_max': get_setting('welcome_coupon_max', '100'),
+        'welcome_coupon_expiry_days': get_setting('welcome_coupon_expiry_days', '30')
     }
     products = Product.query.all()
     
