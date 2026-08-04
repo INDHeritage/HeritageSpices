@@ -18,76 +18,34 @@
             </div>
             <div class="card-body d-flex flex-column p-4">
               <h5 class="card-title fw-bold text-dark mb-1">{{ product.name }}</h5>
-              <p class="fw-bold text-success mb-3 fs-5">₹{{ product.price }}</p>
+              <p class="fw-bold text-success mb-1 fs-5">₹{{ product.price }}</p>
+              <p class="text-muted mb-3" style="font-size: 0.75rem;"><i class="fas fa-info-circle me-1"></i>Minimum order: 2 pouches</p>
               <p class="card-text text-muted small mb-4" style="line-height: 1.6;">
                 {{ product.description | striptags | truncate(110) }}
               </p>
-              <div class="mt-auto d-flex flex-column gap-2">
-                {% if product.meesho_link %}
-                  <a href="{{ product.meesho_link }}" class="btn btn-outline-success btn-sm py-2 fw-semibold" target="_blank">
-                    🛒 Buy on Meesho
-                  </a>
-                {% endif %}
-                <a href="https://api.whatsapp.com/send?phone=918999449765&text=Hi%20Heritage%20Spices%2C%20I%20want%20to%20order%20{{ product.name | urlencode }}." 
-                   class="btn btn-success btn-sm py-2 fw-semibold d-flex align-items-center justify-content-center gap-1.5" 
-                   target="_blank">
-                  <i class="fab fa-whatsapp"></i>
-                  <span>Order on WhatsApp</span>
-                </a>
+              <div class="mt-auto">
+                <form class="d-flex gap-2" onsubmit="event.preventDefault(); featuredAddToCart({{ product.id }});">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="number" id="fp-qty-{{ product.id }}" class="form-control text-center bg-light border-0 w-25 rounded-3 fw-semibold text-dark" value="2" min="2" max="5">
+                  {% if product.stock is not none and product.stock <= 0 %}
+                    <button type="button" class="btn btn-secondary flex-grow-1 py-2 fw-semibold" disabled>Out of Stock</button>
+                  {% else %}
+                    <button type="submit" class="btn btn-success flex-grow-1 py-2 fw-semibold d-flex justify-content-center align-items-center gap-2" id="fp-btn-{{ product.id }}">
+                      <i class="fas fa-cart-plus"></i> Buy Now
+                    </button>
+                  {% endif %}
+                </form>
               </div>
             </div>
           </div>
         </div>
       {% endfor %}
     {% else %}
-      <!-- Fallback: Statically Hardcoded Garam Masalas if DB is empty -->
-      <!-- Garam Masala 50g -->
-      <div class="col-md-6 col-lg-4 mb-4 d-flex">
-        <div class="card product-card h-100 text-center w-100 d-flex flex-column">
-          <div class="product-image-container">
-            <img src="{{ url_for('static', filename='images/garam50.webp') }}" class="product-image" alt="Garam Masala 50g" loading="lazy" decoding="async">
-          </div>
-          <div class="card-body d-flex flex-column p-4">
-            <h5 class="card-title fw-bold text-dark mb-1">Organic Garam Masala – 50g</h5>
-            <p class="fw-bold text-success mb-3 fs-5">₹Offer</p>
-            <p class="card-text text-muted small mb-4" style="line-height: 1.6;">
-              Fresh, aromatic, and chemical-free – ideal for daily culinary use. Sourced from Kerala farms.
-            </p>
-            <div class="mt-auto d-flex flex-column gap-2">
-              <a href="https://www.meesho.com/s/p/98mug4?utm_source=s_cc" class="btn btn-outline-success btn-sm py-2 fw-semibold" target="_blank">Buy 50g</a>
-              <a href="https://api.whatsapp.com/send?phone=918999449765&text=Hi%20Heritage%20Spices%2C%20I%20want%20to%20order%20Organic%20Garam%20Masala%2050g." 
-                 class="btn btn-success btn-sm py-2 fw-semibold d-flex align-items-center justify-content-center gap-1.5" 
-                 target="_blank">
-                <i class="fab fa-whatsapp"></i>
-                <span>Order on WhatsApp</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Garam Masala 100g -->
-      <div class="col-md-6 col-lg-4 mb-4 d-flex">
-        <div class="card product-card h-100 text-center w-100 d-flex flex-column">
-          <div class="product-image-container">
-            <img src="{{ url_for('static', filename='images/garam100.webp') }}" class="product-image" alt="Garam Masala 100g" loading="lazy" decoding="async">
-          </div>
-          <div class="card-body d-flex flex-column p-4">
-            <h5 class="card-title fw-bold text-dark mb-1">Organic Garam Masala – 100g</h5>
-            <p class="fw-bold text-success mb-3 fs-5">₹Offer</p>
-            <p class="card-text text-muted small mb-4" style="line-height: 1.6;">
-              The same bold flavor in a larger pack. Perfect for families and cooking enthusiasts.
-            </p>
-            <div class="mt-auto d-flex flex-column gap-2">
-              <a href="https://www.meesho.com/s/p/98mxwl?utm_source=s_cc" class="btn btn-outline-success btn-sm py-2 fw-semibold" target="_blank">Buy 100g</a>
-              <a href="https://api.whatsapp.com/send?phone=918999449765&text=Hi%20Heritage%20Spices%2C%20I%20want%20to%20order%20Organic%20Garam%20Masala%20100g." 
-                 class="btn btn-success btn-sm py-2 fw-semibold d-flex align-items-center justify-content-center gap-1.5" 
-                 target="_blank">
-                <i class="fab fa-whatsapp"></i>
-                <span>Order on WhatsApp</span>
-              </a>
-            </div>
-          </div>
+      <div class="col-12">
+        <div class="alert alert-light border text-center py-5">
+          <i class="fas fa-box-open fa-3x mb-3 text-muted"></i>
+          <h5>No products available right now</h5>
+          <p class="text-muted mb-0">Check back soon — we're restocking!</p>
         </div>
       </div>
     {% endif %}
@@ -167,4 +125,69 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+function featuredAddToCart(productId) {
+  const qtyInput = document.getElementById(`fp-qty-${productId}`);
+  let quantity = parseInt(qtyInput.value) || 2;
+
+  if (quantity > 5) {
+    alert("You can only add up to 5 pouches per product.");
+    quantity = 5;
+    qtyInput.value = 5;
+  }
+  if (quantity < 2) {
+    alert("Minimum order is 2 pouches.");
+    quantity = 2;
+    qtyInput.value = 2;
+  }
+
+  const btn = document.getElementById(`fp-btn-${productId}`);
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+  btn.disabled = true;
+
+  fetch('/cart/add', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': btn.closest('form').querySelector('input[name="csrf_token"]').value
+    },
+    body: JSON.stringify({ product_id: productId, quantity: quantity })
+  })
+  .then(response => response.json())
+  .then(data => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+
+    if (data.success) {
+      const badge = document.getElementById('cart-badge');
+      if (badge) {
+        badge.textContent = data.cart_count;
+        badge.classList.remove('d-none');
+        badge.classList.add('animate__animated', 'animate__bounceIn');
+        setTimeout(() => badge.classList.remove('animate__animated', 'animate__bounceIn'), 1000);
+      }
+
+      const alertBox = document.createElement('div');
+      alertBox.className = 'alert alert-success mt-2 py-1 px-2 small animate__animated animate__fadeIn text-center';
+      alertBox.innerHTML = '<i class="fas fa-check-circle"></i> Added to cart!';
+      btn.closest('form').parentElement.appendChild(alertBox);
+      setTimeout(() => {
+        alertBox.classList.replace('animate__fadeIn', 'animate__fadeOut');
+        setTimeout(() => alertBox.remove(), 500);
+      }, 2000);
+    } else {
+      if (data.error === 'Please login first') {
+        window.location.href = '/login';
+        return;
+      }
+      alert(data.error || 'Failed to add to cart');
+    }
+  })
+  .catch(() => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    alert('An error occurred. Please try again.');
+  });
+}
 </script>

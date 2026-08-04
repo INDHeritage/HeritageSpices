@@ -183,6 +183,7 @@
 
             <!-- E-commerce Action Button -->
             <div class="mt-auto pt-3 border-top border-light">
+              <p class="text-muted mb-2" style="font-size: 0.75rem;"><i class="fas fa-info-circle me-1"></i>Minimum order: 2 pouches (max 5)</p>
               <form class="add-to-cart-form d-flex gap-2" onsubmit="event.preventDefault(); addToCart({{ product.id }});">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="number" id="qty-{{ product.id }}" class="form-control text-center bg-light border-0 w-25 rounded-3 fw-semibold text-dark" value="2" min="2" max="5">
