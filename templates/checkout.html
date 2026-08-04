@@ -32,19 +32,31 @@
             {% endfor %}
           </div>
           
+          <!-- Coupon Code -->
+          <div class="input-group input-group-sm mb-3">
+            <input type="text" class="form-control text-uppercase" id="coupon-code" placeholder="Coupon code">
+            <button class="btn btn-outline-success fw-semibold" type="button" id="btn-apply-coupon">Apply</button>
+          </div>
+          <div id="coupon-result" class="small mb-3"></div>
+
           <hr class="border-secondary opacity-25">
-          
+
           <!-- Totals -->
           <div class="d-flex justify-content-between mb-2">
             <span class="text-muted">Subtotal</span>
             <span class="fw-semibold">₹{{ cart_total }}</span>
           </div>
-          
+
+          <div class="d-flex justify-content-between mb-2 d-none" id="discount-row">
+            <span class="text-muted">Discount</span>
+            <span class="fw-semibold text-success" id="discount-display">-₹0</span>
+          </div>
+
           <div class="d-flex justify-content-between mb-3" id="shipping-row">
             <span class="text-muted">Shipping</span>
             <span class="fst-italic text-muted small" id="shipping-cost-display">Enter pincode to calculate</span>
           </div>
-          
+
           <hr class="border-secondary opacity-50 border-2">
           
           <div class="d-flex justify-content-between align-items-center mb-0">
@@ -187,8 +199,61 @@
   const btnPay = document.getElementById('btn-pay-now');
   const csrf = document.getElementById('csrf_token').value;
   const subtotal = parseInt(document.getElementById('subtotal').value);
-  
+
   let selectedShippingRate = 0;
+  let appliedDiscount = 0;
+  let appliedCouponCode = '';
+
+  // Apply Coupon
+  document.getElementById('btn-apply-coupon').addEventListener('click', async function() {
+    const codeInput = document.getElementById('coupon-code');
+    const code = codeInput.value.trim();
+    const couponResult = document.getElementById('coupon-result');
+    const discountRow = document.getElementById('discount-row');
+    const btn = this;
+
+    if (!code) {
+      couponResult.innerHTML = '<span class="text-danger">Please enter a coupon code.</span>';
+      return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/checkout/apply-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        appliedDiscount = data.discount;
+        appliedCouponCode = data.code;
+        couponResult.innerHTML = `<span class="text-success"><i class="fas fa-check-circle"></i> Coupon applied! -₹${data.discount}</span>`;
+        document.getElementById('discount-display').innerText = `-₹${data.discount}`;
+        discountRow.classList.remove('d-none');
+        codeInput.disabled = true;
+        btn.disabled = true;
+        btn.innerHTML = 'Applied';
+        updateTotals(selectedShippingRate);
+      } else {
+        appliedDiscount = 0;
+        appliedCouponCode = '';
+        discountRow.classList.add('d-none');
+        couponResult.innerHTML = `<span class="text-danger">${data.error || 'Invalid coupon.'}</span>`;
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        updateTotals(selectedShippingRate);
+      }
+    } catch (err) {
+      couponResult.innerHTML = '<span class="text-danger">Network error. Please try again.</span>';
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  });
 
   // Auto-check on typing 6 digits
   pincodeInput.addEventListener('input', function() {
@@ -286,7 +351,7 @@
     // the shipping rate to a whole rupee when creating the payment.
     shipping = Math.floor(shipping);
     selectedShippingRate = shipping;
-    const grand = subtotal + shipping;
+    const grand = Math.max(0, subtotal - appliedDiscount) + shipping;
 
     if (shipping > 0) {
       document.getElementById('shipping-cost-display').innerHTML = `<span class="fw-semibold text-dark">₹${shipping}</span>`;
@@ -316,7 +381,8 @@
       city: document.getElementById('city').value,
       state: document.getElementById('state').value,
       pincode: pincodeInput.value,
-      shipping_rate: selectedShippingRate
+      shipping_rate: selectedShippingRate,
+      coupon_code: appliedCouponCode
     };
 
     try {

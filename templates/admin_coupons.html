@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Coupons | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h1 class="text-primary fw-bold"><i class="fas fa-ticket me-2"></i>Coupons</h1>
+    <div class="d-flex gap-2">
+      <a href="/admin/coupons/create" class="btn btn-success"><i class="fas fa-plus me-1"></i>New Coupon</a>
+      <a href="/admin/dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
+    </div>
+  </div>
+
+  {% if coupons %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle bg-white shadow-sm rounded-3 overflow-hidden">
+        <thead class="table-light">
+          <tr>
+            <th>Code</th>
+            <th>Customer</th>
+            <th>Discount</th>
+            <th>Expires</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in coupons %}
+          <tr>
+            <td class="fw-bold font-monospace">{{ c.code }}</td>
+            <td>{{ c.user_email }}</td>
+            <td>
+              {% if c.discount_type == 'percent' %}
+                {{ c.discount_value | int }}% off{% if c.max_discount %} (up to ₹{{ c.max_discount }}){% endif %}
+              {% else %}
+                ₹{{ c.discount_value | int }} off
+              {% endif %}
+            </td>
+            <td>{{ c.expires_at.strftime('%Y-%m-%d') if c.expires_at else 'No expiry' }}</td>
+            <td>
+              {% if c.used %}
+                <span class="badge bg-secondary">Used {{ c.used_at.strftime('%Y-%m-%d') if c.used_at else '' }}</span>
+              {% elif c.expires_at and c.expires_at < now %}
+                <span class="badge bg-danger">Expired</span>
+              {% else %}
+                <span class="badge bg-success">Active</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if not c.used %}
+              <form method="POST" action="/admin/coupons/delete/{{ c.id }}" onsubmit="return confirm('Delete this coupon?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info text-center py-5">
+      <i class="fas fa-ticket fa-3x mb-3 text-muted"></i>
+      <h5>No coupons yet</h5>
+      <p class="text-muted mb-0">Create one from here, or from a customer's cart in Customer Carts.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

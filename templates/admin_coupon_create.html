@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}New Coupon | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-primary fw-bold"><i class="fas fa-ticket me-2"></i>New Coupon</h1>
+        <a href="/admin/coupons" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+      </div>
+
+      <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4 p-md-5">
+          <form method="POST" action="{{ url_for('admin_create_coupon') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-3">
+              <label for="email" class="form-label fw-semibold">Customer email *</label>
+              <input type="email" class="form-control bg-light" id="email" name="email" value="{{ prefill_email }}" required>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="discount_type" class="form-label fw-semibold">Discount type *</label>
+                <select class="form-select bg-light" id="discount_type" name="discount_type" required>
+                  <option value="percent">Percent off</option>
+                  <option value="flat">Flat amount off</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="discount_value" class="form-label fw-semibold">Discount value *</label>
+                <input type="number" step="0.01" min="0.01" class="form-control bg-light" id="discount_value" name="discount_value" placeholder="e.g. 10" required>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="max_discount" class="form-label fw-semibold">Max discount (₹, percent only)</label>
+                <input type="number" min="1" class="form-control bg-light" id="max_discount" name="max_discount" placeholder="Optional cap">
+              </div>
+              <div class="col-md-6">
+                <label for="expires_days" class="form-label fw-semibold">Valid for (days)</label>
+                <input type="number" min="1" class="form-control bg-light" id="expires_days" name="expires_days" placeholder="Optional, blank = no expiry">
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="code" class="form-label fw-semibold">Coupon code</label>
+              <input type="text" class="form-control bg-light text-uppercase" id="code" name="code" placeholder="Leave blank to auto-generate">
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 py-2 fw-bold">
+              <i class="fas fa-plus me-2"></i>Create Coupon
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

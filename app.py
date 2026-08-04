@@ -195,6 +195,35 @@ class SiteSetting(db.Model):
     key = db.Column(db.String(100), unique=True, nullable=False)
     value = db.Column(db.String(500), nullable=False)
 
+# --- Coupon (targeted, single-use, locked to one customer email) ---
+class Coupon(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(30), unique=True, nullable=False)
+    user_email = db.Column(db.String(200), nullable=False)
+    discount_type = db.Column(db.String(10), nullable=False)  # 'percent' or 'flat'
+    discount_value = db.Column(db.Float, nullable=False)
+    max_discount = db.Column(db.Integer, nullable=True)  # optional cap in rupees, percent coupons only
+    expires_at = db.Column(db.DateTime, nullable=True)
+    used = db.Column(db.Boolean, default=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    def is_valid_for(self, email):
+        if self.used or self.user_email.lower() != email.lower():
+            return False
+        if self.expires_at and datetime.utcnow() > self.expires_at:
+            return False
+        return True
+
+    def compute_discount(self, subtotal_rupees):
+        if self.discount_type == 'percent':
+            amount = subtotal_rupees * (self.discount_value / 100.0)
+            if self.max_discount:
+                amount = min(amount, self.max_discount)
+        else:
+            amount = self.discount_value
+        return int(min(amount, subtotal_rupees))
+
 # --- Cart Item ---
 class CartItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -222,6 +251,8 @@ class SpiceOrder(db.Model):
     subtotal = db.Column(db.Integer, nullable=False)
     shipping_cost = db.Column(db.Integer, default=0)
     total_amount = db.Column(db.Integer, nullable=False)
+    coupon_id = db.Column(db.Integer, db.ForeignKey('coupon.id'), nullable=True)
+    discount_amount = db.Column(db.Integer, default=0)
     
     # Payment (Razorpay only, no COD)
     razorpay_order_id = db.Column(db.String(100))
@@ -320,7 +351,7 @@ razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)) i
 # 📦 Helper Functions
 # -------------------------
 def save_user(user_info):
-    """Save user info to database"""
+    """Save user info to database. Returns True if this is a brand-new user."""
     existing = User.query.filter_by(email=user_info['email']).first()
     if not existing:
         new_user = User(
@@ -330,6 +361,23 @@ def save_user(user_info):
         )
         db.session.add(new_user)
         db.session.commit()
+        return True
+    return False
+
+def issue_welcome_coupon(email):
+    """One-time first-signup coupon: 10% off, capped at Rs.100, valid 30 days."""
+    code = f"WELCOME10-{uuid.uuid4().hex[:6].upper()}"
+    coupon = Coupon(
+        code=code,
+        user_email=email,
+        discount_type='percent',
+        discount_value=10,
+        max_discount=100,
+        expires_at=datetime.utcnow() + timedelta(days=30)
+    )
+    db.session.add(coupon)
+    db.session.commit()
+    return code
 
 def track_visit(user=None):
     """Log each visit to database"""
@@ -374,7 +422,10 @@ def auth():
             'picture': user_info.get('picture')
         }
 
-        save_user(user_info)
+        is_new_user = save_user(user_info)
+        if is_new_user:
+            code = issue_welcome_coupon(user_info['email'])
+            flash(f"Welcome! Here's 10% off your first order (up to ₹100): use code {code} at checkout.", 'success')
 
         return redirect('/')
     except Exception as e:
@@ -919,6 +970,88 @@ def delete_wholesale_inquiry(id):
     db.session.commit()
     flash('Wholesale inquiry deleted successfully.', 'success')
     return redirect('/admin/wholesale-inquiries')
+
+# ✅ Admin: Who has items in their cart right now (for cart-abandoner outreach)
+@app.route('/admin/carts')
+def admin_carts():
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    items = CartItem.query.order_by(CartItem.added_at.desc()).all()
+    carts_by_email = {}
+    for item in items:
+        if not item.product:
+            continue
+        entry = carts_by_email.setdefault(item.user_email, {'cart_items': [], 'subtotal': 0, 'latest': item.added_at})
+        entry['cart_items'].append(item)
+        entry['subtotal'] += int(float(item.product.price)) * item.quantity
+        if item.added_at and (not entry['latest'] or item.added_at > entry['latest']):
+            entry['latest'] = item.added_at
+
+    # Sort by most recently active cart first
+    carts = sorted(carts_by_email.items(), key=lambda kv: kv[1]['latest'] or datetime.min, reverse=True)
+    return render_template('admin_carts.html', carts=carts)
+
+# ✅ Admin: Coupon management
+@app.route('/admin/coupons')
+def admin_coupons():
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    coupons = Coupon.query.order_by(Coupon.created_at.desc()).all()
+    return render_template('admin_coupons.html', coupons=coupons, now=datetime.utcnow())
+
+@app.route('/admin/coupons/create', methods=['GET', 'POST'])
+def admin_create_coupon():
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        discount_type = request.form.get('discount_type')
+        discount_value = request.form.get('discount_value', type=float)
+        max_discount = request.form.get('max_discount', type=int)
+        expires_days = request.form.get('expires_days', type=int)
+        custom_code = request.form.get('code', '').strip().upper()
+
+        if not email or discount_type not in ('percent', 'flat') or not discount_value or discount_value <= 0:
+            flash('Please fill in a valid email, discount type, and discount value.', 'danger')
+            return redirect('/admin/coupons/create')
+
+        code = custom_code or f"SAVE-{uuid.uuid4().hex[:6].upper()}"
+        if Coupon.query.filter_by(code=code).first():
+            flash('That coupon code already exists. Try a different one.', 'danger')
+            return redirect('/admin/coupons/create')
+
+        coupon = Coupon(
+            code=code,
+            user_email=email,
+            discount_type=discount_type,
+            discount_value=discount_value,
+            max_discount=max_discount if discount_type == 'percent' else None,
+            expires_at=(datetime.utcnow() + timedelta(days=expires_days)) if expires_days else None
+        )
+        db.session.add(coupon)
+        db.session.commit()
+        flash(f'Coupon {code} created for {email}.', 'success')
+        return redirect('/admin/coupons')
+
+    prefill_email = request.args.get('email', '')
+    return render_template('admin_coupon_create.html', prefill_email=prefill_email)
+
+@app.route('/admin/coupons/delete/<int:id>', methods=['POST'])
+def delete_coupon(id):
+    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        abort(403)
+
+    coupon = Coupon.query.get_or_404(id)
+    if coupon.used:
+        flash('This coupon has already been used on an order and is kept for record-keeping -- it cannot be deleted.', 'warning')
+        return redirect('/admin/coupons')
+    db.session.delete(coupon)
+    db.session.commit()
+    flash('Coupon deleted.', 'success')
+    return redirect('/admin/coupons')
 
 # ✅ Frontend Analytics
 @app.route('/track-visit', methods=['POST'])
@@ -1648,6 +1781,29 @@ def checkout():
     return render_template('checkout.html', cart_items=cart_items, cart_total=cart_total,
                            user=user, is_logged_in=True, razorpay_key_id=RAZORPAY_KEY_ID)
 
+@app.route('/checkout/apply-coupon', methods=['POST'])
+def apply_coupon():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Please login first'}), 401
+
+    code = (request.json or {}).get('code', '').strip().upper()
+    if not code:
+        return jsonify({'error': 'Please enter a coupon code'}), 400
+
+    coupon = Coupon.query.filter_by(code=code).first()
+    if not coupon or not coupon.is_valid_for(user['email']):
+        return jsonify({'error': 'This coupon is invalid, expired, already used, or not valid for your account.'}), 400
+
+    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    if not cart_items:
+        return jsonify({'error': 'Your cart is empty'}), 400
+
+    subtotal_rupees = sum(int(float(item.product.price)) * item.quantity for item in cart_items if item.product)
+    discount = coupon.compute_discount(subtotal_rupees)
+
+    return jsonify({'success': True, 'discount': discount, 'code': coupon.code})
+
 @app.route('/checkout/check-pincode', methods=['POST'])
 def check_pincode():
     user = session.get('user')
@@ -1772,13 +1928,26 @@ def create_checkout_order():
 
     # Calculate totals
     subtotal_rupees = sum(int(float(item.product.price)) * item.quantity for item in cart_items)
+
+    # Re-validate any coupon server-side -- never trust a client-computed
+    # discount amount, same principle already applied to the shipping rate.
+    coupon = None
+    discount_rupees = 0
+    coupon_code = (data.get('coupon_code') or '').strip().upper()
+    if coupon_code:
+        coupon = Coupon.query.filter_by(code=coupon_code).first()
+        if not coupon or not coupon.is_valid_for(user['email']):
+            return jsonify({'error': 'This coupon is invalid, expired, already used, or not valid for your account.'}), 400
+        discount_rupees = coupon.compute_discount(subtotal_rupees)
+
     subtotal_paise = subtotal_rupees * 100
+    discount_paise = discount_rupees * 100
     shipping_paise = int(shipping_rate) * 100
-    total_paise = subtotal_paise + shipping_paise
-    
+    total_paise = subtotal_paise - discount_paise + shipping_paise
+
     if not razorpay_client:
         return jsonify({'error': 'Payment system not configured'}), 500
-    
+
     try:
         # Create Razorpay order
         order_number = f'HS-{uuid.uuid4().hex[:8].upper()}'
@@ -1788,7 +1957,7 @@ def create_checkout_order():
             'receipt': order_number,
             'payment_capture': 1
         })
-        
+
         # Save order
         new_order = SpiceOrder(
             order_number=order_number,
@@ -1802,6 +1971,8 @@ def create_checkout_order():
             subtotal=subtotal_paise,
             shipping_cost=shipping_paise,
             total_amount=total_paise,
+            coupon_id=coupon.id if coupon else None,
+            discount_amount=discount_paise,
             razorpay_order_id=rzp_order['id']
         )
         db.session.add(new_order)
@@ -1862,7 +2033,15 @@ def verify_checkout_payment():
         
         order.payment_status = 'paid'
         order.razorpay_payment_id = razorpay_payment_id
-        
+
+        # Mark the coupon used only now -- on confirmed payment, never on an
+        # abandoned/failed checkout attempt
+        if order.coupon_id:
+            coupon = Coupon.query.get(order.coupon_id)
+            if coupon:
+                coupon.used = True
+                coupon.used_at = datetime.utcnow()
+
         # Decrement stock
         for item in order.items:
             product = Product.query.get(item.product_id)

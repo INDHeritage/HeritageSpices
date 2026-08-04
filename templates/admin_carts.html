@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Customer Carts | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="text-primary fw-bold"><i class="fas fa-cart-shopping me-2"></i>Customer Carts</h1>
+    <a href="/admin/dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
+  </div>
+
+  <p class="text-muted mb-4">Everyone with items currently sitting in their cart, most recently active first. Create a coupon for anyone here to help win them back.</p>
+
+  {% if carts %}
+    <div class="row g-4">
+      {% for email, cart in carts %}
+      <div class="col-md-6">
+        <div class="card h-100 shadow-sm border-0 border-start border-4 border-success">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <h6 class="fw-bold mb-0"><a href="mailto:{{ email }}" class="text-decoration-none">{{ email }}</a></h6>
+              <small class="text-muted">{{ cart.latest.strftime('%Y-%m-%d %H:%M') if cart.latest else '' }}</small>
+            </div>
+            <ul class="list-unstyled small text-muted mb-3">
+              {% for item in cart.cart_items %}
+              <li>{{ item.quantity }} x {{ item.product.name }}</li>
+              {% endfor %}
+            </ul>
+            <p class="fw-bold text-success mb-3">Cart value: ₹{{ cart.subtotal }}</p>
+            <a href="/admin/coupons/create?email={{ email | urlencode }}" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-ticket me-1"></i>Create coupon for this customer
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info text-center py-5">
+      <i class="fas fa-cart-shopping fa-3x mb-3 text-muted"></i>
+      <h5>No active carts right now</h5>
+      <p class="text-muted mb-0">When customers add products to their cart, they'll show up here.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
