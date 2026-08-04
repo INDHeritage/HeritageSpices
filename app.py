@@ -581,18 +581,27 @@ def auth():
 
         is_new_user = save_user(user_info)
 
-        # Link this signup to whoever referred them, if a ?ref= code is
-        # sitting in their session and it resolves to a real (different) user.
-        # Only ever set once, at signup -- never overwritten afterward.
-        if is_new_user:
-            ref_code = session.pop('ref_code', None)
-            if ref_code:
-                referrer = User.query.filter_by(referral_code=ref_code).first()
-                if referrer and referrer.email.lower() != user_info['email'].lower():
-                    new_user = User.query.filter_by(email=user_info['email']).first()
-                    new_user.referred_by_email = referrer.email
-                    db.session.add(Referral(referrer_email=referrer.email, referred_email=user_info['email']))
-                    db.session.commit()
+        # Always clear any pending ?ref= code from the session on login,
+        # whether or not it actually gets used below -- otherwise a stale
+        # code (e.g. from an *existing* user like A clicking B's link, which
+        # correctly grants nothing since A isn't a new signup) could sit in
+        # a shared browser's session and wrongly attach to some other
+        # person's later signup on that same device.
+        ref_code = session.pop('ref_code', None)
+
+        # Link this signup to whoever referred them, only for a genuinely
+        # brand-new account. An existing user clicking someone else's link
+        # and logging back in must never create a referral or reward either
+        # side -- they're not a new signup. Only ever set once, at signup,
+        # never overwritten afterward.
+        if is_new_user and ref_code:
+            referrer = User.query.filter_by(referral_code=ref_code).first()
+            if referrer and referrer.email.lower() != user_info['email'].lower():
+                new_user = User.query.filter_by(email=user_info['email']).first()
+                new_user.referred_by_email = referrer.email
+                db.session.add(Referral(referrer_email=referrer.email, referred_email=user_info['email']))
+                db.session.commit()
+                flash(f"You were referred by a friend! Complete your first order and you'll earn bonus points.", 'success')
 
         has_any_coupon = Coupon.query.filter_by(user_email=user_info['email']).first() is not None
 
@@ -1303,11 +1312,14 @@ def inject_globals():
         except (TypeError, ValueError):
             welcome_offer_text = None
 
+    nav_points_balance = get_points_balance(user['email']) if user else 0
+
     return {
         'year': datetime.now().year,
         'is_logged_in': bool(user),
         'user': user,
-        'welcome_offer_text': welcome_offer_text
+        'welcome_offer_text': welcome_offer_text,
+        'nav_points_balance': nav_points_balance
     }
 
 
