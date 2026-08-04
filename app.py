@@ -218,11 +218,14 @@ class Coupon(db.Model):
     def compute_discount(self, subtotal_rupees):
         if self.discount_type == 'percent':
             amount = subtotal_rupees * (self.discount_value / 100.0)
-            if self.max_discount:
+            if self.max_discount is not None:
                 amount = min(amount, self.max_discount)
         else:
             amount = self.discount_value
-        return int(min(amount, subtotal_rupees))
+        # Defense in depth: never let a bad discount_value/max_discount (e.g. a
+        # negative number entered by mistake) turn into a discount that's
+        # negative or exceeds the cart -- that would increase what's charged.
+        return max(0, int(min(amount, subtotal_rupees)))
 
 # --- Cart Item ---
 class CartItem(db.Model):
@@ -364,6 +367,17 @@ def save_user(user_info):
         return True
     return False
 
+def describe_coupon(coupon, first_order=False):
+    """Human-readable summary of a coupon's discount, e.g. '10% off your first order (up to Rs.100)'."""
+    suffix = "your first order" if first_order else "your order"
+    if coupon.discount_type == 'percent':
+        desc = f"{int(coupon.discount_value)}% off {suffix}"
+        if coupon.max_discount:
+            desc += f" (up to ₹{coupon.max_discount})"
+    else:
+        desc = f"₹{int(coupon.discount_value)} off {suffix}"
+    return desc
+
 def issue_welcome_coupon(email):
     """One-time first-signup coupon. Discount type/value/cap/expiry are all
     admin-editable via Store Settings; returns None if disabled there."""
@@ -438,13 +452,18 @@ def auth():
             code = issue_welcome_coupon(user_info['email'])
             if code:
                 coupon = Coupon.query.filter_by(code=code).first()
-                if coupon.discount_type == 'percent':
-                    desc = f"{int(coupon.discount_value)}% off your first order"
-                    if coupon.max_discount:
-                        desc += f" (up to ₹{coupon.max_discount})"
-                else:
-                    desc = f"₹{int(coupon.discount_value)} off your first order"
-                flash(f"Welcome! Here's {desc}: use code {code} at checkout.", 'success')
+                desc = describe_coupon(coupon, first_order=True)
+                flash(f"Welcome! Here's {desc}: use code {code} at checkout. (You can find this anytime under \"My Coupons\".)", 'success')
+        else:
+            # Returning user -- remind them if they have any valid, unused coupon
+            valid_coupon = next(
+                (c for c in Coupon.query.filter_by(user_email=user_info['email'], used=False).all()
+                 if not c.expires_at or c.expires_at > datetime.utcnow()),
+                None
+            )
+            if valid_coupon:
+                desc = describe_coupon(valid_coupon)
+                flash(f"You have a coupon code available! {desc}: use code {valid_coupon.code} at checkout.", 'success')
 
         return redirect('/')
     except Exception as e:
@@ -1035,6 +1054,10 @@ def admin_create_coupon():
 
         if not email or discount_type not in ('percent', 'flat') or not discount_value or discount_value <= 0:
             flash('Please fill in a valid email, discount type, and discount value.', 'danger')
+            return redirect('/admin/coupons/create')
+
+        if max_discount is not None and max_discount <= 0:
+            flash('Max discount must be a positive amount, or left blank for no cap.', 'danger')
             return redirect('/admin/coupons/create')
 
         code = custom_code or f"SAVE-{uuid.uuid4().hex[:6].upper()}"
@@ -1681,9 +1704,12 @@ def view_cart():
     
     cart_items = CartItem.query.filter_by(user_email=user['email']).all()
     cart_total = sum(int(float(item.product.price)) * item.quantity for item in cart_items if item.product)
-    
+
+    valid_coupons = [c for c in Coupon.query.filter_by(user_email=user['email'], used=False).all()
+                      if not c.expires_at or c.expires_at > datetime.utcnow()]
+
     return render_template('cart.html', cart_items=cart_items, cart_total=cart_total,
-                           user=user, is_logged_in=True)
+                           user=user, is_logged_in=True, valid_coupons=valid_coupons)
 
 @app.route('/cart/add', methods=['POST'])
 def add_to_cart():
@@ -2116,6 +2142,16 @@ def my_orders():
     orders = SpiceOrder.query.filter_by(user_email=user['email']).order_by(SpiceOrder.created_at.desc()).all()
     return render_template('my_orders.html', orders=orders, user=user, is_logged_in=True)
 
+@app.route('/my-coupons')
+def my_coupons():
+    user = session.get('user')
+    if not user:
+        flash("Please login to view your coupons.", "warning")
+        return redirect('/login')
+
+    coupons = Coupon.query.filter_by(user_email=user['email']).order_by(Coupon.created_at.desc()).all()
+    return render_template('my_coupons.html', coupons=coupons, user=user, is_logged_in=True, now=datetime.utcnow())
+
 @app.route('/orders/<int:order_id>/track')
 def track_order(order_id):
     user = session.get('user')
@@ -2183,6 +2219,10 @@ def admin_store_settings():
 
             if discount_type not in ('percent', 'flat') or discount_value <= 0:
                 flash("Please enter a valid discount type and value.", "danger")
+                return redirect('/admin/store-settings')
+
+            if max_discount is not None and max_discount <= 0:
+                flash("Max discount must be a positive amount, or left blank for no cap.", "danger")
                 return redirect('/admin/store-settings')
 
             set_setting('welcome_coupon_enabled', enabled)

@@ -11,6 +11,21 @@
     </div>
   </div>
 
+  {% if valid_coupons %}
+  <div class="row justify-content-center mb-4">
+    <div class="col-lg-8">
+      <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm border-0 rounded-3">
+        <span>
+          <i class="fas fa-ticket me-2"></i>
+          You have {{ valid_coupons|length }} coupon{{ 's' if valid_coupons|length != 1 else '' }} ready to use
+          (<strong class="font-monospace">{{ valid_coupons[0].code }}</strong>{% if valid_coupons|length > 1 %} and more{% endif %}) — apply it at checkout.
+        </span>
+        <a href="/my-coupons" class="btn btn-sm btn-outline-success">View My Coupons</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   {% if cart_items %}
   <div class="row g-4">
     <!-- Cart Items -->
