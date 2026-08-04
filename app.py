@@ -2180,6 +2180,43 @@ def track_order(order_id):
     return render_template('order_tracking.html', order=order, tracking=tracking,
                            user=user, is_logged_in=True)
 
+@app.route('/orders/<int:order_id>/reorder', methods=['POST'])
+def reorder(order_id):
+    user = session.get('user')
+    if not user:
+        flash("Please login to reorder.", "warning")
+        return redirect('/login')
+
+    order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
+
+    added, skipped = 0, []
+    for item in order.items:
+        product = Product.query.get(item.product_id)
+        if not product:
+            skipped.append(item.product_name)
+            continue
+        if product.stock is not None and product.stock < 2:
+            skipped.append(product.name)
+            continue
+
+        qty = max(2, item.quantity)
+        existing = CartItem.query.filter_by(user_email=user['email'], product_id=product.id).first()
+        if existing:
+            existing.quantity = min(5, existing.quantity + qty)
+        else:
+            db.session.add(CartItem(user_email=user['email'], product_id=product.id, quantity=min(5, qty)))
+        added += 1
+
+    db.session.commit()
+
+    if added:
+        flash(f"Added {added} item{'s' if added != 1 else ''} from this order to your cart." +
+              (f" ({', '.join(skipped)} unavailable right now.)" if skipped else ''), 'success')
+    else:
+        flash("None of the items from this order are available right now.", 'warning')
+
+    return redirect('/cart')
+
 
 # -------------------------
 # ⚙️ Admin Store Settings

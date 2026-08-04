@@ -26,7 +26,15 @@
               <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill mb-1">Paid: ₹{{ order.total_amount // 100 }}</span>
             </div>
           </div>
-          
+
+          <div class="d-flex flex-wrap gap-4 mb-4 small text-muted">
+            <span>Subtotal: <strong class="text-dark">₹{{ order.subtotal // 100 }}</strong></span>
+            {% if order.discount_amount %}
+              <span class="text-success"><i class="fas fa-ticket me-1"></i>Coupon savings: <strong>-₹{{ order.discount_amount // 100 }}</strong></span>
+            {% endif %}
+            <span>Shipping: <strong class="text-dark">₹{{ order.shipping_cost // 100 }}</strong></span>
+          </div>
+
           <div class="row bg-light rounded-3 p-3 g-3">
             <div class="col-md-6">
               <small class="text-uppercase text-muted fw-bold mb-1 d-block" style="font-size: 0.75rem;">Delivery Address</small>
