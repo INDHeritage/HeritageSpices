@@ -12,11 +12,39 @@
   </div>
 
   {% if coupons %}
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 bg-light">
+          <div class="card-body text-center py-3">
+            <div class="text-muted small text-uppercase">Welcome Coupons Issued</div>
+            <div class="fs-3 fw-bold text-success">{{ welcome_issued }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 bg-light">
+          <div class="card-body text-center py-3">
+            <div class="text-muted small text-uppercase">Welcome Coupons Redeemed</div>
+            <div class="fs-3 fw-bold text-primary">{{ welcome_used }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 bg-light">
+          <div class="card-body text-center py-3">
+            <div class="text-muted small text-uppercase">Total Coupons</div>
+            <div class="fs-3 fw-bold text-dark">{{ coupons|length }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="table-responsive">
       <table class="table table-hover align-middle bg-white shadow-sm rounded-3 overflow-hidden">
         <thead class="table-light">
           <tr>
             <th>Code</th>
+            <th>Type</th>
             <th>Customer</th>
             <th>Discount</th>
             <th>Expires</th>
@@ -28,6 +56,13 @@
           {% for c in coupons %}
           <tr>
             <td class="fw-bold font-monospace">{{ c.code }}</td>
+            <td>
+              {% if c.code.startswith('WELCOME') %}
+                <span class="badge bg-warning text-dark">Welcome</span>
+              {% else %}
+                <span class="badge bg-info text-dark">Manual</span>
+              {% endif %}
+            </td>
             <td>{{ c.user_email }}</td>
             <td>
               {% if c.discount_type == 'percent' %}

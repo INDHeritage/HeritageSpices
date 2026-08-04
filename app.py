@@ -448,14 +448,21 @@ def auth():
         }
 
         is_new_user = save_user(user_info)
-        if is_new_user:
+        has_any_coupon = Coupon.query.filter_by(user_email=user_info['email']).first() is not None
+
+        # Treat "never received a welcome coupon before" the same as "new" --
+        # covers every existing account from before this feature existed,
+        # not just brand-new sign-ups from now on. Only issues once per
+        # person: after this, has_any_coupon will be True on future logins.
+        if is_new_user or not has_any_coupon:
             code = issue_welcome_coupon(user_info['email'])
             if code:
                 coupon = Coupon.query.filter_by(code=code).first()
                 desc = describe_coupon(coupon, first_order=True)
                 flash(f"Welcome! Here's {desc}: use code {code} at checkout. (You can find this anytime under \"My Coupons\".)", 'success')
         else:
-            # Returning user -- remind them if they have any valid, unused coupon
+            # Already has at least one coupon on record -- remind them if
+            # any of their coupons is still valid and unused
             valid_coupon = next(
                 (c for c in Coupon.query.filter_by(user_email=user_info['email'], used=False).all()
                  if not c.expires_at or c.expires_at > datetime.utcnow()),
@@ -1037,7 +1044,11 @@ def admin_coupons():
         abort(403)
 
     coupons = Coupon.query.order_by(Coupon.created_at.desc()).all()
-    return render_template('admin_coupons.html', coupons=coupons, now=datetime.utcnow())
+    welcome_coupons = [c for c in coupons if c.code.startswith('WELCOME')]
+    welcome_issued = len(welcome_coupons)
+    welcome_used = len([c for c in welcome_coupons if c.used])
+    return render_template('admin_coupons.html', coupons=coupons, now=datetime.utcnow(),
+                           welcome_issued=welcome_issued, welcome_used=welcome_used)
 
 @app.route('/admin/coupons/create', methods=['GET', 'POST'])
 def admin_create_coupon():
