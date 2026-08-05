@@ -346,15 +346,22 @@
                 <span class="fw-semibold">Login with Google</span>
               </a>
             {% else %}
-              <div class="d-flex align-items-center gap-3">
-                <span class="text-success fw-semibold"><i class="fas fa-user-circle me-1"></i> Hi, {{ user.name }}</span>
-                <a href="/orders" class="btn btn-sm btn-outline-success"><i class="fas fa-box"></i> My Orders</a>
-                <a href="/my-coupons" class="btn btn-sm btn-outline-warning text-dark"><i class="fas fa-ticket"></i> My Coupons</a>
-                <a href="/refer" class="btn btn-sm btn-outline-success"><i class="fas fa-user-plus"></i> Refer & Earn{% if nav_points_balance %} <span class="badge bg-success ms-1">{{ nav_points_balance }} pts</span>{% endif %}</a>
-                {% if user.email == 'heritage.spices.pvtltd@gmail.com' %}
-                  <a href="/admin/dashboard" class="btn btn-sm btn-outline-primary"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-                {% endif %}
-                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger">Logout</a>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-success dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="fas fa-user-circle"></i> Hi, {{ user.name }}
+                  {% if nav_points_balance %}<span class="badge bg-success">{{ nav_points_balance }} pts</span>{% endif %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <li><a class="dropdown-item" href="/orders"><i class="fas fa-box me-2 text-success"></i>My Orders</a></li>
+                  <li><a class="dropdown-item" href="/my-coupons"><i class="fas fa-ticket me-2 text-warning"></i>My Coupons</a></li>
+                  <li><a class="dropdown-item" href="/refer"><i class="fas fa-user-plus me-2 text-success"></i>Refer & Earn{% if nav_points_balance %} <span class="badge bg-success ms-1">{{ nav_points_balance }} pts</span>{% endif %}</a></li>
+                  {% if user.email == 'heritage.spices.pvtltd@gmail.com' %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/admin/dashboard"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Admin Dashboard</a></li>
+                  {% endif %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                </ul>
               </div>
             {% endif %}
           </li>
