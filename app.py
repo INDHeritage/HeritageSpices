@@ -1275,8 +1275,17 @@ def admin_referrals():
     rewarded = len([r for r in referrals if r.status == 'rewarded'])
     total_points_outstanding = db.session.query(db.func.sum(PointsTransaction.points)).scalar() or 0
 
+    # Per-customer balances -- who currently has how many points
+    balances = (
+        db.session.query(PointsTransaction.user_email, db.func.sum(PointsTransaction.points).label('balance'))
+        .group_by(PointsTransaction.user_email)
+        .having(db.func.sum(PointsTransaction.points) > 0)
+        .order_by(db.func.sum(PointsTransaction.points).desc())
+        .all()
+    )
+
     return render_template('admin_referrals.html', referrals=referrals, total_referrals=total_referrals,
-                           rewarded=rewarded, total_points_outstanding=total_points_outstanding)
+                           rewarded=rewarded, total_points_outstanding=total_points_outstanding, balances=balances)
 
 @app.route('/admin/coupons/create', methods=['GET', 'POST'])
 def admin_create_coupon():
