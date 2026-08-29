@@ -2759,7 +2759,7 @@ def admin_delivery_zones():
 @app.route('/admin/orders')
 @admin_required
 def admin_orders():
-    orders = SpiceOrder.query.order_by(SpiceOrder.created_at.desc()).all()
+    orders = SpiceOrder.query.options(joinedload(SpiceOrder.items)).order_by(SpiceOrder.created_at.desc()).all()
     
     stats = {
         'total_orders': len(orders),
