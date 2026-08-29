@@ -2905,6 +2905,7 @@ def ship_order(order_id):
         order.shipping_status = 'shipped'
         order.estimated_delivery = result.get('estimated_delivery', '')
         order.label_url = result.get('label_url')
+        order.nimbus_order_id = result.get('nimbus_order_id')
         db.session.commit()
         flash(f"Order {order.order_number} shipped! AWB: {order.awb_number}", "success")
     elif not nimbus_api.is_configured():
@@ -2923,6 +2924,25 @@ def ship_order(order_id):
         # so there'd be no way to notice and retry).
         db.session.rollback()
         flash(f"Shipping failed for order {order.order_number} -- order NOT marked as shipped, please fix and retry. NimbusPost said: {result.get('message', 'Unknown error')}", "danger")
+
+    return redirect('/admin/orders')
+
+@app.route('/admin/orders/fetch-label/<int:order_id>', methods=['POST'])
+@admin_required
+def fetch_label(order_id):
+    order = SpiceOrder.query.get_or_404(order_id)
+
+    if order.shipping_status != 'shipped' or not order.nimbus_order_id:
+        flash("No NimbusPost shipment to fetch a label for.", "warning")
+        return redirect('/admin/orders')
+
+    result = nimbus_api.generate_label(order.nimbus_order_id)
+    if result['success'] and result.get('label_url'):
+        order.label_url = result['label_url']
+        db.session.commit()
+        flash(f"Label fetched for order {order.order_number}.", "success")
+    else:
+        flash(f"Could not fetch label for order {order.order_number}. NimbusPost said: {result.get('message', 'Unknown error')}", "danger")
 
     return redirect('/admin/orders')
 

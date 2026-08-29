@@ -216,7 +216,10 @@ def create_shipment(order_data):
                 'awb_number': shipment.get('awb'),
                 'courier_name': shipment.get('courier_name'),
                 'tracking_url': f"https://ship.nimbuspost.com/tracking/{shipment.get('awb')}",
-                'label_url': shipment.get('label', ''),
+                # v2's booking response returns the label under 'label_url', not 'label' --
+                # confirmed against the partner API v2 spec (POST /v2/shipments/book).
+                'label_url': shipment.get('label_url', ''),
+                'nimbus_order_id': nimbus_order_id,
                 'message': 'Shipment created successfully'
             }
             
@@ -229,6 +232,31 @@ def create_shipment(order_data):
     except Exception as e:
         print(f'NimbusPost v2 create shipment error: {e}')
         return {'success': False, 'message': str(e), 'awb_number': None}
+
+
+def generate_label(nimbus_order_id):
+    """
+    Generate/fetch the shipping label PDF for an already-booked order.
+    Used to backfill label_url for orders shipped before this app started
+    saving nimbus_order_id, or if the booking response didn't include one.
+    Returns: dict with 'success' and 'label_url' (or 'message' on failure).
+    """
+    if not is_configured() or not nimbus_order_id:
+        return {'success': False, 'message': 'NimbusPost not configured or no order id available'}
+
+    try:
+        url = f'{NIMBUS_BASE_URL}/shipments/labels'
+        resp = requests.post(url, json={'ids': [nimbus_order_id]}, headers=_headers(), timeout=15)
+        data = resp.json()
+
+        if resp.status_code == 200 and data.get('success'):
+            label = data.get('data', {})
+            return {'success': True, 'label_url': label.get('url', '')}
+
+        return {'success': False, 'message': str(data)}
+    except Exception as e:
+        print(f'NimbusPost generate label error: {e}')
+        return {'success': False, 'message': str(e)}
 
 
 def track_shipment(awb_number):
