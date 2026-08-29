@@ -160,7 +160,7 @@ def create_shipment(order_data):
             
         order_payload = {
             'order_number': order_data['order_number'],
-            'order_type': 'forward', # 'b2c' or 'forward'
+            'order_type': 'b2c', # NimbusPost v2 accepts: b2c | document | reverse
             'payment_mode': 'prepaid',
             'warehouse_id': wh_id,
             'shipping_address': {

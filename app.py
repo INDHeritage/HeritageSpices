@@ -2813,7 +2813,7 @@ def ship_order(order_id):
         shipment_data['pickup_location'] = warehouse
     
     result = nimbus_api.create_shipment(shipment_data)
-    
+
     if result['success']:
         order.awb_number = result.get('awb_number')
         order.courier_name = result.get('courier_name', 'NimbusPost')
@@ -2822,13 +2822,23 @@ def ship_order(order_id):
         order.label_url = result.get('label_url')
         db.session.commit()
         flash(f"Order {order.order_number} shipped! AWB: {order.awb_number}", "success")
-    else:
-        # Even if NimbusPost is not configured, mark as shipped manually
+    elif not nimbus_api.is_configured():
+        # NimbusPost isn't set up at all -- this is an intentional manual-shipping
+        # fallback, not a failure, so it's fine to mark it shipped here.
         order.shipping_status = 'shipped'
         order.courier_name = 'Manual'
         db.session.commit()
-        flash(f"Order {order.order_number} marked as shipped. NimbusPost: {result.get('message', 'Not configured')}", "warning")
-    
+        flash(f"Order {order.order_number} marked as shipped manually (NimbusPost is not configured).", "warning")
+    else:
+        # NimbusPost IS configured but the booking actually failed -- do NOT
+        # mark this as shipped. No courier was arranged, and doing so would
+        # both mislead the customer (their tracking page would say "shipped"
+        # when nothing was picked up) and hide the failure from the admin
+        # (the Ship button disappears once shipping_status is 'shipped',
+        # so there'd be no way to notice and retry).
+        db.session.rollback()
+        flash(f"Shipping failed for order {order.order_number} -- order NOT marked as shipped, please fix and retry. NimbusPost said: {result.get('message', 'Unknown error')}", "danger")
+
     return redirect('/admin/orders')
 
 @app.route('/admin/orders/cancel/<int:order_id>', methods=['POST'])
