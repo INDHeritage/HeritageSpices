@@ -176,7 +176,11 @@ def create_shipment(order_data):
             },
             'items': mapped_items,
             'package': {
-                'weight': int(order_data.get('weight_kg', 0.5) * 1000), # grams
+                # NimbusPost v2 expects weight in KILOGRAMS, not grams -- confirmed
+                # by a live error where a real 0.22kg order was rejected as
+                # "220000" against a "32000" (32kg) limit, only explainable if our
+                # previous grams value (220) was being read as 220 kilograms.
+                'weight': order_data.get('weight_kg', 0.5),
                 'length': 15,
                 'width': 10,
                 'height': 5
