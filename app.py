@@ -2547,8 +2547,13 @@ def track_order(order_id):
         flash("Please login to track your order.", "warning")
         return redirect('/login')
     
-    order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
-    
+    # The admin can view tracking for any order (e.g. to check status while
+    # helping a customer); everyone else can only see their own order.
+    if user['email'] == 'heritage.spices.pvtltd@gmail.com':
+        order = SpiceOrder.query.filter_by(id=order_id).first_or_404()
+    else:
+        order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
+
     # Get tracking from NimbusPost
     tracking = {'current_status': order.shipping_status, 'history': [], 'estimated_delivery': order.estimated_delivery or 'N/A'}
     if order.awb_number:
