@@ -494,6 +494,30 @@ def _redeem_rate_limited(key):
     attempts.append(now)
     return False
 
+class SimplePagination:
+    """Mimics Flask-SQLAlchemy's Pagination interface for a plain Python list --
+    needed for admin_carts, which groups CartItem rows by customer in Python
+    rather than via a single query, so .paginate() isn't available there."""
+    def __init__(self, items_slice, page, per_page, total):
+        self.items = items_slice
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+        self.pages = max(1, (total + per_page - 1) // per_page)
+        self.has_prev = page > 1
+        self.has_next = page < self.pages
+        self.prev_num = page - 1
+        self.next_num = page + 1
+
+    def iter_pages(self, left_edge=1, right_edge=1, left_current=2, right_current=2):
+        last = 0
+        for num in range(1, self.pages + 1):
+            if num <= left_edge or (self.page - left_current - 1 < num < self.page + right_current) or num > self.pages - right_edge:
+                if last + 1 != num:
+                    yield None
+                yield num
+                last = num
+
 def get_or_create_referral_code(user_email):
     """Lazily generate a unique referral code for a user the first time it's needed."""
     import secrets, string
@@ -1223,8 +1247,9 @@ def admin_messages():
     if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
         abort(403)
     
-    messages = ContactMessage.query.order_by(ContactMessage.timestamp.desc()).all()
-    return render_template('admin_messages.html', messages=messages)
+    page = request.args.get('page', 1, type=int)
+    pagination = ContactMessage.query.order_by(ContactMessage.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
+    return render_template('admin_messages.html', messages=pagination.items, pagination=pagination)
 
 # ✅ Admin: Delete Contact Message
 @app.route('/admin/messages/delete/<int:id>', methods=['POST'])
@@ -1244,8 +1269,9 @@ def admin_wholesale_inquiries():
     if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
         abort(403)
 
-    inquiries = WholesaleInquiry.query.order_by(WholesaleInquiry.timestamp.desc()).all()
-    return render_template('admin_wholesale.html', inquiries=inquiries)
+    page = request.args.get('page', 1, type=int)
+    pagination = WholesaleInquiry.query.order_by(WholesaleInquiry.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
+    return render_template('admin_wholesale.html', inquiries=pagination.items, pagination=pagination)
 
 # ✅ Admin: Delete Wholesale Inquiry
 @app.route('/admin/wholesale-inquiries/delete/<int:id>', methods=['POST'])
@@ -1278,7 +1304,12 @@ def admin_carts():
 
     # Sort by most recently active cart first
     carts = sorted(carts_by_email.items(), key=lambda kv: kv[1]['latest'] or datetime.min, reverse=True)
-    return render_template('admin_carts.html', carts=carts)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    start = (page - 1) * per_page
+    pagination = SimplePagination(carts[start:start + per_page], page, per_page, len(carts))
+    return render_template('admin_carts.html', carts=pagination.items, pagination=pagination)
 
 # ✅ Admin: Coupon management
 @app.route('/admin/coupons')
@@ -1286,21 +1317,25 @@ def admin_coupons():
     if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
         abort(403)
 
-    coupons = Coupon.query.order_by(Coupon.created_at.desc()).all()
-    welcome_coupons = [c for c in coupons if c.code.startswith('WELCOME')]
-    welcome_issued = len(welcome_coupons)
-    welcome_used = len([c for c in welcome_coupons if c.used])
-    return render_template('admin_coupons.html', coupons=coupons, now=datetime.utcnow(),
-                           welcome_issued=welcome_issued, welcome_used=welcome_used)
+    page = request.args.get('page', 1, type=int)
+    pagination = Coupon.query.order_by(Coupon.created_at.desc()).paginate(page=page, per_page=25, error_out=False)
+
+    total_coupons = Coupon.query.count()
+    welcome_issued = Coupon.query.filter(Coupon.code.startswith('WELCOME')).count()
+    welcome_used = Coupon.query.filter(Coupon.code.startswith('WELCOME'), Coupon.used == True).count()
+    return render_template('admin_coupons.html', coupons=pagination.items, pagination=pagination, now=datetime.utcnow(),
+                           total_coupons=total_coupons, welcome_issued=welcome_issued, welcome_used=welcome_used)
 
 @app.route('/admin/referrals')
 def admin_referrals():
     if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
         abort(403)
 
-    referrals = Referral.query.order_by(Referral.signup_at.desc()).all()
-    total_referrals = len(referrals)
-    rewarded = len([r for r in referrals if r.status == 'rewarded'])
+    page = request.args.get('page', 1, type=int)
+    pagination = Referral.query.order_by(Referral.signup_at.desc()).paginate(page=page, per_page=25, error_out=False)
+
+    total_referrals = Referral.query.count()
+    rewarded = Referral.query.filter_by(status='rewarded').count()
     total_points_outstanding = db.session.query(db.func.sum(PointsTransaction.points)).scalar() or 0
 
     # Per-customer balances -- who currently has how many points
@@ -1312,7 +1347,7 @@ def admin_referrals():
         .all()
     )
 
-    return render_template('admin_referrals.html', referrals=referrals, total_referrals=total_referrals,
+    return render_template('admin_referrals.html', referrals=pagination.items, pagination=pagination, total_referrals=total_referrals,
                            rewarded=rewarded, total_points_outstanding=total_points_outstanding, balances=balances)
 
 @app.route('/admin/coupons/create', methods=['GET', 'POST'])

@@ -1,0 +1,30 @@
+{% if pagination and pagination.pages > 1 %}
+<nav class="mt-4" aria-label="Page navigation">
+  <ul class="pagination justify-content-center flex-wrap">
+    <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+      {% if pagination.has_prev %}
+        <a class="page-link rounded-pill me-1" href="{{ request.path }}?page={{ pagination.prev_num }}">Previous</a>
+      {% else %}
+        <span class="page-link rounded-pill me-1">Previous</span>
+      {% endif %}
+    </li>
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+        <li class="page-item {{ 'active' if p == pagination.page }}">
+          <a class="page-link rounded-pill mx-1" href="{{ request.path }}?page={{ p }}">{{ p }}</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link mx-1">&hellip;</span></li>
+      {% endif %}
+    {% endfor %}
+    <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+      {% if pagination.has_next %}
+        <a class="page-link rounded-pill ms-1" href="{{ request.path }}?page={{ pagination.next_num }}">Next</a>
+      {% else %}
+        <span class="page-link rounded-pill ms-1">Next</span>
+      {% endif %}
+    </li>
+  </ul>
+  <p class="text-center text-muted small">Showing {{ pagination.items|length }} of {{ pagination.total }}</p>
+</nav>
+{% endif %}
