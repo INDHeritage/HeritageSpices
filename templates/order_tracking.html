@@ -50,7 +50,7 @@
                 {% if order.awb_number %}
                   <p class="mb-1 text-muted small"><span class="fw-bold">AWB:</span> {{ order.awb_number }}</p>
                 {% endif %}
-                <p class="mb-0 text-muted small"><span class="fw-bold">Est. Delivery:</span> <span class="text-success">{{ tracking.estimated_delivery }}</span></p>
+                <p class="mb-0 text-muted small"><span class="fw-bold">Est. Delivery:</span> <span class="text-success">{{ tracking.estimated_delivery | default('N/A', true) }}</span></p>
               {% else %}
                 <p class="mb-0 text-muted fst-italic">Waiting for carrier assignment</p>
               {% endif %}
