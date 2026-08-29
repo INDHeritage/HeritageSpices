@@ -7,6 +7,11 @@
       <h1 class="fw-bold text-success mb-3"><i class="fas fa-envelope-open-text me-2"></i>Contact Us</h1>
       <form method="POST" action="/contact">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <!-- Honeypot: invisible to real visitors, bots often fill every field they find -->
+        <div style="position: absolute; left: -9999px;" aria-hidden="true">
+          <label for="contact-website">Website</label>
+          <input type="text" id="contact-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
         <div class="mb-3">
           <label for="contact-name" class="form-label fw-semibold">Your Name</label>
           <input type="text" class="form-control" id="contact-name" name="name" placeholder="Jane Doe" required autocomplete="name">

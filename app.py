@@ -475,18 +475,19 @@ def issue_welcome_coupon(email):
 
 # --- Refer & Earn helpers ---
 
-# --- Simple in-process rate limiter for coupon/points endpoints ---
-# A logged-in user could otherwise brute-force short coupon codes with
-# unlimited attempts. In-memory is fine at this app's scale (single
-# instance); resets on restart, which is an acceptable tradeoff for a
-# small store rather than adding a new dependency/storage backend.
+# --- Simple in-process rate limiter, reused for a few different endpoints ---
+# (coupon/points redemption keyed by user email, contact form keyed by IP).
+# A caller could otherwise brute-force coupon codes or spam-flood a public
+# form with unlimited attempts. In-memory is fine at this app's scale (single
+# instance); resets on restart, which is an acceptable tradeoff for a small
+# store rather than adding a new dependency/storage backend.
 _redeem_attempts = {}
 _REDEEM_MAX_ATTEMPTS = 10
 _REDEEM_WINDOW_SECONDS = 300
 
-def _redeem_rate_limited(user_email):
+def _redeem_rate_limited(key):
     now = datetime.utcnow().timestamp()
-    attempts = _redeem_attempts.setdefault(user_email, [])
+    attempts = _redeem_attempts.setdefault(key, [])
     attempts[:] = [t for t in attempts if now - t < _REDEEM_WINDOW_SECONDS]
     if len(attempts) >= _REDEEM_MAX_ATTEMPTS:
         return True
@@ -726,6 +727,18 @@ def about():
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
+        # Honeypot: a hidden field real visitors never see or fill. Any bot that
+        # fills every field it finds trips this -- silently discard without
+        # letting it know it was caught (don't flash an error, just act as if
+        # the message was sent).
+        if request.form.get('website'):
+            flash('Thank you for contacting us! We will get back to you soon.', 'success')
+            return redirect('/contact')
+
+        if _redeem_rate_limited(f"contact:{request.remote_addr}"):
+            flash('Too many messages sent recently. Please try again later.', 'warning')
+            return redirect('/contact')
+
         name = request.form.get('name')
         email = request.form.get('email')
         message = request.form.get('message')
@@ -818,6 +831,10 @@ def sitemap():
 
 @app.route("/subscribe", methods=["POST"])
 def subscribe():
+    if _redeem_rate_limited(f"subscribe:{request.remote_addr}"):
+        flash("Thanks for subscribing!", "success")  # don't tip off a bot that it's rate-limited
+        return redirect("/")
+
     email = request.form.get("email")
     if email and not Subscriber.query.filter_by(email=email).first():
         new_sub = Subscriber(email=email)
