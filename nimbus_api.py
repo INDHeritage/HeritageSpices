@@ -165,11 +165,13 @@ def create_shipment(order_data):
             'warehouse_id': wh_id,
             'shipping_address': {
                 'name': order_data['consignee']['name'],
-                'address_line_1': order_data['consignee']['address'],
+                'address': order_data['consignee']['address'],
                 'city': order_data['consignee']['city'],
                 'state': order_data['consignee']['state'],
                 'pincode': str(order_data['consignee']['pincode']),
-                'phone': str(order_data['consignee']['phone'])
+                # NimbusPost v2 docs: phone is sent as a numeric value, not a string.
+                # Defensively strip any stray non-digit characters before converting.
+                'phone': int(''.join(filter(str.isdigit, str(order_data['consignee']['phone']))))
             },
             'items': mapped_items,
             'package': {
