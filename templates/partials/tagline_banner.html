@@ -1,8 +1,5 @@
 <!-- 🔥 Tagline Banner -->
 <section class="tagline-banner motion-section text-center">
-  <div class="tagline-embers" aria-hidden="true">
-    <span></span><span></span><span></span><span></span><span></span><span></span>
-  </div>
   <div class="container position-relative">
     <h2 class="tagline-heading">Taste <span>Like Never Before</span></h2>
     <p class="tagline-sub">Bold spices. Real heat. Zero compromise — straight from Kerala farms to your kitchen.</p>
@@ -25,30 +22,30 @@
     text-transform: uppercase;
     letter-spacing: 2px;
     font-size: clamp(1.8rem, 5vw, 3.2rem);
-    color: #e8590c;
+    color: #6b1d14;
     margin-bottom: 1rem;
     text-shadow:
-      0 0 4px rgba(255, 140, 0, 0.5),
-      0 0 12px rgba(255, 90, 0, 0.3);
+      0 0 4px rgba(107, 29, 20, 0.35),
+      0 0 10px rgba(107, 29, 20, 0.2);
     animation: tagline-glow 2.4s ease-in-out infinite alternate;
   }
 
   .tagline-heading span {
     display: block;
-    color: #d9370e;
+    color: #d4a017;
     font-size: 1.1em;
   }
 
   @keyframes tagline-glow {
     from {
       text-shadow:
-        0 0 4px rgba(255, 140, 0, 0.45),
-        0 0 10px rgba(255, 90, 0, 0.25);
+        0 0 4px rgba(107, 29, 20, 0.3),
+        0 0 8px rgba(107, 29, 20, 0.15);
     }
     to {
       text-shadow:
-        0 0 8px rgba(255, 140, 0, 0.7),
-        0 0 18px rgba(255, 90, 0, 0.4);
+        0 0 8px rgba(212, 160, 23, 0.5),
+        0 0 16px rgba(212, 160, 23, 0.25);
     }
   }
 
@@ -61,57 +58,24 @@
 
   .tagline-btn {
     background: transparent;
-    border: 2px solid #ff6a00;
-    color: #ffb347;
+    border: 2px solid #6b1d14;
+    color: #6b1d14;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
     padding: 0.75rem 2rem;
     border-radius: 50px;
-    box-shadow: 0 0 12px rgba(255, 106, 0, 0.5);
     transition: all 0.3s ease;
   }
 
   .tagline-btn:hover {
-    background: #ff6a00;
-    color: #120500;
-    box-shadow: 0 0 24px rgba(255, 106, 0, 0.9);
+    background: #6b1d14;
+    color: #d4a017;
+    box-shadow: 0 4px 14px rgba(107, 29, 20, 0.35);
     transform: translateY(-2px);
   }
 
-  /* Floating embers */
-  .tagline-embers {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-
-  .tagline-embers span {
-    position: absolute;
-    bottom: -10px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #ff8c00;
-    box-shadow: 0 0 8px 2px rgba(255, 140, 0, 0.8);
-    opacity: 0;
-    animation: ember-rise 6s ease-in infinite;
-  }
-
-  .tagline-embers span:nth-child(1) { left: 8%;  animation-delay: 0s;   }
-  .tagline-embers span:nth-child(2) { left: 22%; animation-delay: 1.2s; }
-  .tagline-embers span:nth-child(3) { left: 41%; animation-delay: 2.4s; }
-  .tagline-embers span:nth-child(4) { left: 63%; animation-delay: 0.6s; }
-  .tagline-embers span:nth-child(5) { left: 79%; animation-delay: 3s;   }
-  .tagline-embers span:nth-child(6) { left: 92%; animation-delay: 1.8s; }
-
-  @keyframes ember-rise {
-    0%   { transform: translateY(0) scale(1);   opacity: 0; }
-    10%  { opacity: 1; }
-    100% { transform: translateY(-260px) scale(0.3); opacity: 0; }
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .tagline-heading, .tagline-embers span { animation: none; }
+    .tagline-heading { animation: none; }
   }
 </style>
