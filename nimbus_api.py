@@ -168,9 +168,10 @@ def create_shipment(order_data):
                 'address': order_data['consignee']['address'],
                 'city': order_data['consignee']['city'],
                 'state': order_data['consignee']['state'],
-                'pincode': str(order_data['consignee']['pincode']),
-                # NimbusPost v2 docs: phone is sent as a numeric value, not a string.
-                # Defensively strip any stray non-digit characters before converting.
+                # NimbusPost v2 expects both pincode and phone as numeric values,
+                # not strings -- defensively strip any stray non-digit characters
+                # (spaces, '+91', etc.) before converting either one.
+                'pincode': int(''.join(filter(str.isdigit, str(order_data['consignee']['pincode'])))),
                 'phone': int(''.join(filter(str.isdigit, str(order_data['consignee']['phone']))))
             },
             'items': mapped_items,
