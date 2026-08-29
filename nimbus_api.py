@@ -149,7 +149,7 @@ def create_shipment(order_data):
             mapped_items.append({
                 'name': item['name'],
                 'quantity': item['quantity'],
-                'pricePaise': int(item['price'] * 100)
+                'price': item['price']  # already in rupees by the time it reaches here
             })
             
         # Determine warehouse ID mapping for v2
