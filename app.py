@@ -956,7 +956,7 @@ def delete_blog(id):
     if session.get('user', {}).get('email') != 'heritage.spices.pvtltd@gmail.com':
         abort(403)
     password = request.form.get('password')
-    if password != ADMIN_PASSWORD:
+    if not ADMIN_PASSWORD or password != ADMIN_PASSWORD:
         abort(403)
     blog = get_blog_by_id(id)
     if blog:
@@ -1416,7 +1416,7 @@ def inject_globals():
 # --- Products Page Route ---
 @app.route('/products')
 def products():
-    products = Product.query.all()
+    products = Product.query.options(joinedload(Product.reviews)).all()
     user = session.get('user')
     return render_template('products.html', products=products, user=user)
 
@@ -1598,6 +1598,9 @@ def science_hub():
 
 @app.route('/science-hub/validate-upper-id', methods=['POST'])
 def validate_upper_id():
+    if _redeem_rate_limited(f"upper-id:{request.remote_addr}"):
+        return jsonify({'valid': False, 'message': 'Too many attempts. Please wait a few minutes and try again.'})
+
     data = request.json
     code = data.get('code')
     product_type = data.get('product_type')  # 'digital' or 'physical'
@@ -1978,7 +1981,7 @@ def view_cart():
         flash("Please login to view your cart.", "warning")
         return redirect('/login')
     
-    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     cart_total = sum(int(float(item.product.price)) * item.quantity for item in cart_items if item.product)
 
     valid_coupons = [c for c in Coupon.query.filter_by(user_email=user['email'], used=False).all()
@@ -2058,7 +2061,7 @@ def update_cart():
     db.session.commit()
     
     # Recalculate totals
-    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     cart_total = sum(int(float(ci.product.price)) * ci.quantity for ci in cart_items if ci.product)
     count = len(cart_items)
     
@@ -2078,7 +2081,7 @@ def remove_from_cart():
         db.session.delete(item)
         db.session.commit()
     
-    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     cart_total = sum(int(float(ci.product.price)) * ci.quantity for ci in cart_items if ci.product)
     count = len(cart_items)
     
@@ -2108,7 +2111,7 @@ def checkout():
         flash("Store is currently closed. Please try again later.", "warning")
         return redirect('/products')
     
-    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     if not cart_items:
         flash("Your cart is empty.", "warning")
         return redirect('/cart')
@@ -2142,7 +2145,7 @@ def apply_points():
     if requested <= 0 or requested > balance:
         return jsonify({'error': f'You only have {balance} points available.'}), 400
 
-    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     if not cart_items:
         return jsonify({'error': 'Your cart is empty'}), 400
 
@@ -2171,7 +2174,7 @@ def apply_coupon():
     if not coupon or not coupon.is_valid_for(user['email']):
         return jsonify({'error': 'This coupon is invalid, expired, already used, or not valid for your account.'}), 400
 
-    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     if not cart_items:
         return jsonify({'error': 'Your cart is empty'}), 400
 
@@ -2223,7 +2226,7 @@ def calculate_shipping():
     pincode = data.get('pincode', '').strip()
     
     # Calculate total weight from cart
-    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     total_weight_kg = 0.0
     for item in cart_items:
         # Precise weight: product + 5g polythine
@@ -2277,7 +2280,7 @@ def create_checkout_order():
         return jsonify({'error': 'Delivery not available to this pincode'}), 400
 
     # Get cart items
-    cart_items = CartItem.query.filter_by(user_email=user['email']).all()
+    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     if not cart_items:
         return jsonify({'error': 'Cart is empty'}), 400
 
@@ -2525,7 +2528,7 @@ def my_orders():
         flash("Please login to view your orders.", "warning")
         return redirect('/login')
     
-    orders = SpiceOrder.query.filter_by(user_email=user['email']).order_by(SpiceOrder.created_at.desc()).all()
+    orders = SpiceOrder.query.filter_by(user_email=user['email']).options(joinedload(SpiceOrder.items)).order_by(SpiceOrder.created_at.desc()).all()
     return render_template('my_orders.html', orders=orders, user=user, is_logged_in=True)
 
 @app.route('/my-coupons')
@@ -3004,7 +3007,10 @@ def submit_review(product_id):
     user = session.get('user')
     if not user:
         return jsonify({'success': False, 'message': 'You must be logged in to submit a review.'}), 401
-    
+
+    if _redeem_rate_limited(f"review:{user['email']}"):
+        return jsonify({'success': False, 'message': 'Too many reviews submitted recently. Please try again later.'}), 429
+
     product = Product.query.get_or_404(product_id)
     rating = int(request.form.get('rating', 5))
     review_text = request.form.get('review_text', '').strip()
