@@ -1,5 +1,6 @@
 import os
 import requests
+from datetime import datetime
 
 NIMBUS_API_TOKEN = os.getenv('NIMBUS_API_TOKEN')  # npk_...
 NIMBUS_API_SECRET = os.getenv('NIMBUS_API_SECRET')  # Txnm_...
@@ -279,12 +280,42 @@ def track_shipment(awb_number):
 
         if resp.status_code == 200 and data.get('success'):
             tracking = data.get('data', {})
-            history = tracking.get('history', [])
+            # v2's tracking-by-AWB response nests these under 'shipment' and
+            # 'latest' with camelCase keys -- confirmed against the partner API
+            # v2 spec, which does NOT include a multi-event 'history' array at
+            # all (only the single latest event; full history needs the
+            # tracking.updated webhook), so this endpoint can only ever surface
+            # one timeline entry.
+            shipment = tracking.get('shipment') or {}
+            latest = tracking.get('latest') or {}
+
+            estimated_delivery = 'N/A'
+            edd_raw = shipment.get('edd')
+            if edd_raw:
+                try:
+                    estimated_delivery = datetime.fromisoformat(edd_raw.replace('Z', '+00:00')).strftime('%d %b %Y')
+                except (ValueError, TypeError):
+                    estimated_delivery = edd_raw
+
+            history = []
+            if latest.get('message') or latest.get('shipStatus'):
+                event_date = latest.get('eventTime', '')
+                if event_date:
+                    try:
+                        event_date = datetime.fromisoformat(event_date.replace('Z', '+00:00')).strftime('%d %b %Y, %I:%M %p')
+                    except (ValueError, TypeError):
+                        pass
+                history = [{
+                    'status': latest.get('message') or latest.get('shipStatus', ''),
+                    'location': latest.get('location', ''),
+                    'date': event_date
+                }]
+
             return {
                 'success': True,
-                'current_status': tracking.get('status', 'In Transit'),
-                'estimated_delivery': tracking.get('edd', 'N/A'),
-                'courier_name': tracking.get('courier_name', ''),
+                'current_status': latest.get('shipStatus') or tracking.get('orderStatus', 'In Transit'),
+                'estimated_delivery': estimated_delivery,
+                'courier_name': shipment.get('courierName', ''),
                 'history': history,
                 'message': 'Tracking data retrieved'
             }
