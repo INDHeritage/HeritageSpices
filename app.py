@@ -1068,7 +1068,8 @@ def admin_dashboard():
     total_wholesale_inquiries = WholesaleInquiry.query.count()
 
     total_spice_orders = order_q.count()
-    total_revenue = sum(o.total_amount for o in order_q.filter_by(payment_status='paid').all()) // 100
+    total_revenue = (order_q.filter_by(payment_status='paid')
+                      .with_entities(db.func.sum(SpiceOrder.total_amount)).scalar() or 0) // 100
     pending_shipments = SpiceOrder.query.filter_by(payment_status='paid', shipping_status='processing').count()
 
     low_stock_products = Product.query.filter(Product.stock != None, Product.stock <= 5).order_by(Product.stock.asc()).all()
@@ -1078,25 +1079,35 @@ def admin_dashboard():
     chart_revenue = []
     chart_orders = []
     chart_visits = []
-    
+
     if days != 'all' and int(days) <= 90:
         num_days = int(days)
         # Generate last N days
         date_list = [(datetime.utcnow() - timedelta(days=x)).date() for x in range(num_days-1, -1, -1)]
-        
-        # Group data
+        chart_start = datetime.combine(date_list[0], datetime.min.time())
+
+        # Grouped aggregate queries instead of 3 queries per day
+        revenue_by_date = dict(
+            db.session.query(db.func.date(SpiceOrder.created_at), db.func.sum(SpiceOrder.total_amount))
+            .filter(SpiceOrder.created_at >= chart_start, SpiceOrder.payment_status == 'paid')
+            .group_by(db.func.date(SpiceOrder.created_at)).all()
+        )
+        orders_by_date = dict(
+            db.session.query(db.func.date(SpiceOrder.created_at), db.func.count(SpiceOrder.id))
+            .filter(SpiceOrder.created_at >= chart_start)
+            .group_by(db.func.date(SpiceOrder.created_at)).all()
+        )
+        visits_by_date = dict(
+            db.session.query(db.func.date(Visit.timestamp), db.func.count(Visit.id))
+            .filter(Visit.timestamp >= chart_start)
+            .group_by(db.func.date(Visit.timestamp)).all()
+        )
+
         for d in date_list:
-            d_start = datetime.combine(d, datetime.min.time())
-            d_end = d_start + timedelta(days=1)
-            
-            day_rev = sum(o.total_amount for o in SpiceOrder.query.filter(SpiceOrder.created_at >= d_start, SpiceOrder.created_at < d_end, SpiceOrder.payment_status=='paid').all()) // 100
-            day_orders = SpiceOrder.query.filter(SpiceOrder.created_at >= d_start, SpiceOrder.created_at < d_end).count()
-            day_visits = Visit.query.filter(Visit.timestamp >= d_start, Visit.timestamp < d_end).count()
-            
             chart_labels.append(d.strftime('%b %d'))
-            chart_revenue.append(day_rev)
-            chart_orders.append(day_orders)
-            chart_visits.append(day_visits)
+            chart_revenue.append((revenue_by_date.get(d) or 0) // 100)
+            chart_orders.append(orders_by_date.get(d) or 0)
+            chart_visits.append(visits_by_date.get(d) or 0)
             
     # Recent activity feed (latest orders, wholesale inquiries, and messages combined)
     recent_activity = []
