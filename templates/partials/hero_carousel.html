@@ -1,13 +1,62 @@
-<!-- 🌟 Hero -->
-<div id="hero" class="position-relative">
-  <div class="hero-parallax-wrap" style="height: 600px; overflow: hidden; position: relative;">
-    <img id="heroParallaxImg" src="{{ url_for('static', filename='images/hero-spices-slate.webp') }}" class="d-block w-100" style="height: 130%; object-fit: cover; object-position: center; position: absolute; top: -8%; left: 0;" alt="Indian Heritage Spices">
+<!-- 🌟 Hero Carousel -->
+<div id="heroCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="5000">
+  <div class="carousel-inner" style="height: 600px;">
+
+    <!-- Slide 1 -->
+    <div class="carousel-item active" style="height: 600px;">
+      <img src="{{ url_for('static', filename='images/hero-product-slate.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Heritage Garam Masala with fresh whole spices">
+      <div class="hero-caption text-center text-md-start">
+        <h2 class="fw-bold text-warning">Upholding Indian Heritage</h2>
+        <p class="text-light">Bringing 100% organic and authentic spices from Kerala farms.</p>
+        <a href="#products" class="btn btn-warning mt-2 shadow">Shop Now</a>
+      </div>
+    </div>
+
+    <!-- Slide 2 -->
+    <div class="carousel-item" style="height: 600px;">
+      <img src="{{ url_for('static', filename='images/hero-product-white.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Heritage Garam Masala with colorful ground spices">
+      <div class="hero-caption text-center text-md-start">
+        <h2 class="fw-bold text-warning">Pure Ingredients, Trusted Blends</h2>
+        <p class="text-light">Every batch milled fresh, with no chemicals or shortcuts.</p>
+        <a href="#products" class="btn btn-warning mt-2 shadow">View Products</a>
+      </div>
+    </div>
+
+    <!-- Slide 3 -->
+    <div class="carousel-item" style="height: 600px;">
+      <img src="{{ url_for('static', filename='images/hero-spices-slate.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Raw and powder spices arranged on dark slate">
+      <div class="hero-caption text-center text-md-start">
+        <h2 class="fw-bold text-warning">Sealed with Tradition</h2>
+        <p class="text-light">Direct from Kerala farms to your kitchen, one pinch at a time.</p>
+        <a href="#mission" class="btn btn-outline-light mt-2 shadow-sm">Our Mission</a>
+      </div>
+    </div>
+
+    <!-- Slide 4 -->
+    <div class="carousel-item" style="height: 600px;">
+      <img src="{{ url_for('static', filename='images/authentic.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Strings of dried red chillies at a spice market">
+      <div class="hero-caption text-center text-md-start">
+        <h2 class="fw-bold text-warning">Bold Colors, Real Spice</h2>
+        <p class="text-light">Handpicked chillies and whole spices, sourced the traditional way.</p>
+        <a href="#products" class="btn btn-warning mt-2 shadow">Explore Range</a>
+      </div>
+    </div>
   </div>
 
-  <div class="hero-caption d-block bg-gradient bg-opacity-75 rounded p-4 text-center text-md-start">
-    <h2 class="fw-bold text-warning">Upholding Indian Heritage</h2>
-    <p class="text-light">Bringing 100% organic and authentic spices from Kerala farms.</p>
-    <a href="#products" class="btn btn-warning mt-2 shadow">Shop Now</a>
+  <!-- Carousel Controls -->
+  <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+  </button>
+  <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+  </button>
+
+  <!-- Indicators -->
+  <div class="carousel-indicators">
+    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active" aria-current="true"></button>
+    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
+    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="3"></button>
   </div>
 </div>
 
@@ -18,12 +67,13 @@
     bottom: 15%;
     left: 0;
     right: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.45);
     padding: 1.5rem;
     border-radius: 0.5rem;
     max-width: 90%;
     margin: auto;
     text-align: center;
+    z-index: 2;
   }
 
   .hero-caption h2 {
@@ -88,13 +138,11 @@
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const parallaxImg = document.getElementById('heroParallaxImg');
-  if (parallaxImg && !reduceMotion) {
-    window.addEventListener('scroll', () => {
-      const offset = Math.min(window.scrollY * 0.15, 60);
-      parallaxImg.style.transform = `translateY(${offset}px)`;
-    }, { passive: true });
-  }
+  const carouselEl = document.getElementById('heroCarousel');
+  new bootstrap.Carousel(carouselEl, {
+    interval: 5000,
+    ride: 'carousel',
+    wrap: true
+  });
 });
 </script>
