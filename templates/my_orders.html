@@ -90,6 +90,11 @@
                     <a href="/orders/{{ order.id }}/track" class="btn btn-outline-success rounded-pill fw-bold hover-lift py-2 shadow-sm w-100">
                       <i class="fas fa-map-marker-alt me-1"></i> Track Package
                     </a>
+                    {% if order.payment_status == 'paid' %}
+                    <a href="/orders/{{ order.id }}/receipt" target="_blank" class="btn btn-outline-dark rounded-pill fw-bold hover-lift py-2 shadow-sm w-100">
+                      <i class="fas fa-download me-1"></i> Download Receipt
+                    </a>
+                    {% endif %}
                     <form method="POST" action="/orders/{{ order.id }}/reorder" onsubmit="const b=this.querySelector('button'); b.disabled=true; b.innerHTML='<span class=&quot;spinner-border spinner-border-sm&quot; role=&quot;status&quot; aria-hidden=&quot;true&quot;></span> Adding...';">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="btn btn-success rounded-pill fw-bold hover-lift py-2 shadow-sm w-100">

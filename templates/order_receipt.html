@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Receipt #{{ order.order_number }} | Heritage Spices{% endblock %}
+
+{% block content %}
+<div class="container py-5 receipt-page">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+        <a href="/orders" class="btn btn-outline-secondary rounded-pill px-4">
+          <i class="fas fa-arrow-left me-2"></i> Back to My Orders
+        </a>
+        <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" onclick="window.print()">
+          <i class="fas fa-download me-2"></i> Download / Print Receipt
+        </button>
+      </div>
+
+      <div class="card border-0 shadow-sm rounded-4 receipt-container">
+        <div class="card-body p-4 p-md-5">
+
+          <div class="d-flex flex-wrap justify-content-between align-items-start mb-4 pb-4 border-bottom">
+            <div>
+              <img src="{{ url_for('static', filename='images/logo.png') }}" height="48" alt="Heritage Spices Logo" class="mb-2">
+              <p class="mb-0 small text-muted">Heritage Spices Pvt. Ltd.</p>
+              <p class="mb-0 small text-muted">Sindewahi, Maharashtra - 441222</p>
+              <p class="mb-0 small text-muted">heritage.spices.pvtltd@gmail.com</p>
+            </div>
+            <div class="text-md-end mt-3 mt-md-0">
+              <h4 class="fw-bold text-success mb-1">Receipt</h4>
+              <p class="mb-0 font-monospace">{{ order.order_number }}</p>
+              <p class="mb-0 small text-muted">{{ order.created_at.strftime('%d %b %Y, %I:%M %p') }}</p>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <small class="text-uppercase text-muted fw-bold d-block mb-1" style="font-size: 0.75rem;">Billed / Shipped To</small>
+              <p class="mb-0 fw-semibold">{{ order.full_name }}</p>
+              <p class="mb-0 small text-muted">{{ order.address }}</p>
+              <p class="mb-0 small text-muted">{{ order.city }}, {{ order.state }} - {{ order.pincode }}</p>
+              <p class="mb-0 small text-muted">+91 {{ order.phone }}</p>
+            </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+              <small class="text-uppercase text-muted fw-bold d-block mb-1" style="font-size: 0.75rem;">Payment</small>
+              <p class="mb-0 small">Status: <strong class="text-success">{{ order.payment_status|capitalize }}</strong></p>
+              {% if order.razorpay_payment_id %}
+                <p class="mb-0 small text-muted">Txn ID: {{ order.razorpay_payment_id }}</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="table-responsive mb-4">
+            <table class="table">
+              <thead>
+                <tr class="border-bottom border-2">
+                  <th class="text-muted small text-uppercase">Item</th>
+                  <th class="text-muted small text-uppercase text-center">Qty</th>
+                  <th class="text-muted small text-uppercase text-end">Unit Price</th>
+                  <th class="text-muted small text-uppercase text-end">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in order.items %}
+                <tr>
+                  <td class="fw-semibold">{{ item.product_name }}</td>
+                  <td class="text-center">{{ item.quantity }}</td>
+                  <td class="text-end">₹{{ item.unit_price // 100 }}</td>
+                  <td class="text-end">₹{{ (item.unit_price * item.quantity) // 100 }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row justify-content-end">
+            <div class="col-md-5">
+              <div class="d-flex justify-content-between small mb-2">
+                <span class="text-muted">Subtotal</span>
+                <span>₹{{ order.subtotal // 100 }}</span>
+              </div>
+              {% if order.discount_amount %}
+              <div class="d-flex justify-content-between small mb-2 text-success">
+                <span>Coupon Discount</span>
+                <span>-₹{{ order.discount_amount // 100 }}</span>
+              </div>
+              {% endif %}
+              {% if order.points_discount_amount %}
+              <div class="d-flex justify-content-between small mb-2 text-success">
+                <span>Points Redeemed</span>
+                <span>-₹{{ order.points_discount_amount // 100 }}</span>
+              </div>
+              {% endif %}
+              <div class="d-flex justify-content-between small mb-2">
+                <span class="text-muted">Shipping</span>
+                <span>₹{{ order.shipping_cost // 100 }}</span>
+              </div>
+              <div class="d-flex justify-content-between fw-bold fs-5 pt-2 border-top">
+                <span>Total Paid</span>
+                <span class="text-success">₹{{ order.total_amount // 100 }}</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-center text-muted small mt-5 mb-0">Thank you for shopping with Heritage Spices!</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.Tawk_API = window.Tawk_API || {};
+  window.Tawk_API.onLoad = function() {
+      window.Tawk_API.hideWidget();
+  };
+</script>
+<style>
+  @media print {
+    .no-print, .navbar, footer, #backToTop, #cookie-banner, .welcome-offer-popup, iframe {
+      display: none !important;
+    }
+    .receipt-page { padding: 0 !important; }
+    .receipt-container { box-shadow: none !important; border: none !important; }
+  }
+</style>
+{% endblock %}

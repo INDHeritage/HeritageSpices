@@ -2579,6 +2579,20 @@ def track_order(order_id):
     return render_template('order_tracking.html', order=order, tracking=tracking,
                            user=user, is_logged_in=True)
 
+@app.route('/orders/<int:order_id>/receipt')
+def order_receipt(order_id):
+    user = session.get('user')
+    if not user:
+        flash("Please login to view your receipt.", "warning")
+        return redirect('/login')
+
+    if user['email'] == 'heritage.spices.pvtltd@gmail.com':
+        order = SpiceOrder.query.filter_by(id=order_id).first_or_404()
+    else:
+        order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
+
+    return render_template('order_receipt.html', order=order, user=user, is_logged_in=True)
+
 @app.route('/orders/<int:order_id>/reorder', methods=['POST'])
 def reorder(order_id):
     user = session.get('user')

@@ -150,10 +150,15 @@
         </div>
       </div>
       
-      <div class="text-center mt-4">
+      <div class="text-center mt-4 d-flex flex-wrap justify-content-center gap-2">
         <a href="/orders" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm hover-lift">
           <i class="fas fa-arrow-left me-2"></i> Back to My Orders
         </a>
+        {% if order.payment_status == 'paid' %}
+        <a href="/orders/{{ order.id }}/receipt" target="_blank" class="btn btn-outline-dark rounded-pill px-4 shadow-sm hover-lift">
+          <i class="fas fa-download me-2"></i> Download Receipt
+        </a>
+        {% endif %}
       </div>
       
     </div>
