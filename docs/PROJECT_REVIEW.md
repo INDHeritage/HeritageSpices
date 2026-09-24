@@ -29,6 +29,46 @@ Items marked ✅ *verified* were reproduced by actually running the code or meas
 
 ---
 
+## Remaining work — second review, after the fixes went live (24 Sep 2026)
+
+Everything below was checked against the live site or by running the code, not assumed.
+
+### Why pages are slow, and what was done ✅ measured
+Live timings (first byte): pages with **no** database work ≈ **0.3 s**; `/faq` (4 queries) ≈ **1.5 s**; homepage (9 queries) ≈ **3.0 s**. So every database query costs about **0.3 s**. The database is in **Singapore** (Supabase `ap-southeast-1`); if the Render service is in the US/Europe (the default), each query crosses an ocean.
+- **Done in code:** settings are cached for a minute (they caused 7 of the homepage's 9 queries); visit logging skips crawlers/health checks/HEAD and runs in the background; the unused open `/track-visit` endpoint and the `/test-csrf` debug page were removed; my earlier `pool_pre_ping` setting (one extra round trip per request) was removed. Result: homepage 9 → 2 queries (only 1 blocks the visitor), `/faq` and `/about` 4 → 0. Expect the homepage to drop from ~3 s to roughly 0.6 s. A test now fails if a page exceeds its query budget.
+- **Still needed (dashboard):** put the web service and the database in the **same region** (item A1) — this makes each query ~0.02 s and is the biggest remaining speed win.
+
+### A. Do these yourself (dashboards, no code) — in this order
+| # | What | Why |
+|---|---|---|
+| A1 | **Render region:** check *Settings → General → Region*. If it is not **Singapore**, create a new Web Service from the same repo in Singapore, copy the environment variables, then move the custom domain to it. (Region cannot be changed on an existing service.) | Removes the ~0.3 s per query. Single biggest speed gain. |
+| A2 | **Start command** (*Settings → Deploy*): `gunicorn app:app --workers 1 --threads 8 --timeout 60` (the Procfile now says the same, but Render uses its own setting). Keep **one worker** — the rate limiter and settings cache live in memory. | Today it is 1 *sync* worker with a 30 s timeout: one slow call (payment, courier, image upload) freezes the whole site, and shipping (two 15 s courier calls) can be killed mid-way. |
+| A3 | **Health Check Path** (*Settings → Health Checks*): `/healthz`. | Lets Render restart a stuck instance and deploy without downtime. |
+| A4 | **Plan:** the service shows **Free**. Free instances sleep after ~15 min idle, so the next customer waits 30–60 s for a page (and a paying customer's checkout can stall). Consider *Starter* (~$7/month). | Biggest conversion risk for a store. |
+| A5 | **Verify the Razorpay webhook:** after the next real order, open Razorpay → Webhooks and check the delivery shows **200**. (403 = the secret on Render and Razorpay differ.) | Confirms missed-payment protection works. |
+| A6 | **Credentials & repo:** rotate the GitHub tokens/NimbusPost password shared in chat; confirm the GitHub repo is private (old customer CSVs remain in its history). | Security hygiene. |
+| A7 | **Supabase:** confirm backups/point-in-time recovery are on and re-run the Security Advisor. | Data safety. |
+
+### B. Code work still open (needs your decision, an account, or database changes)
+1. **Customer notifications** — order confirmed / shipped / delivered by email or WhatsApp (needs a provider account). Biggest support-load reducer.
+2. **Courier retry creates a duplicate order** — `create_shipment()` only saves the NimbusPost order id if booking succeeds. If booking fails after the order is created, clicking Ship again creates a second courier order. Fix: save the id immediately and re-book the same order.
+3. **Individual product pages** (SEO, sharing, reviews) and a size selector merging the 50 g / 100 g products.
+4. **Guest checkout / phone-OTP login** (login is Google-only).
+5. **Database model:** price stored as text; parcel weight guessed from price; migrations not tracked (Alembic baseline). Needs planned production SQL.
+6. **Content-Security-Policy** header (needs a careful allow-list of Razorpay, Tawk.to, CDNs, imgbb).
+7. **Order list pagination** (`/admin/orders` still loads every order).
+8. Small clean-ups: unused `static/firebaseConfig.js`; root-level one-off scripts; a real logging/Sentry setup; deprecated `datetime.utcnow()`/`Query.get()` calls; `blog` deletion "password" is auto-filled so adds no protection.
+
+### C. Compliance to have checked by someone qualified (flags, not legal advice)
+- "100% organic" and "tested and certified for international standards" wording vs. your actual certificates.
+- The FSSAI licence number is shown on the Products page (good) but not in the footer/receipt, where it is normally expected too; the About page says "certified to FSSAI standards" — make sure that wording is accurate. There is **no GSTIN** shown anywhere, and the receipt is a simple receipt, not a GST invoice.
+- The site records visitor IP addresses and signs users in with Google: confirm the Privacy Policy describes this (India's DPDP Act 2023).
+
+### D. Note on test data
+While checking pages from my machine earlier in this project, a small number of homepage requests (roughly 10–20) were recorded as visits in your real database, out of ~5,000. Harmless, but the visit count is very slightly inflated.
+
+---
+
 ## 1. Summary
 
 The site works and the core flow (browse → pay → ship → track) is real and in production. The main risks are not visual — they are **money and content leaks**:

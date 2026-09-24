@@ -183,3 +183,58 @@ def test_sitemap_is_valid_xml_with_encoded_urls(client):
     ET.fromstring(r.data)  # raises if not well-formed
     text = r.get_data(as_text=True)
     assert '’' not in text and ':-' not in text
+
+
+# ---------- Speed: database round trips are expensive (Render -> Supabase ~0.3 s each) ----------
+
+def _count_statements(fn):
+    from sqlalchemy import event
+    seen = []
+
+    def listener(conn, cursor, statement, params, context, executemany):
+        seen.append(statement)
+
+    engine = appmod.db.engine
+    event.listen(engine, 'before_cursor_execute', listener)
+    try:
+        fn()
+    finally:
+        event.remove(engine, 'before_cursor_execute', listener)
+    return len(seen)
+
+
+def test_settings_are_cached_and_admin_changes_show_up_immediately(app):
+    appmod.set_setting('demo_key', 'one')
+    appmod.get_setting('demo_key')  # warm the cache
+    assert _count_statements(lambda: [appmod.get_setting('demo_key') for _ in range(10)]) == 0
+    appmod.set_setting('demo_key', 'two')
+    assert appmod.get_setting('demo_key') == 'two'
+
+
+def test_homepage_stays_within_query_budget(client, make_order):
+    make_order()  # gives the page a product to list
+    human = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36'}
+    client.get('/', headers=human)  # warm caches
+    n = _count_statements(lambda: client.get('/', headers=human))
+    assert n <= 4, f'homepage now runs {n} database statements (was 9); each costs ~0.3s in production'
+
+
+def test_bots_and_health_checks_are_not_logged_as_visits(client):
+    human = {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Safari/604.1'}
+    client.get('/', headers={'User-Agent': 'Googlebot/2.1'})
+    client.get('/', headers={'User-Agent': 'Go-http-client/2.0'})
+    client.head('/', headers=human)
+    assert appmod.Visit.query.count() == 0
+    client.get('/', headers=human)
+    assert appmod.Visit.query.count() == 1
+
+
+def test_unused_public_endpoints_are_gone(client):
+    assert client.post('/track-visit', json={'email': 'x@y.com'}).status_code in (404, 405)
+    assert client.get('/test-csrf').status_code == 404
+
+
+def test_healthz_is_cheap_and_public(client):
+    r = client.get('/healthz')
+    assert r.status_code == 200 and r.data == b'ok'
+    assert _count_statements(lambda: client.get('/healthz')) == 0

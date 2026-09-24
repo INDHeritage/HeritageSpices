@@ -1,3 +1,5 @@
+import time
+import threading
 import re
 from xml.sax.saxutils import escape as xml_escape
 import urllib.parse
@@ -140,9 +142,9 @@ if not db_url:
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 if db_url.startswith('postgres'):
-    # Supabase closes idle connections; without this the first request after a quiet
-    # period can fail with "server closed the connection unexpectedly".
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 280}
+    # Recycle connections before Supabase's idle timeout closes them. (pool_pre_ping is
+    # deliberately NOT used: it adds a SELECT 1 round trip to every request, ~0.3 s here.)
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle': 280}
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
@@ -406,10 +408,22 @@ class BlacklistedPincode(db.Model):
     reason = db.Column(db.String(200))
 
 # --- Site Settings Helpers ---
+# Settings are read on almost every page (the global template context alone looks up four
+# of them). Each database round trip from Render to Supabase costs ~0.3 s, so the whole
+# table is cached in memory for a minute and refreshed with a single query.
+_SETTINGS_TTL_SECONDS = 60
+_settings_cache = {'data': None, 'loaded_at': 0.0}
+
+def _load_settings():
+    now = time.time()
+    if _settings_cache['data'] is None or now - _settings_cache['loaded_at'] > _SETTINGS_TTL_SECONDS:
+        _settings_cache['data'] = {row.key: row.value for row in SiteSetting.query.all()}
+        _settings_cache['loaded_at'] = now
+    return _settings_cache['data']
+
 def get_setting(key, default=''):
-    """Get a site setting value by key"""
-    setting = SiteSetting.query.filter_by(key=key).first()
-    return setting.value if setting else default
+    """Get a site setting value by key (cached for up to a minute)."""
+    return _load_settings().get(key, default)
 
 def set_setting(key, value):
     """Set a site setting value"""
@@ -420,6 +434,7 @@ def set_setting(key, value):
         setting = SiteSetting(key=key, value=str(value))
         db.session.add(setting)
     db.session.commit()
+    _settings_cache['data'] = None  # next read reloads, so admin changes show up immediately
 
 # --- Telegram Bot Notification ---
 def send_telegram_notification(message):
@@ -659,16 +674,35 @@ def compute_points_redemption(requested_points, subtotal_rupees, balance):
     discount_rupees = int(used_points / points_per_rupee)
     return used_points, discount_rupees
 
+_BOT_UA = re.compile(r'bot|crawl|spider|slurp|monitor|uptime|pingdom|curl|wget|python-requests|'
+                     r'go-http-client|headless|preview|facebookexternalhit|lighthouse', re.I)
+
+def _is_bot(user_agent):
+    return not user_agent or bool(_BOT_UA.search(user_agent))
+
 def track_visit(user=None):
-    """Log each visit to database"""
-    visit = Visit(
-        timestamp=datetime.utcnow(),
-        ip=request.remote_addr,
-        user_agent=request.headers.get('User-Agent'),
-        email=user['email'] if user else 'Guest'
-    )
-    db.session.add(visit)
-    db.session.commit()
+    """Log a human visit. Skips crawlers, uptime monitors and HEAD checks (they inflate the
+    visit count and each one costs two database round trips), and writes in a background
+    thread so the visitor never waits for it."""
+    ua = request.headers.get('User-Agent')
+    if request.method == 'HEAD' or _is_bot(ua):
+        return
+    ip, email = request.remote_addr, (user['email'] if user else 'Guest')
+
+    def _write():
+        try:
+            with app.app_context():
+                db.session.add(Visit(timestamp=datetime.utcnow(), ip=ip, user_agent=ua, email=email))
+                db.session.commit()
+        except Exception as e:
+            print("Visit logging failed:", e)
+        finally:
+            db.session.remove()
+
+    if app.config.get('TESTING'):
+        _write()
+    else:
+        threading.Thread(target=_write, daemon=True).start()
 
 # -------------------------
 # 🌐 Routes
@@ -870,6 +904,11 @@ def ads_txt():
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory('static/images', 'favicon.png', mimetype='image/png')
+
+@app.route('/healthz')
+def healthz():
+    """Uptime/health check for Render. Deliberately touches no database and logs no visit."""
+    return 'ok', 200, {'Content-Type': 'text/plain', 'Cache-Control': 'no-store'}
 
 @app.route('/robots.txt')
 def robots():
@@ -1454,19 +1493,6 @@ def delete_coupon(id):
     return redirect('/admin/coupons')
 
 # ✅ Frontend Analytics
-@app.route('/track-visit', methods=['POST'])
-def track_frontend_visit():
-    data = request.get_json()
-    visit = Visit(
-        timestamp=datetime.utcnow(),
-        ip=request.remote_addr,
-        user_agent=data.get('user_agent', request.headers.get('User-Agent')),
-        email=data.get('email', 'Guest')
-    )
-    db.session.add(visit)
-    db.session.commit()
-    return '', 204
-
 # ✅ Privacy Policy
 @app.route('/privacy')
 def privacy():
@@ -3246,17 +3272,6 @@ def page_not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return render_template("500.html"), 500
-
-@app.route('/test-csrf')
-def test_csrf():
-    from flask import render_template_string
-    return render_template_string('''
-        <form method="POST">
-            {{ csrf_token() }}
-            <input type="email" name="email">
-            <button type="submit">Test</button>
-        </form>
-    ''')
 
 # --- Product Review Routes ---
 @app.route('/product/<int:product_id>/review', methods=['POST'])
