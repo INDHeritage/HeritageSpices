@@ -3291,6 +3291,28 @@ def fetch_label(order_id):
 
     return redirect('/admin/orders')
 
+@app.route('/admin/test-email', methods=['POST'])
+@admin_required
+def admin_test_email():
+    """Send a real test e-mail to the logged-in admin and show the exact result, so a wrong
+    SMTP setting is obvious right away instead of silently failing on a customer's order."""
+    if not notifications.is_configured():
+        flash("E-mail is not set up yet: add SMTP_HOST, SMTP_USER and SMTP_PASSWORD in Render "
+              "(Environment), then try again.", "warning")
+        return redirect('/admin/dashboard')
+    to = session['user']['email']
+    try:
+        notifications._send_now(
+            to, "Heritage Spices test e-mail",
+            "If you can read this, customer e-mails are working. Order confirmed, shipped and "
+            "delivered e-mails will now be sent automatically.",
+            "<p>If you can read this, <b>customer e-mails are working</b>. Order confirmed, shipped "
+            "and delivered e-mails will now be sent automatically.</p>")
+        flash(f"Test e-mail sent to {to}. Check your inbox (and spam folder).", "success")
+    except Exception as e:
+        flash(f"E-mail failed: {e}", "danger")
+    return redirect('/admin/dashboard')
+
 @app.route('/admin/orders/cancel/<int:order_id>', methods=['POST'])
 @admin_required
 def cancel_order(order_id):

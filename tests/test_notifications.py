@@ -185,3 +185,38 @@ def test_courier_retry_starts_fresh_if_remembered_order_is_gone(monkeypatch):
     monkeypatch.setattr(nimbus_api.requests, 'post', fake_post)
     result = nimbus_api.create_shipment(_shipment_data(nimbus_order_id='ORD-OLD'))
     assert result['success'] is True and result['nimbus_order_id'] == 'ORD-NEW' and created['n'] == 1
+
+
+# ---------- Admin "Send test e-mail" ----------
+
+def test_test_email_button_reports_when_email_is_not_set_up(client, monkeypatch):
+    for var in ('SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD'):
+        monkeypatch.delenv(var, raising=False)
+    login(client, ADMIN)
+    r = client.post('/admin/test-email', follow_redirects=True)
+    assert 'not set up yet' in r.get_data(as_text=True)
+
+
+def test_test_email_button_sends_to_the_admin(client, outbox):
+    login(client, ADMIN)
+    r = client.post('/admin/test-email', follow_redirects=True)
+    assert len(outbox) == 1 and outbox[0][0] == ADMIN
+    assert 'Test e-mail sent' in r.get_data(as_text=True)
+
+
+def test_test_email_button_shows_the_real_error(client, monkeypatch):
+    for var in ('SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD'):
+        monkeypatch.setenv(var, 'x')
+
+    def boom(*args):
+        raise RuntimeError('535 Username and Password not accepted')
+
+    monkeypatch.setattr(notifications, '_send_now', boom)
+    login(client, ADMIN)
+    r = client.post('/admin/test-email', follow_redirects=True)
+    assert 'Username and Password not accepted' in r.get_data(as_text=True)
+
+
+def test_test_email_button_is_admin_only(client):
+    login(client, 'someone@example.com')
+    assert client.post('/admin/test-email').status_code == 403

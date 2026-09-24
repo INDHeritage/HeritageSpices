@@ -226,6 +226,13 @@
     <div class="col-md-3">
       <a href="/admin/orders" class="btn btn-outline-dark w-100 py-3 fw-bold"><i class="fas fa-shopping-bag d-block fa-2x mb-2 text-dark"></i> View All Orders</a>
     </div>
+    <!-- Test customer e-mail -->
+    <div class="col-md-3">
+      <form action="/admin/test-email" method="POST" class="m-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-secondary w-100 py-3 fw-bold"><i class="fas fa-envelope-circle-check d-block fa-2x mb-2 text-secondary"></i> Send Test E-mail</button>
+      </form>
+    </div>
     <!-- Blogs -->
     <div class="col-md-3">
       <a href="/admin/blogs" class="btn btn-outline-info w-100 py-3 fw-bold"><i class="fas fa-blog d-block fa-2x mb-2 text-info"></i> Manage Blogs</a>
