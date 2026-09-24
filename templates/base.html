@@ -421,6 +421,13 @@
           <a href="https://twitter.com/search?q=%23Heritagespices" class="me-2 text-dark social-anim" target="_blank"><i class="fab fa-twitter fa-lg"></i></a>
           <a href="mailto:heritage.spices.pvtltd@gmail.com" class="text-dark social-anim"><i class="fas fa-envelope fa-lg"></i></a>
         </div>
+        {% if google_review %}
+        <a href="{{ google_review.url }}" target="_blank" rel="noopener" class="d-inline-block mt-3 small text-decoration-none text-dark border rounded-pill px-3 py-1" id="google-review-badge">
+          <i class="fab fa-google text-success me-1"></i>
+          {% if google_review.rating %}<strong>{{ google_review.rating }}</strong> <span class="text-warning">&#9733;</span> on Google ({{ google_review.count }} reviews)
+          {% else %}Review us on Google{% endif %}
+        </a>
+        {% endif %}
       </div>
       <div class="col-md-3 mb-3">
         <h6 class="fw-bold mb-3">Quick Links</h6>

@@ -91,6 +91,9 @@
                   </div>
                   
                   <div class="col-md-4 text-md-end mt-4 mt-md-0 d-flex flex-column gap-2 justify-content-center h-100">
+                    {% if google_review and order.shipping_status == 'delivered' %}
+                    <a href="{{ google_review.url }}" target="_blank" rel="noopener" class="btn btn-outline-warning rounded-pill fw-bold py-2 shadow-sm w-100 mb-2 google-review-btn"><i class="fab fa-google me-1"></i> Review us on Google</a>
+                    {% endif %}
                     <a href="/orders/{{ order.id }}/track" class="btn btn-outline-success rounded-pill fw-bold hover-lift py-2 shadow-sm w-100">
                       <i class="fas fa-map-marker-alt me-1"></i> Track Package
                     </a>

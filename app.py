@@ -506,6 +506,21 @@ def google_site_verification_tokens():
     raw = os.getenv('GOOGLE_SITE_VERIFICATION', '')
     return [t for t in re.split(r'[,;\s]+', raw) if re.fullmatch(r'[A-Za-z0-9_-]{10,}', t)]
 
+def google_review_info():
+    """Link (and optional rating) to our Google Business reviews. Shown only when GOOGLE_REVIEW_URL is set.
+    The rating/count are typed in by the owner, never copied from Google, so update them now and then."""
+    url = notifications.google_review_url()
+    if not url:
+        return None
+    try:
+        rating = round(float(os.getenv('GOOGLE_RATING', '')), 1)
+        count = int(os.getenv('GOOGLE_REVIEW_COUNT', ''))
+        if not (1 <= rating <= 5 and count > 0):
+            rating = count = None
+    except ValueError:
+        rating = count = None
+    return {'url': url, 'rating': rating, 'count': count}
+
 def store_whatsapp_link():
     """Link for the storefront 'WhatsApp us' button, from the WHATSAPP_NUMBER env var (None if unset)."""
     number = _wa_number(os.getenv('WHATSAPP_NUMBER', ''))
@@ -2325,6 +2340,7 @@ def inject_flags():
         'is_admin': is_admin_user(session.get('user')),
         'store_whatsapp_link': store_whatsapp_link(),
         'google_site_verification': google_site_verification_tokens(),
+        'google_review': google_review_info(),
         'google_one_tap': bool(GOOGLE_ONE_TAP_ENABLED and app.config.get('GOOGLE_CLIENT_ID')
                                and not session.get('user')
                                and not request.path.startswith(_ONE_TAP_SKIP_PATHS)),

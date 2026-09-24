@@ -197,18 +197,27 @@ def order_shipped(order, tracking_url):
     return subject, text, html
 
 
+def google_review_url():
+    """Public Google review link (GOOGLE_REVIEW_URL). Only an https link is accepted."""
+    url = os.getenv('GOOGLE_REVIEW_URL', '').strip()
+    return url if url.startswith('https://') else ''
+
+
 def order_delivered(order):
     subject = f"Your order {order.order_number} was delivered"
     text = "\n".join([
         f"Hi {order.full_name},", "",
         f"Your order {order.order_number} has been delivered. We hope you enjoy it!",
         "If anything isn't right, just reply to this e-mail and we'll sort it out.", "",
-        f"Cooking ideas: {site_url()}/blog", "", "Heritage Spices"])
+        f"Cooking ideas: {site_url()}/blog", ""] + (
+        [f"Enjoyed it? A quick Google review helps us a lot: {google_review_url()}", ""] if google_review_url() else []
+    ) + ["Heritage Spices"])
+    review_btn = _button(google_review_url(), 'Review us on Google') if google_review_url() else ''
     html = _wrap_html(
         "Delivered - enjoy!",
         f"Your order <b>{escape(order.order_number)}</b> has been delivered. We hope you enjoy it! "
         f"If anything isn't right, just reply to this e-mail and we'll sort it out.",
-        '', _button(f"{site_url()}/blog", 'Get cooking ideas'))
+        '', _button(f"{site_url()}/blog", 'Get cooking ideas') + review_btn)
     return subject, text, html
 
 
