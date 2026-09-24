@@ -248,3 +248,12 @@ def test_blog_pages_link_to_clean_urls_only(site):
 
 def test_images_on_the_homepage_all_have_alt_text(site):
     assert all((i.get('alt') or '').strip() for i in parse(site, '/').imgs)
+
+
+def test_headings_inside_a_post_body_never_add_a_second_h1(site):
+    b = _post(title='Body With Heading', slug='body-with-heading')
+    b.content = '<h1>Repeated big heading</h1><p>text</p><H1 class="x">Another</H1>'
+    appmod.db.session.commit()
+    h = parse(site, '/blog/body-with-heading')
+    assert len(h.h1) == 1
+    assert 'Repeated big heading' in site.get('/blog/body-with-heading').get_data(as_text=True)

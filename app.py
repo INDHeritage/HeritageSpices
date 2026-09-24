@@ -1276,6 +1276,11 @@ def blog_path(post):
 
 app.jinja_env.globals['blog_path'] = blog_path
 
+@app.template_filter('demote_h1')
+def demote_h1(html):
+    """A page should have one H1 (the post title); headings inside the body start at H2."""
+    return re.sub(r'<(/?)h1(?![0-9A-Za-z])', lambda m: '<' + m.group(1) + 'h2', html or '', flags=re.I)
+
 @app.route("/blog/<slug>")
 def blog_detail(slug):
     all_blogs = get_all_blogs()

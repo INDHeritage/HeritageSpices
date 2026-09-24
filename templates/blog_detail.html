@@ -52,7 +52,7 @@
       
       <!-- Article Body -->
       <article class="blog-body mb-5">
-        {{ post.content | safe }}
+        {{ post.content | demote_h1 | safe }}
       </article>
 
       <!-- 🔗 Social Share Component -->
