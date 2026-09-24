@@ -338,7 +338,7 @@
               {% endif %}
             </a>
           </li>
-          <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 text-primary fw-bold" href="/science-hub"><i class="fas fa-flask"></i> Science Hub</a></li>
+          {% if science_hub_enabled %}<li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 text-primary fw-bold" href="/science-hub"><i class="fas fa-flask"></i> Science Hub</a></li>{% endif %}
           <li class="nav-item ms-lg-3 mt-3 mt-lg-0">
             {% if not user %}
               <a href="{{ url_for('login') }}" class="btn btn-success d-flex align-items-center justify-content-center" style="gap: 8px; padding: 8px 16px;">
@@ -355,7 +355,7 @@
                   <li><a class="dropdown-item" href="/orders"><i class="fas fa-box me-2 text-success"></i>My Orders</a></li>
                   <li><a class="dropdown-item" href="/my-coupons"><i class="fas fa-ticket me-2 text-warning"></i>My Coupons</a></li>
                   <li><a class="dropdown-item" href="/refer"><i class="fas fa-user-plus me-2 text-success"></i>Refer & Earn{% if nav_points_balance %} <span class="badge bg-success ms-1">{{ nav_points_balance }} pts</span>{% endif %}</a></li>
-                  {% if user.email == 'heritage.spices.pvtltd@gmail.com' %}
+                  {% if is_admin %}
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="/admin/dashboard"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Admin Dashboard</a></li>
                   {% endif %}

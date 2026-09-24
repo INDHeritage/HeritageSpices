@@ -56,6 +56,10 @@
                       
                       {% if order.shipping_status == 'delivered' %}
                         <span class="badge bg-success px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-box-open me-1"></i> Delivered</span>
+                      {% elif order.shipping_status == 'out for delivery' %}
+                        <span class="badge bg-primary px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-truck-fast me-1"></i> Out for delivery</span>
+                      {% elif order.shipping_status == 'rto' %}
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-rotate-left me-1"></i> Returning to seller</span>
                       {% elif order.shipping_status == 'shipped' %}
                         <span class="badge bg-primary px-3 py-2 rounded-pill shadow-sm"><i class="fas fa-truck me-1"></i> Shipped</span>
                       {% elif order.shipping_status == 'cancelled' %}

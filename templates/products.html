@@ -198,7 +198,7 @@
             </div>
 
             <!-- Admin Actions -->
-            {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
+            {% if is_admin %}
               <div class="d-flex gap-2 mt-2 pt-2 border-top border-light">
                 <a href="/admin/products/edit/{{ product.id }}" class="btn btn-sm btn-outline-warning flex-grow-1">✏️ Edit</a>
                 <form method="POST" action="/admin/products/delete/{{ product.id }}" class="flex-grow-1" onsubmit="return confirm('Are you sure you want to delete this product?');">
@@ -215,7 +215,7 @@
   </div>
 
   <!-- ➕ Admin Quick Add Floating Badge -->
-  {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
+  {% if is_admin %}
     <div class="position-fixed bottom-3 start-3 z-3 animate__animated animate__bounceInUp">
       <a href="/admin/products/add" class="btn btn-success shadow-lg rounded-pill px-4 py-2.5 d-flex align-items-center gap-2 border border-2 border-white">
         <i class="fas fa-plus-circle"></i>

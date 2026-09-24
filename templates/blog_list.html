@@ -183,7 +183,7 @@
   {% endif %}
 
   <!-- 📬 Admin quick actions (Floating Badge if logged in) -->
-  {% if session['user'] and session['user']['email'] == 'heritage.spices.pvtltd@gmail.com' %}
+  {% if is_admin %}
     <div class="position-fixed bottom-3 start-3 z-3">
       <a href="/admin/blogs" class="btn btn-success shadow-lg rounded-pill px-4 py-2.5 d-flex align-items-center gap-2 border border-2 border-white">
         <i class="fas fa-plus-circle"></i>

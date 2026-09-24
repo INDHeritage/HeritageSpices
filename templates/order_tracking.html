@@ -103,7 +103,7 @@
               </div>
             {% else %}
               <!-- Step 3: Shipped -->
-              {% set is_shipped = s_status in ['shipped', 'in transit', 'out for delivery', 'delivered'] %}
+              {% set is_shipped = s_status in ['shipped', 'in transit', 'out for delivery', 'rto', 'delivered'] %}
               <div class="timeline-step mb-4 position-relative opacity-{{ '100' if is_shipped else '50' }}">
                 <div class="timeline-icon bg-{{ 'success' if is_shipped else 'light' }} text-{{ 'white' if is_shipped else 'secondary' }} border border-{{ 'success' if is_shipped else 'secondary' }} rounded-circle position-absolute d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; left: -34px; top: -4px; z-index: 2;">
                   <i class="fas fa-{{ 'check' if is_shipped else 'box' }} small"></i>

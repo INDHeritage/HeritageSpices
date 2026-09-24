@@ -14,6 +14,16 @@
     </a>
   </div>
 
+  {% if stale_pending %}
+  <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 shadow-sm">
+    <span><i class="fas fa-exclamation-triangle me-2"></i><strong>{{ stale_pending|length }}</strong> order{{ 's' if stale_pending|length != 1 else '' }} unpaid for 30+ minutes. Most are abandoned checkouts, but a customer who was charged and closed the page would show up here too.</span>
+    <form action="/admin/orders/sync-payments" method="POST" class="m-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3"><i class="fas fa-sync me-1"></i> Check Razorpay for missed payments</button>
+    </form>
+  </div>
+  {% endif %}
+
   <!-- Stats Row -->
   <div class="row g-4 mb-5">
     <div class="col-md-3">
@@ -130,6 +140,10 @@
                   
                   {% if order.shipping_status == 'delivered' %}
                     <span class="badge bg-success w-100 py-1">Delivered</span>
+                  {% elif order.shipping_status == 'out for delivery' %}
+                    <span class="badge bg-primary w-100 py-1">Out for delivery</span>
+                  {% elif order.shipping_status == 'rto' %}
+                    <span class="badge bg-warning text-dark w-100 py-1">Returning (RTO)</span>
                   {% elif order.shipping_status == 'shipped' %}
                     <span class="badge bg-primary w-100 py-1">Shipped</span>
                   {% elif order.shipping_status == 'cancelled' %}
@@ -158,7 +172,7 @@
                         Cancel
                       </button>
                     </form>
-                  {% elif order.shipping_status == 'shipped' %}
+                  {% elif order.shipping_status in ['shipped', 'out for delivery', 'rto', 'delivered'] %}
                     <a href="/orders/{{ order.id }}/track" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill w-100">
                       Track <i class="fas fa-external-link-alt ms-1" style="font-size:0.7rem;"></i>
                     </a>

@@ -1,3 +1,7 @@
+import re
+from xml.sax.saxutils import escape as xml_escape
+import urllib.parse
+import unicodedata
 from datetime import datetime, timedelta
 from flask import Flask, render_template, redirect, url_for, session, request, jsonify, flash
 from authlib.integrations.flask_client import OAuth
@@ -33,10 +37,24 @@ load_dotenv()
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
+# Admin accounts. Comma-separated ADMIN_EMAILS env var; defaults to the store owner so
+# existing behaviour is unchanged if the variable is not set.
+ADMIN_EMAILS = {e.strip().lower() for e in os.getenv('ADMIN_EMAILS', 'heritage.spices.pvtltd@gmail.com').split(',') if e.strip()}
+
+def is_admin_user(user):
+    """True if the given session user dict belongs to an admin account."""
+    return bool(user) and str(user.get('email', '')).strip().lower() in ADMIN_EMAILS
+
+def slugify(text):
+    """URL-safe ASCII slug: 'Garam Masala: The Secret!' -> 'garam-masala-the-secret'."""
+    text = unicodedata.normalize('NFKD', text or '').encode('ascii', 'ignore').decode('ascii')
+    text = re.sub(r'[^a-zA-Z0-9]+', '-', text).strip('-').lower()
+    return text or 'post'
+
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+        if not is_admin_user(session.get('user')):
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
@@ -90,12 +108,41 @@ app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB request body cap
 
 csrf = CSRFProtect(app)
 
+# Static files (images, CSS, JS) can be cached by browsers for a week instead of being
+# re-validated on every page view. Paid course material is excluded below.
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(days=7)
+
+# gzip/brotli for HTML, JSON, CSS and JS. Optional: the app still runs if the package
+# is not installed (e.g. an old environment), it just sends uncompressed responses.
+try:
+    from flask_compress import Compress
+    Compress(app)
+except ImportError:
+    print("Flask-Compress not installed -- responses will not be compressed.")
+
+@app.after_request
+def set_security_headers(resp):
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    if os.getenv('RENDER'):
+        resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000')
+    # Paid notes must never be stored by a shared cache / CDN.
+    if request.path.startswith('/api/notes'):
+        resp.headers['Cache-Control'] = 'private, no-store'
+    return resp
+
 # --- SQLAlchemy Setup ---
 db_url = os.getenv('DATABASE_URL')
 if not db_url:
     db_url = "sqlite:///:memory:"
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+if db_url.startswith('postgres'):
+    # Supabase closes idle connections; without this the first request after a quiet
+    # period can fail with "server closed the connection unexpectedly".
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 280}
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
@@ -838,16 +885,16 @@ def robots():
 @app.route('/sitemap.xml')
 def sitemap():
     base = "https://www.indianheritagespices.com"
-    static_urls = ['/', '/about', '/contact', '/privacy', '/blog', '/products']
+    static_urls = ['/', '/about', '/contact', '/privacy', '/blog', '/products', '/faq', '/terms', '/refund']
     
     blogs = get_all_blogs()
-    blog_urls = [f"/blog/{b.slug}" for b in blogs]
+    blog_urls = ["/blog/" + urllib.parse.quote(b.slug, safe='-_.~') for b in blogs]
 
     sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
     for url in static_urls + blog_urls:
-        sitemap_xml += f"  <url><loc>{base}{url}</loc></url>\n"
+        sitemap_xml += f"  <url><loc>{xml_escape(base + url)}</loc></url>\n"
 
     sitemap_xml += '</urlset>'
     return sitemap_xml, 200, {'Content-Type': 'application/xml'}
@@ -926,14 +973,14 @@ def blog_detail(slug):
 # --- Admin Add Blog Route ---
 @app.route('/admin/blogs', methods=['GET', 'POST'])
 def manage_blogs():
-    if session.get('user', {}).get('email') != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     if request.method == 'POST':
         title = request.form['title']
         content = sanitize_blog_html(request.form['content'])
         category = request.form.get('category', 'General')
-        slug = title.lower().replace(' ', '-').replace(',', '').replace('.', '')
+        slug = slugify(title)
         # Handle duplicate slug collision
         existing = Blog.query.filter_by(slug=slug).first()
         if existing:
@@ -977,7 +1024,7 @@ def manage_blogs():
 # --- Admin Delete Blog Route ---
 @app.route('/admin/blogs/delete/<int:id>', methods=['POST'])
 def delete_blog(id):
-    if session.get('user', {}).get('email') != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
     password = request.form.get('password')
     if not ADMIN_PASSWORD or password != ADMIN_PASSWORD:
@@ -991,7 +1038,7 @@ def delete_blog(id):
 # --- Admin Delete Product Route ---
 @app.route('/admin/products/delete/<int:id>', methods=['POST'])
 def delete_product(id):
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
     product = Product.query.get_or_404(id)
     db.session.delete(product)
@@ -1003,7 +1050,7 @@ def delete_product(id):
 @app.route('/admin/blogs/edit/<int:blog_id>', methods=['GET', 'POST'])
 def edit_blog(blog_id):
     user = session.get('user')
-    if not user or user['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(user):
         abort(403)
     blog = Blog.query.get_or_404(blog_id)
     if request.method == 'POST':
@@ -1244,7 +1291,7 @@ def export_data(data_type):
 # ✅ Admin: View Contact Messages
 @app.route('/admin/messages')
 def admin_messages():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
     
     page = request.args.get('page', 1, type=int)
@@ -1254,7 +1301,7 @@ def admin_messages():
 # ✅ Admin: Delete Contact Message
 @app.route('/admin/messages/delete/<int:id>', methods=['POST'])
 def delete_message(id):
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
     
     msg = ContactMessage.query.get_or_404(id)
@@ -1266,7 +1313,7 @@ def delete_message(id):
 # ✅ Admin: View Wholesale Inquiries
 @app.route('/admin/wholesale-inquiries')
 def admin_wholesale_inquiries():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     page = request.args.get('page', 1, type=int)
@@ -1276,7 +1323,7 @@ def admin_wholesale_inquiries():
 # ✅ Admin: Delete Wholesale Inquiry
 @app.route('/admin/wholesale-inquiries/delete/<int:id>', methods=['POST'])
 def delete_wholesale_inquiry(id):
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     inquiry = WholesaleInquiry.query.get_or_404(id)
@@ -1288,7 +1335,7 @@ def delete_wholesale_inquiry(id):
 # ✅ Admin: Who has items in their cart right now (for cart-abandoner outreach)
 @app.route('/admin/carts')
 def admin_carts():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     items = CartItem.query.options(joinedload(CartItem.product)).order_by(CartItem.added_at.desc()).all()
@@ -1314,7 +1361,7 @@ def admin_carts():
 # ✅ Admin: Coupon management
 @app.route('/admin/coupons')
 def admin_coupons():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     page = request.args.get('page', 1, type=int)
@@ -1328,7 +1375,7 @@ def admin_coupons():
 
 @app.route('/admin/referrals')
 def admin_referrals():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     page = request.args.get('page', 1, type=int)
@@ -1352,7 +1399,7 @@ def admin_referrals():
 
 @app.route('/admin/coupons/create', methods=['GET', 'POST'])
 def admin_create_coupon():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     if request.method == 'POST':
@@ -1394,7 +1441,7 @@ def admin_create_coupon():
 
 @app.route('/admin/coupons/delete/<int:id>', methods=['POST'])
 def delete_coupon(id):
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     coupon = Coupon.query.get_or_404(id)
@@ -1489,7 +1536,7 @@ def scan_product(product_id):
 # --- Admin: QR Codes for products (generate + download, view scan counts) ---
 @app.route('/admin/qr-codes')
 def admin_qr_codes():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     products = Product.query.all()
@@ -1507,7 +1554,7 @@ def admin_qr_codes():
 # --- Admin: Serve a generated QR code PNG for a product ---
 @app.route('/admin/qr-codes/<int:product_id>.png')
 def admin_qr_code_image(product_id):
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
 
     product = Product.query.get_or_404(product_id)
@@ -1525,7 +1572,7 @@ def admin_qr_code_image(product_id):
 # --- Admin Add Product Route ---
 @app.route('/admin/products/add', methods=['GET', 'POST'])
 def add_product():
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
     if request.method == 'POST':
         name = request.form['name']
@@ -1561,7 +1608,7 @@ def add_product():
 
 @app.route('/admin/products/edit/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
-    if not session.get('user') or session['user']['email'] != 'heritage.spices.pvtltd@gmail.com':
+    if not is_admin_user(session.get('user')):
         abort(403)
     product = Product.query.get_or_404(product_id)
     if request.method == 'POST':
@@ -1607,6 +1654,11 @@ def faq():
 # 🔬 Science Hub Routes
 # -------------------------
 
+# Paid course material lives OUTSIDE static/ on purpose: Flask serves everything under
+# static/ to anyone who knows the URL, which let the paywall be bypassed entirely.
+# Files here are only reachable through the access-checked /api/notes routes.
+NOTES_ROOT = os.path.join(app.root_path, 'private_content')
+
 # --- Science Hub Content Configuration ---
 SCIENCE_CONTENT = {
     'sci1': {'path': 'notes', 'start_page': 1, 'end_page': 148, 'total_pages': 148, 'title': 'SSC 10th - Science 1 Notes'},
@@ -1614,6 +1666,28 @@ SCIENCE_CONTENT = {
     'practice-sci1': {'path': 'notes/practice-sci1', 'start_page': 1, 'end_page': 0, 'total_pages': 0, 'title': 'Practice Papers - Science 1'},
     'practice-sci2': {'path': 'notes/practice-sci2', 'start_page': 1, 'end_page': 0, 'total_pages': 0, 'title': 'Practice Papers - Science 2'},
 }
+
+# Science Hub is hidden from the public for now. Set SCIENCE_HUB_ENABLED=true in the
+# environment to bring it back. Admins can still open it while it is hidden (to
+# manage content); everyone else gets a normal 404 on every Science Hub URL,
+# including the payment endpoints and the notes API.
+SCIENCE_HUB_ENABLED = os.getenv('SCIENCE_HUB_ENABLED', 'false').strip().lower() == 'true'
+
+@app.before_request
+def hide_science_hub():
+    if SCIENCE_HUB_ENABLED:
+        return None
+    if request.path.startswith('/science-hub') or request.path.startswith('/api/notes'):
+        if not is_admin_user(session.get('user')):
+            abort(404)
+    return None
+
+@app.context_processor
+def inject_flags():
+    return {
+        'is_admin': is_admin_user(session.get('user')),
+        'science_hub_enabled': SCIENCE_HUB_ENABLED or is_admin_user(session.get('user')),
+    }
 
 @app.route('/science-hub')
 def science_hub():
@@ -1631,8 +1705,8 @@ def science_hub():
 
     # Count practice paper pages
     import glob
-    practice_sci1_dir = os.path.join(app.root_path, 'static', 'notes', 'practice-sci1')
-    practice_sci2_dir = os.path.join(app.root_path, 'static', 'notes', 'practice-sci2')
+    practice_sci1_dir = os.path.join(NOTES_ROOT, 'notes', 'practice-sci1')
+    practice_sci2_dir = os.path.join(NOTES_ROOT, 'notes', 'practice-sci2')
     practice_sci1_count = len(glob.glob(os.path.join(practice_sci1_dir, 'page_*.png'))) if os.path.exists(practice_sci1_dir) else 0
     practice_sci2_count = len(glob.glob(os.path.join(practice_sci2_dir, 'page_*.png'))) if os.path.exists(practice_sci2_dir) else 0
 
@@ -1812,7 +1886,7 @@ def science_viewer(subject='sci1'):
     # For practice papers, count files dynamically
     if subject.startswith('practice-'):
         import glob
-        practice_dir = os.path.join(app.root_path, 'static', content['path'])
+        practice_dir = os.path.join(NOTES_ROOT, content['path'])
         if os.path.exists(practice_dir):
             pages = glob.glob(os.path.join(practice_dir, 'page_*.png'))
             content = dict(content)  # copy
@@ -1856,8 +1930,8 @@ def admin_science_hub():
     
     # Count practice paper pages for admin view
     import glob
-    practice_sci1_dir = os.path.join(app.root_path, 'static', 'notes', 'practice-sci1')
-    practice_sci2_dir = os.path.join(app.root_path, 'static', 'notes', 'practice-sci2')
+    practice_sci1_dir = os.path.join(NOTES_ROOT, 'notes', 'practice-sci1')
+    practice_sci2_dir = os.path.join(NOTES_ROOT, 'notes', 'practice-sci2')
     practice_sci1_count = len(glob.glob(os.path.join(practice_sci1_dir, 'page_*.png'))) if os.path.exists(practice_sci1_dir) else 0
     practice_sci2_count = len(glob.glob(os.path.join(practice_sci2_dir, 'page_*.png'))) if os.path.exists(practice_sci2_dir) else 0
     
@@ -1877,7 +1951,7 @@ def upload_practice_pages():
         return redirect('/admin/science-hub')
     
     content = SCIENCE_CONTENT[subject]
-    upload_dir = os.path.join(app.root_path, 'static', content['path'])
+    upload_dir = os.path.join(NOTES_ROOT, content['path'])
     os.makedirs(upload_dir, exist_ok=True)
     
     # Find the next page number
@@ -1916,13 +1990,13 @@ def delete_practice_page():
         return redirect('/admin/science-hub')
 
     content = SCIENCE_CONTENT[subject]
-    file_path = os.path.join(app.root_path, 'static', content['path'], f'page_{page_num}.png')
+    file_path = os.path.join(NOTES_ROOT, content['path'], f'page_{page_num}.png')
     
     if os.path.exists(file_path):
         os.remove(file_path)
         # Renumber remaining pages
         import glob
-        upload_dir = os.path.join(app.root_path, 'static', content['path'])
+        upload_dir = os.path.join(NOTES_ROOT, content['path'])
         pages = sorted(glob.glob(os.path.join(upload_dir, 'page_*.png')))
         for i, page_path in enumerate(pages, 1):
             new_path = os.path.join(upload_dir, f'page_{i}.png')
@@ -1963,11 +2037,11 @@ def replace_science_page():
             flash("Page number out of range.", "danger")
             return redirect('/admin/science-hub')
         actual_page = content['start_page'] + page_num - 1
-        filepath = os.path.join(app.root_path, 'static', content['path'], f'page_{actual_page}.png')
+        filepath = os.path.join(NOTES_ROOT, content['path'], f'page_{actual_page}.png')
     else:
         # Practice papers
         import glob
-        practice_dir = os.path.join(app.root_path, 'static', content['path'])
+        practice_dir = os.path.join(NOTES_ROOT, content['path'])
         pages = glob.glob(os.path.join(practice_dir, 'page_*.png'))
         if page_num < 1 or page_num > len(pages):
             flash("Page number out of range.", "danger")
@@ -2001,13 +2075,13 @@ def get_notes_page(page_num, subject='sci1'):
         if actual_page < content['start_page'] or actual_page > content['end_page']:
             abort(404)
         try:
-            return send_from_directory(os.path.join('static', content['path']), f'page_{actual_page}.png')
+            return send_from_directory(os.path.join(NOTES_ROOT, content['path']), f'page_{actual_page}.png')
         except Exception:
             abort(404)
     else:
         # Practice papers: files are in their own directory, numbered from 1
         try:
-            return send_from_directory(os.path.join('static', content['path']), f'page_{page_num}.png')
+            return send_from_directory(os.path.join(NOTES_ROOT, content['path']), f'page_{page_num}.png')
         except Exception:
             abort(404)
 
@@ -2476,96 +2550,184 @@ def create_checkout_order():
             db.session.commit()
         return jsonify({'error': str(e)}), 500
 
+def finalize_paid_order(razorpay_order_id, razorpay_payment_id):
+    """Mark an order paid and apply its side effects -- safe to call more than once.
+
+    Called from the browser callback, the Razorpay webhook, and the admin sync
+    tool, any of which can fire for the same payment (a retry, a double click,
+    or callback + webhook both arriving). Only the first call changes anything;
+    later calls return (order, False) without touching stock/points again.
+    Returns (order, newly_paid) or (None, False) if no such order exists.
+    """
+    order = (SpiceOrder.query.filter_by(razorpay_order_id=razorpay_order_id)
+             .with_for_update().first())
+    if not order:
+        return None, False
+    if order.payment_status == 'paid':
+        db.session.rollback()  # release the row lock
+        return order, False
+
+    order.payment_status = 'paid'
+    order.razorpay_payment_id = razorpay_payment_id
+
+    # Points are only actually deducted on confirmed payment, never on an
+    # abandoned checkout. Re-check the LIVE balance right before writing the
+    # debit and clamp to it so the balance can never go negative, even if two
+    # concurrent unpaid orders both redeemed against the same balance.
+    if order.points_redeemed:
+        live_balance = get_points_balance(order.user_email)
+        actual_debit = min(order.points_redeemed, live_balance)
+        if actual_debit > 0:
+            db.session.add(PointsTransaction(
+                user_email=order.user_email, points=-actual_debit,
+                reason='Redeemed at checkout', order_id=order.id
+            ))
+
+    # Decrement stock atomically in the database (a read-modify-write in
+    # Python could oversell when two orders are confirmed at the same moment).
+    oversold = []
+    for item in order.items:
+        product = Product.query.get(item.product_id)
+        if product is None or product.stock is None:
+            continue
+        if product.stock < item.quantity:
+            oversold.append(f"{product.name} (had {product.stock}, ordered {item.quantity})")
+        Product.query.filter(Product.id == item.product_id, Product.stock.isnot(None)).update(
+            {'stock': db.case((Product.stock - item.quantity > 0, Product.stock - item.quantity), else_=0)},
+            synchronize_session=False
+        )
+
+    CartItem.query.filter_by(user_email=order.user_email).delete()
+    db.session.commit()
+
+    # Everything below runs only after the payment is safely committed, and a
+    # failure in any of it must never undo or fail a successful payment.
+    try:
+        process_referral_reward(order.user_email, order.id)
+    except Exception as e:
+        print("Referral reward processing error (order still paid successfully):", e)
+
+    try:
+        item_text = ", ".join([f"{i.quantity}x {i.product_name}" for i in order.items])
+        msg = (f"🚨 <b>NEW SPICE ORDER!</b>\n\n<b>Order:</b> {order.order_number}\n"
+               f"<b>Customer:</b> {order.full_name}\n<b>Amount:</b> ₹{order.total_amount / 100}\n"
+               f"<b>Items:</b> {item_text}")
+        if oversold:
+            msg += "\n\n⚠️ <b>Oversold:</b> " + "; ".join(oversold)
+        send_telegram_notification(msg)
+    except Exception as e:
+        print("Telegram notification error (order still paid successfully):", e)
+
+    return order, True
+
+
 @app.route('/checkout/verify-payment', methods=['POST'])
 def verify_checkout_payment():
     user = session.get('user')
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
-    
-    data = request.json
+
+    data = request.json or {}
     razorpay_payment_id = data.get('razorpay_payment_id')
     razorpay_order_id = data.get('razorpay_order_id')
     razorpay_signature = data.get('razorpay_signature')
-    
+
     if not all([razorpay_payment_id, razorpay_order_id, razorpay_signature]):
         return jsonify({'error': 'Missing payment details'}), 400
-    
+
     try:
-        # Verify signature
         razorpay_client.utility.verify_payment_signature({
             'razorpay_order_id': razorpay_order_id,
             'razorpay_payment_id': razorpay_payment_id,
             'razorpay_signature': razorpay_signature
         })
-        
-        # Update order
-        order = SpiceOrder.query.filter_by(razorpay_order_id=razorpay_order_id).first()
-        if not order:
+
+        existing = SpiceOrder.query.filter_by(razorpay_order_id=razorpay_order_id).first()
+        if not existing:
             return jsonify({'error': 'Order not found'}), 404
-        
-        order.payment_status = 'paid'
-        order.razorpay_payment_id = razorpay_payment_id
+        if existing.user_email != user['email'] and not is_admin_user(user):
+            return jsonify({'error': 'Order not found'}), 404
 
-        # The coupon is already atomically claimed (marked used) at order
-        # creation time -- see create_checkout_order -- so nothing to do
-        # here for it. Points, however, are only actually deducted from the
-        # balance now, on confirmed payment, never on an abandoned
-        # checkout. Re-check the LIVE balance right before writing the
-        # debit and clamp to it -- this is the defense against a race where
-        # two concurrent unpaid orders both redeemed against the same
-        # undebited balance: the balance can never go negative, even
-        # though in that rare race one of the two orders may end up with
-        # less of a points discount "honored" than it displayed at
-        # checkout (bounded, one-time, and far preferable to balance
-        # corruption).
-        if order.points_redeemed:
-            live_balance = get_points_balance(user['email'])
-            actual_debit = min(order.points_redeemed, live_balance)
-            if actual_debit > 0:
-                db.session.add(PointsTransaction(
-                    user_email=user['email'], points=-actual_debit,
-                    reason='Redeemed at checkout', order_id=order.id
-                ))
-
-        # Decrement stock
-        for item in order.items:
-            product = Product.query.get(item.product_id)
-            if product and product.stock is not None:
-                product.stock = max(0, product.stock - item.quantity)
-
-        # Clear the cart
-        CartItem.query.filter_by(user_email=user['email']).delete()
-
-        db.session.commit()
-
-        # Referral reward -- only fires on the referred person's first paid
-        # order, and only once per referral (see process_referral_reward).
-        # Isolated in its own try/except: the payment has already succeeded
-        # and been committed above, so a failure here (bad setting value,
-        # DB hiccup) must never turn a successful payment into an error
-        # response for the customer.
-        try:
-            process_referral_reward(user['email'], order.id)
-        except Exception as e:
-            print("Referral reward processing error (order still paid successfully):", e)
-
-        # Send Telegram Notification
-        item_text = ", ".join([f"{i.quantity}x {i.product_name}" for i in order.items])
-        msg = f"🚨 <b>NEW SPICE ORDER!</b>\n\n<b>Order:</b> {order.order_number}\n<b>Customer:</b> {order.full_name}\n<b>Amount:</b> ₹{order.total_amount / 100}\n<b>Items:</b> {item_text}"
-        send_telegram_notification(msg)
-
+        order, _newly_paid = finalize_paid_order(razorpay_order_id, razorpay_payment_id)
         return jsonify({'success': True, 'message': 'Payment successful!', 'order_number': order.order_number})
-        
+
     except razorpay.errors.SignatureVerificationError:
         return jsonify({'error': 'Invalid payment signature'}), 400
     except Exception as e:
+        db.session.rollback()
         print("Checkout payment verification error:", e)
         return jsonify({'error': 'Internal server error'}), 500
 
 
-# -------------------------
-# 📦 Customer Order Routes
-# -------------------------
+@app.route('/api/razorpay/webhook', methods=['POST'])
+@csrf.exempt
+def razorpay_webhook():
+    """Server-to-server payment confirmation, independent of the customer's browser.
+
+    Without this, a customer who pays but closes the tab (or whose UPI app
+    switch drops the network) before the browser callback fires is charged
+    while the order stays 'pending'. Set RAZORPAY_WEBHOOK_SECRET and register
+    https://<your-domain>/api/razorpay/webhook in the Razorpay dashboard
+    (events: payment.captured, order.paid).
+    """
+    secret = os.getenv('RAZORPAY_WEBHOOK_SECRET')
+    signature = request.headers.get('X-Razorpay-Signature', '')
+    if not secret or not signature:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    body = request.get_data()
+    expected = hmac.new(secret.encode('utf-8'), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    event = request.get_json(silent=True) or {}
+    if event.get('event') in ('payment.captured', 'order.paid'):
+        payload = event.get('payload') or {}
+        payment = (payload.get('payment') or {}).get('entity') or {}
+        rz_order_id = payment.get('order_id') or ((payload.get('order') or {}).get('entity') or {}).get('id')
+        rz_payment_id = payment.get('id')
+        if rz_order_id and rz_payment_id:
+            order = SpiceOrder.query.filter_by(razorpay_order_id=rz_order_id).first()
+            # Only trust the event if the amount actually paid matches the order.
+            if order and payment.get('amount') == order.total_amount:
+                finalize_paid_order(rz_order_id, rz_payment_id)
+            elif order:
+                print(f"Razorpay webhook amount mismatch for {order.order_number}: "
+                      f"paid {payment.get('amount')} vs expected {order.total_amount}")
+    return jsonify({'success': True}), 200
+
+
+@app.route('/admin/orders/sync-payments', methods=['POST'])
+@admin_required
+def sync_pending_payments():
+    """Ask Razorpay about recent unpaid orders and confirm any that were actually paid."""
+    if not razorpay_client:
+        flash("Razorpay is not configured.", "danger")
+        return redirect('/admin/orders')
+
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    pending = (SpiceOrder.query.filter(SpiceOrder.payment_status == 'pending',
+                                       SpiceOrder.created_at >= cutoff,
+                                       SpiceOrder.razorpay_order_id.isnot(None))
+               .order_by(SpiceOrder.created_at.desc()).limit(50).all())
+    recovered, checked = [], 0
+    for o in pending:
+        checked += 1
+        try:
+            payments = razorpay_client.order.payments(o.razorpay_order_id).get('items', [])
+        except Exception as e:
+            print(f"Razorpay sync error for {o.order_number}: {e}")
+            continue
+        paid = next((p for p in payments if p.get('status') == 'captured' and p.get('amount') == o.total_amount), None)
+        if paid:
+            finalize_paid_order(o.razorpay_order_id, paid['id'])
+            recovered.append(o.order_number)
+
+    if recovered:
+        flash(f"Recovered {len(recovered)} paid order(s): {', '.join(recovered)}", "success")
+    else:
+        flash(f"Checked {checked} unpaid order(s) with Razorpay -- none were actually paid.", "info")
+    return redirect('/admin/orders')
 
 @app.route('/orders')
 def my_orders():
@@ -2615,7 +2777,7 @@ def track_order(order_id):
     
     # The admin can view tracking for any order (e.g. to check status while
     # helping a customer); everyone else can only see their own order.
-    if user['email'] == 'heritage.spices.pvtltd@gmail.com':
+    if is_admin_user(user):
         order = SpiceOrder.query.filter_by(id=order_id).first_or_404()
     else:
         order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
@@ -2635,7 +2797,7 @@ def order_receipt(order_id):
         flash("Please login to view your receipt.", "warning")
         return redirect('/login')
 
-    if user['email'] == 'heritage.spices.pvtltd@gmail.com':
+    if is_admin_user(user):
         order = SpiceOrder.query.filter_by(id=order_id).first_or_404()
     else:
         order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
@@ -2852,8 +3014,16 @@ def admin_orders():
         'pending_shipments': sum(1 for o in orders if o.payment_status == 'paid' and o.shipping_status == 'processing'),
         'delivered': sum(1 for o in orders if o.shipping_status == 'delivered')
     }
-    
-    return render_template('admin_orders.html', orders=orders, stats=stats,
+
+    # Orders still unpaid after 30 minutes -- most are abandoned checkouts, but a
+    # customer whose browser closed mid-payment can be charged while the order
+    # stays here, so surface them and offer a one-click check against Razorpay.
+    stale_cutoff = datetime.utcnow() - timedelta(minutes=30)
+    stale_pending = [o for o in orders if o.payment_status == 'pending'
+                     and o.created_at and o.created_at < stale_cutoff
+                     and o.created_at > datetime.utcnow() - timedelta(days=7)]
+
+    return render_template('admin_orders.html', orders=orders, stats=stats, stale_pending=stale_pending,
                            user=session.get('user'), is_logged_in=True)
 
 @app.route('/admin/orders/ship/<int:order_id>', methods=['POST'])
@@ -2973,6 +3143,27 @@ def cancel_order(order_id):
 # NimbusPost Webhook
 # Verification per https://api-v2.nimbuspost.com/docs/reference/v2 (Webhooks section):
 # each delivery is signed with HMAC-SHA256 of the raw body in the x-nimbus-signature header.
+def normalize_shipping_status(raw):
+    """Map a courier's free-text status onto the small set our screens understand:
+    shipped / out for delivery / delivered / rto / cancelled. Returns None if the
+    text isn't recognised, so an unexpected status can never corrupt an order."""
+    r = (raw or '').lower().replace('_', ' ').replace('-', ' ').strip()
+    if not r:
+        return None
+    if 'cancel' in r:
+        return 'cancelled'
+    if 'rto' in r or 'return' in r:
+        return 'rto'
+    if 'out for delivery' in r:
+        return 'out for delivery'
+    if 'deliver' in r and not any(w in r for w in ('undeliver', 'not deliver', 'attempt', 'failed')):
+        return 'delivered'
+    if any(w in r for w in ('pickup', 'picked', 'booked', 'manifest', 'data received', 'transit',
+                            'reached', 'shipped', 'dispatch', 'undeliver', 'ndr', 'attempt')):
+        return 'shipped'
+    return None
+
+
 @app.route('/api/nimbus/webhook', methods=['POST'])
 @csrf.exempt
 def nimbus_webhook():
@@ -2991,19 +3182,19 @@ def nimbus_webhook():
     if not data:
         return jsonify({'error': 'No data'}), 400
 
-    print(f"NimbusPost webhook payload: {data}")
-
     awb = data.get('awb_number') or data.get('awb') or data.get('awbNumber')
     status = data.get('current_status') or data.get('status')
+    # Log only what's needed to debug -- the full payload contains customer PII.
+    print(f"NimbusPost webhook: awb={awb} status={status}")
 
     if awb and status:
         order = SpiceOrder.query.filter_by(awb_number=awb).first()
-        if order:
-            order.shipping_status = status.lower()
-            if 'delivered' in status.lower():
-                order.shipping_status = 'delivered'
+        new_status = normalize_shipping_status(status)
+        # Ignore statuses we don't recognise, and never move a finished order backwards.
+        if order and new_status and order.shipping_status not in ('delivered', 'cancelled'):
+            order.shipping_status = new_status
             db.session.commit()
-    
+
     return jsonify({'success': True}), 200
 
 

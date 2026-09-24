@@ -14,7 +14,7 @@
 
     <!-- Slide 2 -->
     <div class="carousel-item" style="height: 600px;">
-      <img src="{{ url_for('static', filename='images/hero-product-white.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Heritage Garam Masala with colorful ground spices">
+      <img loading="lazy" decoding="async" src="{{ url_for('static', filename='images/hero-product-white.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Heritage Garam Masala with colorful ground spices">
       <div class="hero-caption text-center text-md-start">
         <h2 class="fw-bold text-warning">Pure Ingredients, Trusted Blends</h2>
         <p class="text-light">Every batch milled fresh, with no chemicals or shortcuts.</p>
@@ -24,7 +24,7 @@
 
     <!-- Slide 3 -->
     <div class="carousel-item" style="height: 600px;">
-      <img src="{{ url_for('static', filename='images/hero-spices-slate.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Raw and powder spices arranged on dark slate">
+      <img loading="lazy" decoding="async" src="{{ url_for('static', filename='images/hero-spices-slate.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Raw and powder spices arranged on dark slate">
       <div class="hero-caption text-center text-md-start">
         <h2 class="fw-bold text-warning">Sealed with Tradition</h2>
         <p class="text-light">Direct from Kerala farms to your kitchen, one pinch at a time.</p>
@@ -34,7 +34,7 @@
 
     <!-- Slide 4 -->
     <div class="carousel-item" style="height: 600px;">
-      <img src="{{ url_for('static', filename='images/authentic.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Strings of dried red chillies at a spice market">
+      <img loading="lazy" decoding="async" src="{{ url_for('static', filename='images/authentic.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Strings of dried red chillies at a spice market">
       <div class="hero-caption text-center text-md-start">
         <h2 class="fw-bold text-warning">Bold Colors, Real Spice</h2>
         <p class="text-light">Handpicked chillies and whole spices, sourced the traditional way.</p>
@@ -44,7 +44,7 @@
 
     <!-- Slide 5 -->
     <div class="carousel-item" style="height: 600px;">
-      <img src="{{ url_for('static', filename='images/hero-spices-bowls.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Assortment of whole and ground Indian spices in wooden bowls">
+      <img loading="lazy" decoding="async" src="{{ url_for('static', filename='images/hero-spices-bowls.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Assortment of whole and ground Indian spices in wooden bowls">
       <div class="hero-caption text-center text-md-start">
         <h2 class="fw-bold text-warning">Every Spice, Handpicked</h2>
         <p class="text-light">Turmeric, chilli, cardamom and more -- each one true to its origin.</p>
@@ -54,7 +54,7 @@
 
     <!-- Slide 6 -->
     <div class="carousel-item" style="height: 600px;">
-      <img src="{{ url_for('static', filename='images/hero-spices-mortar.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Spices being ground in a traditional stone mortar and pestle">
+      <img loading="lazy" decoding="async" src="{{ url_for('static', filename='images/hero-spices-mortar.webp') }}" class="d-block w-100 h-100" style="object-fit: cover; object-position: center;" alt="Spices being ground in a traditional stone mortar and pestle">
       <div class="hero-caption text-center text-md-start">
         <h2 class="fw-bold text-warning">Ground the Traditional Way</h2>
         <p class="text-light">No shortcuts -- just time-honoured methods and honest ingredients.</p>
@@ -159,6 +159,9 @@
   }
 </style>
 <script>
+window.addEventListener('load', () => {
+  document.querySelectorAll('#heroCarousel img[loading="lazy"]').forEach(img => { img.loading = 'eager'; });
+});
 document.addEventListener('DOMContentLoaded', () => {
   const carouselEl = document.getElementById('heroCarousel');
   new bootstrap.Carousel(carouselEl, {

@@ -80,7 +80,7 @@
       </div>
 
       <!-- ⚙️ Admin Edit / Delete Actions -->
-      {% if user and user.email == 'heritage.spices.pvtltd@gmail.com' %}
+      {% if is_admin %}
         <div class="admin-actions-card p-4 rounded-4 border border-warning-subtle bg-warning-subtle mt-4 d-flex align-items-center justify-content-between">
           <div class="text-warning-emphasis fw-medium">
             <i class="fas fa-user-shield me-2"></i> Admin Controls
