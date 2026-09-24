@@ -120,12 +120,41 @@ While checking pages from my machine earlier in this project, a small number of 
 4. Ask the Instagram account (`heritage.spices.in`) to link to the site in its bio.
 
 **Growth work that actually moves rankings (content, not code)**
-- **Target these searches:** "garam masala online", "buy garam masala", "Kerala spices online", "garam masala 100g", plus the brand "Heritage Spices". Use the words naturally in product descriptions and blog titles.
+- **Target these searches:** "garam masala online", "buy garam masala", "buy spices online India", "garam masala 100g", plus the brand "Heritage Spices". Use the words naturally in product descriptions and blog titles.
 - **Make the two product pages different.** 50 g and 100 g share the same description — search engines treat that as duplicate content. Give each a unique paragraph and add *ingredients, how to use, storage, shelf life (18 months, printed on the pouch), FSSAI number*.
-- **Blog:** 7 posts of 500–700 words. Aim for 900–1,300 words with sub-headings (two posts have none), a photo, and a "Buy our Garam Masala" link to a product page. Ideas with real search demand: *garam masala vs curry powder*; *how to use garam masala (dish by dish)*; *how to store spices*; *whole vs ground spices*; *Kerala spice regions*; *homemade vs packaged garam masala*; *garam masala recipe*; *turmeric milk benefits (avoid medical claims)*.
+- **Blog:** 7 posts of 500–700 words. Aim for 900–1,300 words with sub-headings (two posts have none), a photo, and a "Buy our Garam Masala" link to a product page. Ideas with real search demand: *garam masala vs curry powder*; *how to use garam masala (dish by dish)*; *how to store spices*; *whole vs ground spices*; *homemade vs packaged garam masala*; *garam masala recipe*; *turmeric milk benefits (avoid medical claims)*.
 - **Reviews:** approved reviews add star ratings in results. Ask each buyer for one after delivery (the delivered e-mail is a good place for the link).
 - **Backlinks:** list the products on Meesho/IndiaMART/JustDial with a link to the site; ask food bloggers for a review copy.
 - Be careful with claims ("100% organic", "tested for international standards") — search engines and regulators both care (see section C).
+
+## Google Merchant Center — get your products into Google (free)
+
+**What it is:** a free Google account area where you give Google your product list (price, photo, stock). Google then shows your products in the **Shopping tab, Search results, Images, YouTube, Maps and Lens**. Google's own India page says: *"Creating a Merchant Center account and showing your products on Google is free of cost."* "Free listings" cost nothing to appear. The only paid part is **optional** Google Ads (Shopping ads), where you pay per click and set your own budget. You can skip ads entirely.
+
+**What happens when someone clicks:** they land on **your product page** (`/product/<id>`), not straight on a payment screen. From there: Add to cart → Checkout → Razorpay. (Google's approach for India is to send shoppers to your website to buy.)
+
+**Is it worth doing? Yes, but expect modest results at first.** It is free and takes about an hour. But you have 2 products, no reviews and a new domain, so you will not beat big brands for "garam masala". Realistic gains: people searching your brand or "Heritage garam masala", plus long-tail searches. It becomes more valuable as you add products and reviews.
+
+**Fix these first (they decide whether it converts or gets rejected)**
+| # | Blocker | Why |
+|---|---|---|
+| 1 | **Product photos are 499×499 px** | Google's spec asks for at least 500×500 from Jan 2027 (800×800+ is best). Use a clean, sharp, front-facing pouch photo, white/plain background, no watermark or text overlays. Re-upload in Admin → Products. |
+| 2 | **Login-only checkout** | A shopper from Google must sign in with Google before buying; many will leave. **Guest checkout is the single biggest conversion fix** for this whole plan. |
+| 3 | **Refund page says "No Refund, No Return under any circumstances"** | Google requires a return policy and it must match your data; a total ban is also risky under Indian consumer law for damaged/wrong items. Consider: "no returns for change of mind; replacement or refund for damaged, defective or wrong items reported within 24 h". Also the page still mentions the hidden Science Hub — update it. (Ask your advisor; not legal advice.) |
+| 4 | **Shipping price must be honest** | The feed declares ₹40. Your real checkout charge varies (₹37–60). Keep them close, or set `MERCHANT_SHIPPING_INR` on Render to your typical charge, or offer a free-shipping threshold. |
+| 5 | **No barcodes (GTIN)** | Fine: the feed uses brand + a product code (MPN). GS1 India barcodes (paid) are optional later. |
+
+**Step-by-step registration**
+1. Go to **merchants.google.com** → *Get started*, signed in with your business Google account (use the same one as Search Console).
+2. **Business information:** name *Heritage Spices Pvt. Ltd.*, country **India**, address (Sindewahi, Maharashtra 441222), phone. Google may ask to verify the phone.
+3. **Website:** enter `https://www.indianheritagespices.com`, then **Verify and claim** → choose *HTML tag*. Copy the code Google shows (the part inside `content="…"`), add it on Render as **`GOOGLE_SITE_VERIFICATION`** (several codes can be separated by commas — e.g. Search Console and Merchant Center), wait for the restart (~2 min), then click *Verify*. The site already prints the tag on every page once this is set.
+4. **Programs:** *Growth → Manage programs → Free listings* → turn on.
+5. **Shipping and returns** (*Settings*): shipping service *Standard*, India, ₹40 (or your figure), handling time 1–2 days, delivery 3–7 days; return policy matching your `/refund` page; tax: prices include GST.
+6. **Add your products:** *Products → Feeds → Add feed* → country India, language English → **Scheduled fetch** → URL `https://www.indianheritagespices.com/feeds/google-merchant.xml`, fetch daily → *Fetch now*. (The feed is built automatically from your products: id, title, description, link, image, price in INR, availability, brand, product code, category *Seasonings & Spices*, shipping. Products missing a price or photo are left out rather than rejected. Sizes of one product are grouped.)
+7. **Diagnostics:** open *Products → Diagnostics* and fix any warning. Google reviews the account and products; it publishes no fixed timeline, so allow several days.
+8. Optional later: link **Google Ads** for paid Shopping ads.
+
+**Rules of thumb:** price, stock and description in the feed must match the product page (they do — both come from the same data); never edit a price without the site showing it (there is one source, so this stays true); keep "100% organic / lab-certified" claims backed by real certificates.
 
 ## Feature plan 1 — "Continue as <your Google account>" popup (Google One Tap)
 

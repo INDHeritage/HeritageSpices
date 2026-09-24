@@ -500,6 +500,12 @@ def wa_link(order):
 
 app.jinja_env.globals['wa_link'] = wa_link
 
+def google_site_verification_tokens():
+    """Tokens from GOOGLE_SITE_VERIFICATION (comma/space separated). Google gives one per product
+    (Search Console, Merchant Center, ...) and all of them go in <meta name="google-site-verification">."""
+    raw = os.getenv('GOOGLE_SITE_VERIFICATION', '')
+    return [t for t in re.split(r'[,;\s]+', raw) if re.fullmatch(r'[A-Za-z0-9_-]{10,}', t)]
+
 def store_whatsapp_link():
     """Link for the storefront 'WhatsApp us' button, from the WHATSAPP_NUMBER env var (None if unset)."""
     number = _wa_number(os.getenv('WHATSAPP_NUMBER', ''))
@@ -1993,7 +1999,7 @@ def product_detail(product_id):
                 'shippingDestination': {'@type': 'DefinedRegion', 'addressCountry': 'IN'},
                 'deliveryTime': {
                     '@type': 'ShippingDeliveryTime',
-                    'handlingTime': {'@type': 'QuantitativeValue', 'minValue': 0, 'maxValue': 1, 'unitCode': 'd'},
+                    'handlingTime': {'@type': 'QuantitativeValue', 'minValue': 1, 'maxValue': 2, 'unitCode': 'd'},
                     'transitTime': {'@type': 'QuantitativeValue', 'minValue': 3, 'maxValue': 7, 'unitCode': 'd'},
                 },
             },
@@ -2013,6 +2019,75 @@ def product_detail(product_id):
                            out_of_stock=out_of_stock, low_stock=low_stock, reviews=reviews,
                            description=description, json_ld=json_ld, page_url=url,
                            user=session.get('user'), is_logged_in=bool(session.get('user')))
+
+# --- Google Merchant Center product feed ---
+# Merchant Center can fetch this URL on a schedule (Products > Feeds > Add feed > Scheduled fetch).
+# Everything here comes from the same data the product page shows, because Google compares the
+# feed with the landing page and rejects listings whose price/availability/description differ.
+MERCHANT_SHIPPING_INR = os.getenv('MERCHANT_SHIPPING_INR', '40')
+GOOGLE_CATEGORY_SEASONINGS_SPICES = '4608'   # Food, Beverages & Tobacco > Food Items > Seasonings & Spices
+
+@app.route('/feeds/google-merchant.xml')
+def google_merchant_feed():
+    site = notifications.site_url()
+    products = Product.query.order_by(Product.id).all()
+    group_sizes = {}
+    for pr in products:
+        group_sizes[product_base_name(pr.name)] = group_sizes.get(product_base_name(pr.name), 0) + 1
+
+    def tag(name, value):
+        return f"      <g:{name}>{xml_escape(str(value))}</g:{name}>"
+
+    items = []
+    for pr in products:
+        price = product_price_rupees(pr)
+        if price is None or not pr.image_url:
+            continue  # Google rejects listings without a price or image, so do not send them
+        base = product_base_name(pr.name)
+        out_of_stock = pr.stock is not None and pr.stock <= 0
+        lines = [
+            "    <item>",
+            tag('id', f"HS-{pr.id}"),
+            tag('title', pr.name[:150]),
+            tag('description', _plain_text(pr.description)[:5000] or pr.name),
+            tag('link', f"{site}/product/{pr.id}"),
+            tag('image_link', pr.image_url),
+            tag('availability', 'out_of_stock' if out_of_stock else 'in_stock'),
+            tag('price', f"{price:.2f} INR"),
+            tag('brand', 'Heritage Spices'),
+            tag('mpn', f"HS-{pr.id}"),
+            tag('condition', 'new'),
+            tag('google_product_category', GOOGLE_CATEGORY_SEASONINGS_SPICES),
+            tag('product_type', 'Spices > ' + base),
+        ]
+        if group_sizes.get(base, 0) > 1:
+            lines.append(tag('item_group_id', slugify(base)))
+        lines += [
+            "      <g:shipping>",
+            "        <g:country>IN</g:country>",
+            "        <g:service>Standard</g:service>",
+            f"        <g:price>{float(MERCHANT_SHIPPING_INR):.2f} INR</g:price>",
+            "        <g:min_handling_time>1</g:min_handling_time>",
+            "        <g:max_handling_time>2</g:max_handling_time>",
+            "        <g:min_transit_time>3</g:min_transit_time>",
+            "        <g:max_transit_time>7</g:max_transit_time>",
+            "      </g:shipping>",
+            "    </item>",
+        ]
+        items.append("\n".join(lines))
+
+    xml = "\n".join([
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">',
+        "  <channel>",
+        "    <title>Heritage Spices</title>",
+        f"    <link>{site}/</link>",
+        "    <description>Heritage Spices product feed</description>",
+        *items,
+        "  </channel>",
+        "</rss>",
+    ])
+    return xml, 200, {'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=900'}
 
 # --- QR Code Scan Tracking ---
 # No personal data is collected here -- just an anonymous log of which
@@ -2242,6 +2317,7 @@ def inject_flags():
     return {
         'is_admin': is_admin_user(session.get('user')),
         'store_whatsapp_link': store_whatsapp_link(),
+        'google_site_verification': google_site_verification_tokens(),
         'google_one_tap': bool(GOOGLE_ONE_TAP_ENABLED and app.config.get('GOOGLE_CLIENT_ID')
                                and not session.get('user')
                                and not request.path.startswith(_ONE_TAP_SKIP_PATHS)),

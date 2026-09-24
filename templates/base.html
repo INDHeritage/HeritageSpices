@@ -4,14 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>{% block title %}Indian Heritage Spices – Authentic Kerala Spices Online{% endblock %}</title>
+  <title>{% block title %}Indian Heritage Spices – Authentic Farm-Sourced Spices Online{% endblock %}</title>
 
   <!-- SEO Meta Tags -->
-  <meta name="description" content="{% block meta_description %}Authentic Kerala spices from Heritage Spices: freshly packed Garam Masala, FSSAI licensed, delivered to your door.{% endblock %}" />
+  <meta name="description" content="{% block meta_description %}Authentic farm-sourced spices from Heritage Spices: freshly packed Garam Masala, FSSAI licensed, delivered to your door.{% endblock %}" />
   <meta name="author" content="Indian Heritage Spices" />
-  <meta name="keywords" content="Indian Heritage Spices, Best Organic Masala, Kerala Spices, Organic Spices India, Premium Masala, Garam Masala, Goda Masala, Authentic Spices, Pure Masala" />
+  <meta name="keywords" content="Indian Heritage Spices, Best Organic Masala, Farm Sourced Spices, Organic Spices India, Premium Masala, Garam Masala, Goda Masala, Authentic Spices, Pure Masala" />
   <meta name="robots" content="index, follow" />
-  <meta name="language" content="English" />
+  {% for token in google_site_verification %}<meta name="google-site-verification" content="{{ token }}" />
+  {% endfor %}  <meta name="language" content="English" />
   
   <!-- Canonical URL -->
   <link rel="canonical" href="{% block canonical %}https://www.indianheritagespices.com{{ request.path }}{% endblock %}" />
