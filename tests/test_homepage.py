@@ -35,13 +35,13 @@ def test_recipes_strip_hidden_when_there_are_no_posts(client):
     _reset_blog_cache()
 
 
-def test_recipe_links_with_special_characters_are_percent_encoded(client):
+def test_recipe_links_use_the_clean_url(client):
     _reset_blog_cache()
     appmod.db.session.add(appmod.Blog(title='T', slug='garam-masala:-india’s-legacy', author='a', category='c',
                                       date='2026-01-01', content='x'))
     appmod.db.session.commit()
     html = client.get('/').get_data(as_text=True)
-    assert '/blog/garam-masala%3A-india%E2%80%99s-legacy' in html
+    assert '/blog/garam-masala-indias-legacy' in html
     _reset_blog_cache()
 
 

@@ -7,7 +7,7 @@
   <title>{% block title %}Indian Heritage Spices – Authentic Kerala Spices Online{% endblock %}</title>
 
   <!-- SEO Meta Tags -->
-  <meta name="description" content="{% block meta_description %}Discover the finest organic spices from Kerala, handpicked and delivered to your door. Shop Indian Heritage Spices for purity, freshness, and authentic flavor. Best organic Masala online.{% endblock %}" />
+  <meta name="description" content="{% block meta_description %}Authentic Kerala spices from Heritage Spices: freshly packed Garam Masala, FSSAI licensed, delivered to your door.{% endblock %}" />
   <meta name="author" content="Indian Heritage Spices" />
   <meta name="keywords" content="Indian Heritage Spices, Best Organic Masala, Kerala Spices, Organic Spices India, Premium Masala, Garam Masala, Goda Masala, Authentic Spices, Pure Masala" />
   <meta name="robots" content="index, follow" />
@@ -21,30 +21,39 @@
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon.png') }}">
 
   <!-- Open Graph -->
-  <meta property="og:title" content="{% block og_title %}Indian Heritage Spices{% endblock %}" />
-  <meta property="og:description" content="{% block og_description %}Shop 100% organic spices like Garam Masala, Goda Masala, and more.{% endblock %}" />
-  <meta property="og:image" content="{% block og_image %}{{ request.url_root.rstrip('/') }}{{ url_for('static', filename='images/logo.png') }}{% endblock %}" />
-  <meta property="og:url" content="{% block og_url %}https://www.indianheritagespices.com{{ request.path }}{% endblock %}" />
-  <meta property="og:type" content="website" />
+  <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}{{ self.meta_description() }}{% endblock %}" />
+  <meta property="og:image" content="{% block og_image %}https://www.indianheritagespices.com{{ url_for('static', filename='images/og-default.jpg') }}{% endblock %}" />
+  <meta property="og:url" content="{% block og_url %}{{ self.canonical() }}{% endblock %}" />
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+  <meta property="og:site_name" content="Heritage Spices" />
+  <meta property="og:locale" content="en_IN" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{% block twitter_title %}Indian Heritage Spices{% endblock %}" />
-  <meta name="twitter:description" content="{% block twitter_description %}Authentic organic spices from trusted Indian farmers.{% endblock %}" />
-  <meta name="twitter:image" content="{% block twitter_image %}{{ url_for('static', filename='images/logo.jpg') }}{% endblock %}" />
+  <meta name="twitter:title" content="{% block twitter_title %}{{ self.og_title() }}{% endblock %}" />
+  <meta name="twitter:description" content="{% block twitter_description %}{{ self.og_description() }}{% endblock %}" />
+  <meta name="twitter:image" content="{% block twitter_image %}{{ self.og_image() }}{% endblock %}" />
   
   <!-- ✅ Structured Data for Google Brand Knowledge Panel -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "name": "Indian Heritage Spices",
-  "url": "https://indianheritagespices.com/",
-  "logo": "https://indianheritagespices.com/static/images/logo.jpg",
+  "name": "Heritage Spices",
+  "legalName": "Heritage Spices Pvt. Ltd.",
+  "url": "https://www.indianheritagespices.com/",
+  "logo": "https://www.indianheritagespices.com/static/images/logo.png",
   "sameAs": [
-    "https://www.instagram.com/heritage.spices.in/",
-    "https://twitter.com/search?q=%23Heritagespices"
+    "https://www.instagram.com/heritage.spices.in/"
   ],
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Sindewahi",
+    "addressRegion": "Maharashtra",
+    "postalCode": "441222",
+    "addressCountry": "IN"
+  },
   "contactPoint": {
     "@type": "ContactPoint",
     "telephone": "+91-8999449765",
@@ -52,6 +61,14 @@
     "areaServed": "IN",
     "availableLanguage": ["English", "Hindi"]
   }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Heritage Spices",
+  "url": "https://www.indianheritagespices.com/"
 }
 </script>
 

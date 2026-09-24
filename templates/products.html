@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Shop Organic Spices | Heritage Spices{% endblock %}
-{% block meta_description %}Shop authentic organic Indian spices online — Garam Masala, Goda Masala, Turmeric Powder and more. Handpicked from Kerala, delivered fresh to your door.{% endblock %}
-{% block og_title %}Shop Organic Spices | Heritage Spices{% endblock %}
+{% block title %}Shop Kerala Spices & Garam Masala Online | Heritage Spices{% endblock %}
+{% block meta_description %}Shop authentic Kerala spices from Heritage Spices: Garam Masala in convenient pouches, FSSAI licensed, delivered fresh to your door.{% endblock %}
 
 {% block content %}
+<script type="application/ld+json">{{ json_ld|tojson }}</script>
 <div class="container py-4">
 
   <!-- 🌿 Shop Hero Banner -->
@@ -24,89 +24,6 @@
       <div class="col-sm-6 col-md-4 col-lg-3 d-flex">
         <div class="card product-card w-100 d-flex flex-column animate__animated animate__fadeInUp">
           
-          <!-- Google Rich Snippets: Product Schema -->
-          <script type="application/ld+json">
-          {
-            "@context": "https://schema.org/",
-            "@type": "Product",
-            "name": "{{ product.name }}",
-            "image": "{{ product.image_url if product.image_url else 'https://www.indianheritagespices.com/static/images/placeholder.png' }}",
-            "description": "{{ product.description | replace('\n', ' ') | replace('\"', '\\\"') }}",
-            "brand": {
-              "@type": "Brand",
-              "name": "Indian Heritage Spices"
-            },
-            "offers": {
-              "@type": "Offer",
-              "url": "https://www.indianheritagespices.com/products#details{{ product.id }}",
-              "priceCurrency": "INR",
-              "price": {{ '%.2f'|format(product.price|float) if product.price else '0.00' }},
-              "availability": "https://schema.org/{% if product.stock is not none and product.stock > 0 %}InStock{% else %}OutOfStock{% endif %}",
-              "seller": {
-                "@type": "Organization",
-                "name": "Indian Heritage Spices"
-              },
-              "hasMerchantReturnPolicy": {
-                "@type": "MerchantReturnPolicy",
-                "applicableCountry": "IN",
-                "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
-              },
-              "shippingDetails": {
-                "@type": "OfferShippingDetails",
-                "shippingRate": {
-                  "@type": "MonetaryAmount",
-                  "value": 40.00,
-                  "currency": "INR"
-                },
-                "shippingDestination": {
-                  "@type": "DefinedRegion",
-                  "addressCountry": "IN"
-                },
-                "deliveryTime": {
-                  "@type": "ShippingDeliveryTime",
-                  "handlingTime": {
-                    "@type": "QuantitativeValue",
-                    "minValue": 0,
-                    "maxValue": 1,
-                    "unitCode": "d"
-                  },
-                  "transitTime": {
-                    "@type": "QuantitativeValue",
-                    "minValue": 3,
-                    "maxValue": 7,
-                    "unitCode": "d"
-                  }
-                }
-              }
-            }
-            {% if product.approved_reviews %}
-            ,"aggregateRating": {
-              "@type": "AggregateRating",
-              "ratingValue": "{{ product.avg_rating }}",
-              "reviewCount": "{{ product.approved_reviews|length }}"
-            },
-            "review": [
-              {% for review in product.approved_reviews %}
-              {
-                "@type": "Review",
-                "author": {
-                  "@type": "Person",
-                  "name": "{{ review.user_name }}"
-                },
-                "datePublished": "{{ review.created_at.strftime('%Y-%m-%d') }}",
-                "reviewBody": "{{ review.review_text | replace('\n', ' ') | replace('\"', '\\\"') }}",
-                "reviewRating": {
-                  "@type": "Rating",
-                  "ratingValue": "{{ review.rating }}",
-                  "bestRating": "5",
-                  "worstRating": "1"
-                }
-              }{% if not loop.last %},{% endif %}
-              {% endfor %}
-            ]
-            {% endif %}
-          }
-          </script>
           
           <!-- Product Image -->
           <div class="product-img-container position-relative">
@@ -331,7 +248,7 @@
           <div class="row">
             <!-- Left: Average Rating -->
             <div class="col-md-4 text-center mb-4 border-end border-light-subtle d-flex flex-column justify-content-center">
-              <h1 class="display-3 fw-bold text-dark mb-0">{{ "%.1f"|format(product.avg_rating) if product.avg_rating else "0.0" }}</h1>
+              <div class="display-3 fw-bold text-dark mb-0">{{ "%.1f"|format(product.avg_rating) if product.avg_rating else "0.0" }}</div>
               <div class="text-warning fs-5 mb-2">
                 {% set rating = product.avg_rating|int %}
                 {% if rating > 0 %}

@@ -88,6 +88,45 @@ While checking pages from my machine earlier in this project, a small number of 
 
 ---
 
+## SEO audit (24 Sep 2026) — measured on the live site
+
+**Verdict: the foundations were fine, but there were real defects that hurt search results. They are now fixed in code; the growth work below needs you.**
+
+**Already good (verified):** HTTPS everywhere; `http`/non-`www` redirect to `https://www`; genuine 404s (not "soft" 404s); Brotli compression; mobile viewport; `lang="en"`; every image has alt text; canonical tag on every page; sitemap with 18 URLs that all return 200; favicon; robots meta `index, follow`; no analytics/tracker bloat.
+
+**Defects found and fixed**
+| Problem found | Why it mattered | Fix |
+|---|---|---|
+| Homepage had **no H1** (12 H2s) | Search engines use the H1 to understand the page | First hero heading is now the H1 (same look) |
+| `/products` **structured data was invalid JSON** (a product description containing a line break broke it) | Google could not read any product data there | Rebuilt safely; full `Product` data lives on each product page |
+| `/products` had two extra H1s that were rating numbers ("0.0") | Confuses page structure | Now ordinary text |
+| **9 of 10 pages shared one generic meta description** (187 chars, truncated) and one generic social title | Every result looks identical; low click-through | Unique title + description per page (all ≤ 160 / ≤ 65 chars, enforced by tests) |
+| Descriptions promised "Goda Masala, Turmeric" — **products you do not sell** | Misleading | Removed |
+| Organization data pointed to a **logo file that doesn't exist** (`logo.jpg`), the non-www URL, a Twitter *search* link | Broken knowledge-panel data | Real logo, `www` URL, only the Instagram profile, added postal address |
+| Social share image missing (same `logo.jpg`) and tiny | WhatsApp/Facebook/X previews had no picture | New 1200×630 `og-default.jpg`; each page's social tags now follow its own title/description; posts use `og:type=article` |
+| Blog URLs contained `:` and curly quotes; canonical and sitemap disagreed | Ugly, fragile, mixed signals | Clean URLs (e.g. `/blog/garam-masala-the-secret-behind-the-soul-of-indian-cooking`); old links **301-redirect**; sitemap lists clean URLs |
+| Blog posts had **no Article/Breadcrumb markup**, titles up to 107 chars | Missed rich results; titles cut off | Article + BreadcrumbList data; long titles no longer get a suffix |
+| `/faq` had no FAQ markup | Missed FAQ rich results | FAQPage data generated from the visible questions (always in sync) |
+| `/products/` and `/blog/` (trailing slash) returned 404 | Lost link value, duplicate-URL risk | 301 to the real URL |
+| robots.txt only blocked `/admin/` | Crawlers wasted time on cart/checkout/login/API | Private areas disallowed |
+| Sitemap had no `lastmod` | Slower re-crawl of new posts | Added for blog posts |
+
+**Measured, not fixed by code:** in a real browser the homepage transferred ~1 MB in 28 requests and took ~3.6 s to fully load, with ~2.3 s before the first byte (includes the non-www→www redirect and the Render↔Supabase distance in section A1). Speed is a ranking factor; moving Render to Singapore (A1) is the biggest lever. (Google's free PageSpeed quota was exhausted when I tried, so run https://pagespeed.web.dev yourself for the official score.)
+
+**Could not be verified from here — check these yourself (10 minutes each)**
+1. **Google Search Console** — add `https://www.indianheritagespices.com` as a "URL prefix" property (verify via the HTML tag or DNS), submit `https://www.indianheritagespices.com/sitemap.xml`, then use *URL Inspection → Request indexing* for the home page, `/products`, both product pages and your best 3 blog posts. This also shows whether Google has indexed you at all — a brand search I ran did not surface the site, which is normal for a young store but worth confirming here.
+2. **Bing Webmaster Tools** — import from Search Console (one click).
+3. **Google Business Profile** — free listing for "Heritage Spices, Sindewahi" with your phone and website; helps brand searches and Maps.
+4. Ask the Instagram account (`heritage.spices.in`) to link to the site in its bio.
+
+**Growth work that actually moves rankings (content, not code)**
+- **Target these searches:** "garam masala online", "buy garam masala", "Kerala spices online", "garam masala 100g", plus the brand "Heritage Spices". Use the words naturally in product descriptions and blog titles.
+- **Make the two product pages different.** 50 g and 100 g share the same description — search engines treat that as duplicate content. Give each a unique paragraph and add *ingredients, how to use, storage, shelf life (18 months, printed on the pouch), FSSAI number*.
+- **Blog:** 7 posts of 500–700 words. Aim for 900–1,300 words with sub-headings (two posts have none), a photo, and a "Buy our Garam Masala" link to a product page. Ideas with real search demand: *garam masala vs curry powder*; *how to use garam masala (dish by dish)*; *how to store spices*; *whole vs ground spices*; *Kerala spice regions*; *homemade vs packaged garam masala*; *garam masala recipe*; *turmeric milk benefits (avoid medical claims)*.
+- **Reviews:** approved reviews add star ratings in results. Ask each buyer for one after delivery (the delivered e-mail is a good place for the link).
+- **Backlinks:** list the products on Meesho/IndiaMART/JustDial with a link to the site; ask food bloggers for a review copy.
+- Be careful with claims ("100% organic", "tested for international standards") — search engines and regulators both care (see section C).
+
 ## Feature plan 1 — "Continue as <your Google account>" popup (Google One Tap)
 
 **What it is.** The popup you see on many sites is **Google One Tap**. If the visitor is already signed in to Google in that browser, Google shows a small card in the corner with *their own* account name, photo and a "Continue as …" button. One tap signs them in — no redirect, no password. It is free and uses the same Google OAuth client you already have (`GOOGLE_CLIENT_ID`).

@@ -105,7 +105,9 @@ def test_page_has_its_own_title_description_and_canonical(client):
 def test_default_social_image_is_an_absolute_url_to_a_real_file(client):
     html = client.get('/about').get_data(as_text=True)
     m = re.search(r'property="og:image" content="([^"]+)"', html)
-    assert m.group(1).startswith('http') and m.group(1).endswith('logo.png')
+    assert m.group(1).startswith('https://www.indianheritagespices.com') and m.group(1).endswith('og-default.jpg')
+    import os
+    assert os.path.exists(os.path.join(appmod.app.root_path, 'static', 'images', 'og-default.jpg'))
 
 
 def test_sitemap_lists_product_pages(client):

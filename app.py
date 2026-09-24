@@ -839,6 +839,15 @@ def index():
                            refer_points_awarded=get_setting('referral_points_awarded', '50'))
 
 @app.before_request
+def strip_trailing_slash():
+    """/products/ and /blog/ used to be 404s (a lost link-equity trap); send them to the one real URL."""
+    if request.method == 'GET' and len(request.path) > 1 and request.path.endswith('/'):
+        target = request.path.rstrip('/') or '/'
+        qs = request.query_string.decode()
+        return redirect(target + ('?' + qs if qs else ''), 301)
+    return None
+
+@app.before_request
 def capture_referral_code():
     ref = request.args.get('ref')
     if ref:
@@ -1141,30 +1150,44 @@ def healthz():
 
 @app.route('/robots.txt')
 def robots():
-    return (
-        "User-agent: *\n"
-        "Disallow: /admin/\n"
-        "Allow: /\n"
-        "Sitemap: https://www.indianheritagespices.com/sitemap.xml\n",
-        200,
-        {'Content-Type': 'text/plain'}
-    )
+    lines = [
+        "User-agent: *",
+        # private / transactional pages that should never appear in search results
+        "Disallow: /admin/",
+        "Disallow: /api/",
+        "Disallow: /cart",
+        "Disallow: /checkout",
+        "Disallow: /orders",
+        "Disallow: /login",
+        "Disallow: /logout",
+        "Disallow: /auth",
+        "Disallow: /refer",
+        "Disallow: /my-coupons",
+        "Disallow: /collect-details",
+        "Allow: /",
+        "",
+        "Sitemap: https://www.indianheritagespices.com/sitemap.xml",
+        "",
+    ]
+    return "\n".join(lines), 200, {'Content-Type': 'text/plain'}
+
 
 @app.route('/sitemap.xml')
 def sitemap():
     base = "https://www.indianheritagespices.com"
     static_urls = ['/', '/about', '/contact', '/privacy', '/blog', '/products', '/faq', '/terms', '/refund']
-    
-    blogs = get_all_blogs()
-    blog_urls = ["/blog/" + urllib.parse.quote(b.slug, safe='-_.~') for b in blogs]
-    product_urls = [f"/product/{p.id}" for p in Product.query.order_by(Product.id).all()]
+
+    entries = [(u, None) for u in static_urls]
+    entries += [(f"/product/{p.id}", None) for p in Product.query.order_by(Product.id).all()]
+    for b in get_all_blogs():
+        lastmod = b.date if re.fullmatch(r'\d{4}-\d{2}-\d{2}', b.date or '') else None
+        entries.append((blog_path(b), lastmod))
 
     sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-
-    for url in static_urls + product_urls + blog_urls:
-        sitemap_xml += f"  <url><loc>{xml_escape(base + url)}</loc></url>\n"
-
+    for url, lastmod in entries:
+        lm = f"<lastmod>{lastmod}</lastmod>" if lastmod else ""
+        sitemap_xml += f"  <url><loc>{xml_escape(base + url)}</loc>{lm}</url>\n"
     sitemap_xml += '</urlset>'
     return sitemap_xml, 200, {'Content-Type': 'application/xml'}
 
@@ -1205,7 +1228,7 @@ def get_recent_blogs(limit=3):
                 'category': b.category,
                 'image_url': b.image_url,
                 'excerpt': (plain[:110].rsplit(' ', 1)[0] + '...') if len(plain) > 110 else plain,
-                'url_slug': urllib.parse.quote(b.slug, safe='-_.~'),
+                'url_slug': slugify(b.slug),
             })
         _recent_blogs_cache['data'] = cards
         _recent_blogs_cache['loaded_at'] = now
@@ -1246,19 +1269,55 @@ def blog():
     )
 
 # --- Blog Detail Route ---
+def blog_path(post):
+    """Public URL path for a post. Older posts were saved with slugs containing ':' and curly
+    quotes; the public URL is always the clean ASCII form of the slug (no database change)."""
+    return "/blog/" + slugify(post.slug)
+
+app.jinja_env.globals['blog_path'] = blog_path
+
 @app.route("/blog/<slug>")
 def blog_detail(slug):
-    post = get_blog_by_slug(slug)
-    user = session.get('user')
-    is_logged_in = bool(user)
-    admin_password = os.getenv("ADMIN_PASSWORD")
-
-    if post:
-        all_blogs = get_all_blogs()
-        recent_posts = [b for b in all_blogs if b.id != post.id][:3]
-        return render_template("blog_detail.html", post=post, recent_posts=recent_posts, user=user, is_logged_in=is_logged_in, admin_password=admin_password)
-    else:
+    all_blogs = get_all_blogs()
+    exact = next((b for b in all_blogs if b.slug == slug), None)
+    if exact and slugify(exact.slug) != slug:
+        # Old-style URL: permanently redirect to the clean one so search engines keep just one.
+        return redirect(blog_path(exact), 301)
+    post = exact or next((b for b in all_blogs if slugify(b.slug) == slug), None)
+    if not post:
         return "Post not found", 404
+
+    user = session.get('user')
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    recent_posts = [b for b in all_blogs if b.id != post.id][:3]
+
+    site = notifications.site_url()
+    page_url = site + blog_path(post)
+    description = _plain_text(post.content, 155)
+    article = {
+        '@context': 'https://schema.org', '@type': 'Article',
+        'headline': post.title[:110], 'description': description,
+        'author': {'@type': 'Person', 'name': post.author or 'Heritage Spices'},
+        'publisher': {'@type': 'Organization', 'name': 'Heritage Spices',
+                      'logo': {'@type': 'ImageObject', 'url': f"{site}/static/images/logo.png"}},
+        'mainEntityOfPage': {'@type': 'WebPage', '@id': page_url},
+    }
+    if post.image_url:
+        article['image'] = [post.image_url]
+    if re.fullmatch(r'\d{4}-\d{2}-\d{2}', post.date or ''):
+        article['datePublished'] = post.date
+        article['dateModified'] = post.date
+    breadcrumbs = {
+        '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+        'itemListElement': [
+            {'@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': site + '/'},
+            {'@type': 'ListItem', 'position': 2, 'name': 'Journal', 'item': site + '/blog'},
+            {'@type': 'ListItem', 'position': 3, 'name': post.title[:110], 'item': page_url},
+        ],
+    }
+    return render_template("blog_detail.html", post=post, recent_posts=recent_posts, user=user,
+                           is_logged_in=bool(user), admin_password=admin_password, page_url=page_url,
+                           description=description, json_ld=[article, breadcrumbs])
 
 # --- Admin Add Blog Route ---
 @app.route('/admin/blogs', methods=['GET', 'POST'])
@@ -1852,7 +1911,11 @@ def inject_globals():
 def products():
     products = Product.query.options(joinedload(Product.reviews)).all()
     user = session.get('user')
-    return render_template('products.html', products=products, user=user)
+    site = notifications.site_url()
+    json_ld = {'@context': 'https://schema.org', '@type': 'ItemList', 'itemListElement': [
+        {'@type': 'ListItem', 'position': i, 'url': f"{site}/product/{p.id}", 'name': p.name}
+        for i, p in enumerate(products, 1)]}
+    return render_template('products.html', products=products, user=user, json_ld=json_ld)
 
 # --- Product detail page ---
 def product_base_name(name):
@@ -1916,6 +1979,19 @@ def product_detail(product_id):
         json_ld['offers'] = {
             '@type': 'Offer', 'url': url, 'priceCurrency': 'INR', 'price': f"{price:.2f}",
             'availability': 'https://schema.org/OutOfStock' if out_of_stock else 'https://schema.org/InStock',
+            'seller': {'@type': 'Organization', 'name': 'Heritage Spices'},
+            'hasMerchantReturnPolicy': {'@type': 'MerchantReturnPolicy', 'applicableCountry': 'IN',
+                                        'returnPolicyCategory': 'https://schema.org/MerchantReturnNotPermitted'},
+            'shippingDetails': {
+                '@type': 'OfferShippingDetails',
+                'shippingRate': {'@type': 'MonetaryAmount', 'value': 40.00, 'currency': 'INR'},
+                'shippingDestination': {'@type': 'DefinedRegion', 'addressCountry': 'IN'},
+                'deliveryTime': {
+                    '@type': 'ShippingDeliveryTime',
+                    'handlingTime': {'@type': 'QuantitativeValue', 'minValue': 0, 'maxValue': 1, 'unitCode': 'd'},
+                    'transitTime': {'@type': 'QuantitativeValue', 'minValue': 3, 'maxValue': 7, 'unitCode': 'd'},
+                },
+            },
         }
     # Only ever describe real, approved reviews -- never invent a rating.
     if reviews:
@@ -2065,9 +2141,63 @@ def disclaimer():
 def refund():
     return render_template('refund.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
 
+_faq_cache = {'items': None}
+
+def faq_items():
+    """(question, answer) pairs read from the accordion in templates/faq.html, so the FAQPage
+    structured data always matches what visitors can read (Google requires that)."""
+    if _faq_cache['items'] is None:
+        from html.parser import HTMLParser
+        raw = open(os.path.join(app.root_path, 'templates', 'faq.html'), encoding='utf-8').read()
+        raw = re.sub(r'\{[%{#].*?[%}#]\}', ' ', raw, flags=re.S)
+
+        class _P(HTMLParser):
+            def __init__(self):
+                super().__init__(convert_charrefs=True)
+                self.items, self.mode, self.q, self.a, self.depth = [], None, '', '', 0
+
+            def handle_starttag(self, tag, attrs):
+                cls = dict(attrs).get('class', '') or ''
+                if tag == 'button' and 'accordion-button' in cls:
+                    self.mode, self.q = 'q', ''
+                elif tag == 'div' and 'accordion-body' in cls:
+                    self.mode, self.a, self.depth = 'a', '', 1
+                elif self.mode == 'a' and tag == 'div':
+                    self.depth += 1
+
+            def handle_endtag(self, tag):
+                if tag == 'button' and self.mode == 'q':
+                    self.mode = None
+                elif tag == 'div' and self.mode == 'a':
+                    self.depth -= 1
+                    if self.depth == 0:
+                        q = re.sub(r'\s+', ' ', self.q).strip()
+                        a = re.sub(r'\s+', ' ', self.a).strip()
+                        if q and a:
+                            self.items.append((q, a))
+                        self.mode = None
+
+            def handle_data(self, data):
+                if self.mode == 'q':
+                    self.q += data
+                elif self.mode == 'a':
+                    self.a += data + ' '
+
+        parser = _P()
+        try:
+            parser.feed(raw)
+        except Exception as e:
+            print("FAQ parse failed:", e)
+        _faq_cache['items'] = parser.items
+    return _faq_cache['items']
+
 @app.route('/faq')
 def faq():
-    return render_template('faq.html')
+    items = faq_items()
+    json_ld = {'@context': 'https://schema.org', '@type': 'FAQPage', 'mainEntity': [
+        {'@type': 'Question', 'name': q, 'acceptedAnswer': {'@type': 'Answer', 'text': a}} for q, a in items
+    ]} if items else None
+    return render_template('faq.html', json_ld=json_ld)
 
 
 # -------------------------

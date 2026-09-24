@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block title %}FAQ | Help Center | Heritage Spices{% endblock %}
+{% block meta_description %}Answers about Heritage Spices: organic sourcing, shipping and delivery times, wholesale orders and how to store spices for freshness.{% endblock %}
 
 {% block content %}
+{% if json_ld %}<script type="application/ld+json">{{ json_ld|tojson }}</script>{% endif %}
 <div class="container py-4">
 
   <!-- ❓ FAQ Hero Banner -->

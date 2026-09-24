@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Home | Indian Heritage Spices{% endblock %}
+{% block title %}Buy Garam Masala & Kerala Spices Online | Heritage Spices{% endblock %}
+{% block meta_description %}Buy Heritage Spices Garam Masala online. Authentic spices from Kerala farms, FSSAI licensed, freshly packed and delivered to your door.{% endblock %}
 
 {% block content %}
 
@@ -49,9 +50,9 @@
     {
       "@type": "ListItem",
       "position": {{ loop.index }},
-      "url": "https://indianheritagespices.com/products#details{{ product.id }}",
+      "url": "https://www.indianheritagespices.com/product/{{ product.id }}",
       "name": {{ product.name | tojson }},
-      "image": {{ (product.image_url if product.image_url else 'https://indianheritagespices.com/static/images/placeholder.png') | tojson }}
+      "image": {{ (product.image_url if product.image_url else 'https://www.indianheritagespices.com/static/images/logo.png') | tojson }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
   ]
