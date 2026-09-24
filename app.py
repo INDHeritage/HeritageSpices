@@ -2064,7 +2064,7 @@ def google_merchant_feed():
             lines.append(tag('item_group_id', slugify(base)))
         grams = product_grams(pr.name)
         if grams:
-            lines.append(tag('shipping_weight', f"{grams / 1000:g} kg"))
+            lines.append(tag('shipping_weight', f"{(grams + 5) / 1000:g} kg"   # packed weight = net + 5 g pouch, as at checkout))
         lines += [
             "      <g:shipping>",
             "        <g:country>IN</g:country>",

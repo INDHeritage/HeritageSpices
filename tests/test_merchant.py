@@ -78,7 +78,7 @@ def test_feed_carries_shipping_weight_for_the_weight_based_rate(client):
     _add('Garam Masala - 50g', '55.0')
     _add('Garam Masala - 100g', '105.0')
     _, items = _feed(client)
-    assert sorted(_field(i, 'shipping_weight') for i in items) == ['0.05 kg', '0.1 kg']
+    assert sorted(_field(i, 'shipping_weight') for i in items) == ['0.055 kg', '0.105 kg']
 
 
 def test_sizes_of_one_product_share_a_group_id(client):
