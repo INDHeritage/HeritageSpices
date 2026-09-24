@@ -1,18 +1,23 @@
-"""Customer e-mails (order confirmed / shipped / delivered) over plain SMTP.
+"""Customer e-mails (order confirmed / shipped / delivered).
 
-Free to run: a Gmail account with an "app password" (about 500 mails/day) or a Brevo/SendGrid
-free plan both work. Nothing is sent unless SMTP_HOST, SMTP_USER and SMTP_PASSWORD are set, so
-the site behaves exactly as before until you configure it. Sending happens in a background
-thread and can never make an order, payment or shipment fail.
+Two ways to send, both free. Nothing is sent unless one is configured, so the site behaves
+exactly as before until you set it up. Sending happens in a background thread and can never
+make an order, payment or shipment fail.
 
-Environment variables
-    SMTP_HOST        e.g. smtp.gmail.com  or  smtp-relay.brevo.com
-    SMTP_PORT        465 (SSL, default) or 587 (STARTTLS)
-    SMTP_USER        login / sender address
-    SMTP_PASSWORD    the app password (NOT your normal Google password)
-    MAIL_FROM        optional, defaults to SMTP_USER
-    MAIL_FROM_NAME   optional, defaults to "Heritage Spices"
-    SITE_URL         optional, defaults to https://www.indianheritagespices.com
+1) HTTPS mail relay (works on Render's FREE plan, which blocks SMTP ports 465/587/25):
+       EMAIL_WEBHOOK_URL      the "web app" URL of a small Google Apps Script that sends mail
+                              from your own Gmail (see docs/PROJECT_REVIEW.md for the script)
+       EMAIL_WEBHOOK_SECRET   a long random string, also pasted into that script
+2) Plain SMTP (needs a paid Render plan, or any host that allows outbound SMTP):
+       SMTP_HOST      e.g. smtp.gmail.com  or  smtp-relay.brevo.com
+       SMTP_PORT      465 (SSL, default) or 587 (STARTTLS)
+       SMTP_USER      login / sender address
+       SMTP_PASSWORD  the app password (NOT your normal Google password)
+       MAIL_FROM      optional, defaults to SMTP_USER
+Common:
+       MAIL_FROM_NAME optional, defaults to "Heritage Spices"
+       SITE_URL       optional, defaults to https://www.indianheritagespices.com
+If both are set, the HTTPS relay is used.
 """
 import os
 import smtplib
@@ -32,11 +37,43 @@ def site_url():
     return os.getenv('SITE_URL', 'https://www.indianheritagespices.com').rstrip('/')
 
 
+def provider():
+    """'webhook', 'smtp' or None (not configured)."""
+    if os.getenv('EMAIL_WEBHOOK_URL') and os.getenv('EMAIL_WEBHOOK_SECRET'):
+        return 'webhook'
+    if os.getenv('SMTP_HOST') and os.getenv('SMTP_USER') and os.getenv('SMTP_PASSWORD'):
+        return 'smtp'
+    return None
+
+
 def is_configured():
-    return bool(os.getenv('SMTP_HOST') and os.getenv('SMTP_USER') and os.getenv('SMTP_PASSWORD'))
+    return provider() is not None
 
 
 def _send_now(to, subject, text, html):
+    """Send one e-mail with whichever method is configured. Raises on failure."""
+    if provider() == 'webhook':
+        return _send_webhook(to, subject, text, html)
+    return _send_smtp(to, subject, text, html)
+
+
+def _send_webhook(to, subject, text, html):
+    import requests  # local import: only needed on this path
+    name = os.getenv('MAIL_FROM_NAME', 'Heritage Spices')
+    resp = requests.post(os.getenv('EMAIL_WEBHOOK_URL'), json={
+        'secret': os.getenv('EMAIL_WEBHOOK_SECRET'), 'to': to, 'subject': subject,
+        'text': text, 'html': html or '', 'name': name,
+    }, timeout=25)
+    try:
+        data = resp.json()
+    except ValueError:
+        raise RuntimeError(f"mail relay gave an unexpected reply (HTTP {resp.status_code}). "
+                           f"Check the Apps Script is deployed as a web app with access 'Anyone'.")
+    if not data.get('ok'):
+        raise RuntimeError(f"mail relay refused the request: {data.get('error', 'unknown error')}")
+
+
+def _send_smtp(to, subject, text, html):
     host = os.getenv('SMTP_HOST')
     port = int(os.getenv('SMTP_PORT', '465'))
     user = os.getenv('SMTP_USER')

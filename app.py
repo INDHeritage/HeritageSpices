@@ -1853,7 +1853,9 @@ def inject_flags():
                                and not session.get('user')
                                and not request.path.startswith(_ONE_TAP_SKIP_PATHS)),
         'google_client_id': app.config.get('GOOGLE_CLIENT_ID') or '',
-        'science_hub_enabled': SCIENCE_HUB_ENABLED or is_admin_user(session.get('user')),
+        # Hidden from everyone (admins included) while the hub is switched off; admins still
+        # reach it via Admin > Science Hub Admin or the direct URL.
+        'science_hub_enabled': SCIENCE_HUB_ENABLED,
     }
 
 @app.route('/science-hub')
@@ -3297,8 +3299,8 @@ def admin_test_email():
     """Send a real test e-mail to the logged-in admin and show the exact result, so a wrong
     SMTP setting is obvious right away instead of silently failing on a customer's order."""
     if not notifications.is_configured():
-        flash("E-mail is not set up yet: add SMTP_HOST, SMTP_USER and SMTP_PASSWORD in Render "
-              "(Environment), then try again.", "warning")
+        flash("E-mail is not set up yet. Add EMAIL_WEBHOOK_URL and EMAIL_WEBHOOK_SECRET in Render "
+              "(Environment) -- or the SMTP_* settings on a paid Render plan -- then try again.", "warning")
         return redirect('/admin/dashboard')
     to = session['user']['email']
     try:
