@@ -156,6 +156,25 @@ While checking pages from my machine earlier in this project, a small number of 
 
 **Rules of thumb:** price, stock and description in the feed must match the product page (they do — both come from the same data); never edit a price without the site showing it (there is one source, so this stays true); keep "100% organic / lab-certified" claims backed by real certificates.
 
+### Merchant Center — where you are now (account 5622251627) and what is left
+
+**Done by you:** account created; shipping policy "Standard Shipping India" saved (India, all products, cut-off 2 PM IST, handling 0–2 days, transit 3–5 days → shown as 3–7 days, weight-based: 0–0.5 kg = ₹35, above = ₹35).
+**Done in code:** the feed now sends ₹35 shipping (was ₹40) and a `shipping_weight` (0.05 kg / 0.1 kg, read from the size in the product name), so it agrees with the table you saved.
+
+**To do (in this order)**
+1. Render env `GOOGLE_SITE_VERIFICATION` = the Merchant Center HTML-tag code → click *Verify and claim* in Merchant Center.
+2. Products → Feeds → add feed → **Scheduled fetch** → `https://www.indianheritagespices.com/feeds/google-merchant.xml`, daily. Then fix anything under Diagnostics.
+3. Returns policy (Shipping and returns → Returns) — must match `/refund`; fix `/refund` first (see blocker 3 above).
+4. Business info tasks on the dashboard: customer-service contact (WhatsApp/e-mail), "Turn on automatic image improvements" (safe to accept), link Business Profile (optional).
+5. Real checkout charge must be ≤ what Google shows. `calculate_shipping` in `app.py` weighs a 50g pouch as 110 g (its price ₹55 is above the ₹45 cut-off) and 5 × 100 g = 0.525 kg, which is past the 0.5 kg slab. Decide: either make Merchant Center's second slab realistic (e.g. 0.5–1 kg = ₹60) or make checkout use the same table. Do not leave Google cheaper than the website.
+
+**Corrections to the Google "AI Mode" chat you pasted (do not follow these parts)**
+- It said to put `g:min_purchase_quantity` / `g:max_purchase_quantity` in the feed. **These attributes do not exist** in Google's feed spec. The 2-to-5 pouch limit is enforced by your checkout; it cannot be declared to Google. Google only checks that price/stock match the page.
+- Its sample code used the wrong namespace (`http://google.com`). Ours uses the correct `http://base.google.com/ns/1.0`. Use the live feed, not its script.
+- It said "buy directly inside Google / GPay" is available via *Native Checkout (UCP)*. That is only offered to eligible merchants on supported platforms (mainly Shopify) and is not available for this custom site today. Shoppers who click a listing land on your product page. Do not spend time on it.
+- GPay/UPI charges: Razorpay, not Google, sets fees. Razorpay is already your payment gateway; nothing to register with Google Pay for this.
+- Its first answer still says "sourced from Kerala farms": that is Google's cached copy of the old site text and refreshes on its own after re-crawl (weeks). Blog post "Why Kerala Spices Are World Famous" still contains Kerala and appears on the homepage/blog list — decide whether to rename it (your content, so left untouched).
+
 ## Feature plan 1 — "Continue as <your Google account>" popup (Google One Tap)
 
 **What it is.** The popup you see on many sites is **Google One Tap**. If the visitor is already signed in to Google in that browser, Google shows a small card in the corner with *their own* account name, photo and a "Continue as …" button. One tap signs them in — no redirect, no password. It is free and uses the same Google OAuth client you already have (`GOOGLE_CLIENT_ID`).

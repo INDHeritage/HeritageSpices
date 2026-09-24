@@ -74,6 +74,13 @@ def test_feed_escapes_special_characters(client):
     assert _field(item, 'title') == 'Tom & "Jerry" <Spice> - 50g'
 
 
+def test_feed_carries_shipping_weight_for_the_weight_based_rate(client):
+    _add('Garam Masala - 50g', '55.0')
+    _add('Garam Masala - 100g', '105.0')
+    _, items = _feed(client)
+    assert sorted(_field(i, 'shipping_weight') for i in items) == ['0.05 kg', '0.1 kg']
+
+
 def test_sizes_of_one_product_share_a_group_id(client):
     _add('Garam Masala - 50g', '55.0')
     _add('Garam Masala - 100g', '105.0')
@@ -97,7 +104,7 @@ def test_feed_declares_india_shipping_that_matches_the_published_policy(client):
     _add('Garam Masala - 50g', '55.0')
     _, (item,) = _feed(client)
     ship = item.find(G + 'shipping')
-    assert ship.find(G + 'country').text == 'IN' and ship.find(G + 'price').text == '40.00 INR'
+    assert ship.find(G + 'country').text == 'IN' and ship.find(G + 'price').text == '35.00 INR'
     # policy page: ships within 24-48 hours, delivery 3-7 days
     assert (ship.find(G + 'min_handling_time').text, ship.find(G + 'max_handling_time').text) == ('1', '2')
     assert (ship.find(G + 'min_transit_time').text, ship.find(G + 'max_transit_time').text) == ('3', '7')

@@ -2024,7 +2024,7 @@ def product_detail(product_id):
 # Merchant Center can fetch this URL on a schedule (Products > Feeds > Add feed > Scheduled fetch).
 # Everything here comes from the same data the product page shows, because Google compares the
 # feed with the landing page and rejects listings whose price/availability/description differ.
-MERCHANT_SHIPPING_INR = os.getenv('MERCHANT_SHIPPING_INR', '40')
+MERCHANT_SHIPPING_INR = os.getenv('MERCHANT_SHIPPING_INR', '35')   # matches the flat rate entered in Merchant Center (0-0.5 kg)
 GOOGLE_CATEGORY_SEASONINGS_SPICES = '4608'   # Food, Beverages & Tobacco > Food Items > Seasonings & Spices
 
 @app.route('/feeds/google-merchant.xml')
@@ -2062,6 +2062,9 @@ def google_merchant_feed():
         ]
         if group_sizes.get(base, 0) > 1:
             lines.append(tag('item_group_id', slugify(base)))
+        grams = product_grams(pr.name)
+        if grams:
+            lines.append(tag('shipping_weight', f"{grams / 1000:g} kg"))
         lines += [
             "      <g:shipping>",
             "        <g:country>IN</g:country>",
