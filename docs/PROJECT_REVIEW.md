@@ -69,6 +69,80 @@ While checking pages from my machine earlier in this project, a small number of 
 
 ---
 
+## Feature plan 1 — "Continue as <your Google account>" popup (Google One Tap)
+
+**What it is.** The popup you see on many sites is **Google One Tap**. If the visitor is already signed in to Google in that browser, Google shows a small card in the corner with *their own* account name, photo and a "Continue as …" button. One tap signs them in — no redirect, no password. It is free and uses the same Google OAuth client you already have (`GOOGLE_CLIENT_ID`).
+
+**How it works (technical).**
+1. The page loads Google's script (`accounts.google.com/gsi/client`) and calls `google.accounts.id.initialize({client_id, callback})` then `prompt()`.
+2. Google shows the popup. When the visitor taps, Google hands *our JavaScript* a signed **ID token** (a JWT) — no page redirect.
+3. Our JavaScript POSTs that token to a new endpoint, e.g. `POST /auth/google-one-tap` (sending our normal CSRF header).
+4. The server **verifies the token with Google's public keys** (library `google-auth`: checks signature, expiry, that the audience equals our client id, and `email_verified`), then creates the same login session as today.
+5. The page reloads or continues what the visitor was doing.
+
+**What has to change in this project**
+| Step | Where | Effort |
+|---|---|---|
+| Add `https://www.indianheritagespices.com` (and `http://localhost:5000` for testing) under **Authorized JavaScript origins** for the existing OAuth client in Google Cloud Console. No new secret needed. | Google Cloud Console | S |
+| Move the post-login logic (save user, link referral code, issue the welcome coupon, coupon reminders) out of `/auth` into one shared function, so the current button and One Tap behave identically. | `app.py` (`/auth`, `save_user`) | S |
+| New endpoint `/auth/google-one-tap`: verify token, call the shared function, return JSON. Add `google-auth` to `requirements.txt`. Rate-limit it. | `app.py` | M |
+| Load the script and call `prompt()` **only for logged-out visitors**, after ~4 s or first scroll, and **not** on checkout, admin, legal pages or `/login`. | `templates/base.html` | S |
+| Combine with the existing "Sign up & get X% off — Claim Offer" popup: show One Tap first; only if Google reports it cannot display (visitor not signed in to Google, cool-down after dismissals) fall back to the current popup. Never show both at once. | `base.html` | S |
+| **Just-in-time sign-in:** when a logged-out visitor taps "Buy Now / Add to cart", trigger the prompt instead of sending them to the login page, then continue adding the item. Likely the biggest conversion gain. | `products.html`, `partials/products.html`, `cart` JS | M |
+| Tests: token with wrong audience / unverified email / expired is rejected; new user gets welcome coupon; referral code links; existing user does not get a second coupon; admin email still admin. Ship behind an env flag `GOOGLE_ONE_TAP_ENABLED`. | `tests/` | M |
+
+**Limits to know about (so nobody is surprised)**
+- It only appears if the visitor is **signed in to Google in that browser**. If not, they simply see your normal "Login with Google" button — keep that button.
+- After a visitor closes the popup, Google **pauses it for a while** (longer after repeated closes). This is Google's rule and cannot be overridden.
+- **In-app browsers** (opening your link inside Instagram, Facebook or some WhatsApp views) often block Google sign-in altogether. A large share of Indian mobile traffic arrives this way — another reason guest checkout / phone-OTP login (item B4) is worth doing.
+- Mention Google sign-in and what data you keep in the Privacy Policy.
+
+**Effort:** about one working day including tests. **Risk:** low if behind the flag; login stays exactly as today for anyone the popup does not reach.
+
+---
+
+## Feature plan 2 — Make the homepage interactive, with content that earns trust
+
+### Where the site really stands (checked against live data)
+2 products · **0 customer reviews** · 7 blog posts · 5 users · 2 paid orders. This is a **new store**: visitors don't know the brand yet, so the homepage's job is to answer *"Can I trust this? What do I do with it? Is it worth ordering 2 pouches?"* — not just to look good. Interactivity should serve those three questions.
+
+**Rule for all content:** only show claims and numbers you can prove. **Do not add invented testimonials, ratings, "1,000+ customers" or fake urgency** — besides destroying trust when spotted, fake reviews and fake urgency can breach Indian consumer-protection and advertising rules (have your advisor confirm the specifics). The six banner photos are decorative (some are AI-generated); don't caption them as "our farm" unless they are.
+
+### Proposed section order for the homepage
+| # | Section | What it does | Content source |
+|---|---|---|---|
+| 1 | **Hero** — cut to 3 slides, one clear button each, plus a one-line promise | Faster load, clearer message | existing photos |
+| 2 | **Trust strip** (one row of 4 icons) | Answers "can I trust this?" instantly | **FSSAI Lic. No. 21521175000514** (already on Products page), "Lab tested" (only if the Equinox Labs report exists — show it), "Secure payment by Razorpay", "Freshly packed in Sindewahi" |
+| 3 | **"What will you cook?" picker** (interactive) — tap a dish (Paneer, Chicken curry, Biryani, Dal, Sabzi) → shows *when to add it, how many spoons, one tip* and a "Add Garam Masala" button | Answers "what do I do with it?"; turns browsing into a cart add | short copy written from your blog posts / kitchen knowledge |
+| 4 | **Featured products** — size toggle 50 g / 100 g, "₹ per 10 g" value, honest low-stock note *only when `stock` is actually low*, "why minimum 2 pouches?" tooltip, free-shipping progress bar ("Add ₹X more for free shipping") | Answers "is it worth it?"; raises order value | product + stock data |
+| 5 | **Farm-to-pouch story** — 5-step scroll timeline (source → sun-dry → grind → test → pack) with a real photo per step and animated counters (e.g. "Since 2012" → years running) | Trust + brand story | your real photos; only true numbers |
+| 6 | **Recipes strip** — 3 newest blog posts as cards, "Cook with Heritage Garam Masala" | Uses the 7 posts you already have; helps SEO | existing blog |
+| 7 | **Proof section** — until real reviews exist: batch/lab report and FSSAI certificate viewer ("See our lab report"); then swap in real reviews. Add "Be the first to review" prompt | Honest social proof | certificates; post-delivery review request (needs customer messages, item B1) |
+| 8 | Refer & Earn · FAQ · Wholesale | keep; add FAQs: shipping time, shelf life (pouch says 18 months), storage, why min 2 pouches, returns | existing |
+
+### Interactive features, ranked by value for effort
+1. **Sticky mobile bottom bar** — "Shop now" + "Order on WhatsApp". Most Indian shoppers are on phones; WhatsApp ordering also catches people who won't sign in. **S**
+2. **"What will you cook?" dish picker** (row 3 above). **M**
+3. **Add-to-cart micro-animation + mini-cart drawer** (item flies to cart, no page jump) and the **free-shipping progress bar**. **M**
+4. **Batch checker via the QR on your pouches.** Your pouch already prints a *Batch No.* and the site already records QR scans (`ProductScan`, `/admin/qr-codes`). Make the QR open a page: enter/scan batch → packing date, lab report, recipes, "leave a review". Few competitors do this; it builds trust and becomes the review-collection channel. **M–L**
+5. **Animated counters and scroll reveals** using the Motion library you already load. **S**
+6. **Spice heat/flavour meter** on each product (mild ▸ hot, aroma, best-used-for) as small icons. **S**
+7. **Exit-intent or timed offer** — only the real welcome coupon you already issue; show once; never fake countdowns. **S**
+8. **Video:** one 10–15 s vertical clip (grinding / packing) as a muted loop in the story section, hosted on YouTube or a CDN — **not** in the repo (an unused 22 MB video was just removed from it). **M**
+
+### Performance guardrails (the site was just made faster — keep it that way)
+Lazy-load everything below the first screen; keep each image ≤ ~150 KB (WebP); no new heavy libraries (use what is loaded: Bootstrap + Motion); add nothing that runs a database query on the homepage without caching (each query costs ~0.3 s until the region move in A1 is done). Re-measure after each addition.
+
+### Copy suggestions (edit to your voice; verify every claim)
+- Hero promise: *"Fresh-ground Kerala spices, packed in Maharashtra, at your door."* (only if accurate)
+- Trust strip: *"FSSAI Licensed · Lab Tested · Secure Payments · Ships in 24 h"* — keep only what is true.
+- Dish picker tip: *"Add Garam Masala in the last 2 minutes of cooking — heat dulls its aroma."*
+- Product note: *"Minimum 2 pouches so shipping stays affordable — ₹37 covers both."* (only if that is the reason)
+
+**Suggested order of work:** (1) One Tap, just-in-time sign-in and the mobile bottom bar (fast conversion wins) → (2) trust strip + dish picker + product size toggle → (3) story timeline + recipes strip → (4) batch-checker QR page (needs customer messaging for reviews).
+
+---
+
 ## 1. Summary
 
 The site works and the core flow (browse → pay → ship → track) is real and in production. The main risks are not visual — they are **money and content leaks**:
