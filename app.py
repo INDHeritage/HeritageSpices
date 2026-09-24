@@ -1992,10 +1992,14 @@ def product_detail(product_id):
             'availability': 'https://schema.org/OutOfStock' if out_of_stock else 'https://schema.org/InStock',
             'seller': {'@type': 'Organization', 'name': 'Heritage Spices'},
             'hasMerchantReturnPolicy': {'@type': 'MerchantReturnPolicy', 'applicableCountry': 'IN',
-                                        'returnPolicyCategory': 'https://schema.org/MerchantReturnNotPermitted'},
+                                        'returnPolicyCategory': 'https://schema.org/MerchantReturnFiniteReturnWindow',
+                                        'merchantReturnDays': 2,
+                                        'returnMethod': 'https://schema.org/ReturnByMail',
+                                        'returnFees': 'https://schema.org/FreeReturn',
+                                        'merchantReturnLink': f"{site}/refund"},
             'shippingDetails': {
                 '@type': 'OfferShippingDetails',
-                'shippingRate': {'@type': 'MonetaryAmount', 'value': 40.00, 'currency': 'INR'},
+                'shippingRate': {'@type': 'MonetaryAmount', 'value': float(MERCHANT_SHIPPING_INR), 'currency': 'INR'},
                 'shippingDestination': {'@type': 'DefinedRegion', 'addressCountry': 'IN'},
                 'deliveryTime': {
                     '@type': 'ShippingDeliveryTime',

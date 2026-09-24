@@ -149,6 +149,9 @@ def test_product_description_with_newlines_and_quotes_cannot_break_the_markup(si
     assert 'Line two with "quotes"' in product['description']
     assert product['offers']['shippingDetails']['shippingRate']['currency'] == 'INR'
     assert product['offers']['hasMerchantReturnPolicy']['applicableCountry'] == 'IN'
+    rp = product['offers']['hasMerchantReturnPolicy']
+    assert rp['returnPolicyCategory'].endswith('FiniteReturnWindow') and rp['merchantReturnDays'] == 2
+    assert product['offers']['shippingDetails']['shippingRate']['value'] == 35.0
 
 
 def test_faq_markup_matches_the_visible_questions(site):
