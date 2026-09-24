@@ -23,3 +23,11 @@ scratch/
 
 # Build archives
 dist.zip
+
+# Customer / visitor data exports -- contains personal data, never commit
+visits.csv
+users.csv
+customer_details.csv
+
+# Legacy local upload folder (uploads go to imgbb now; Render's disk is ephemeral anyway)
+static/uploads/
