@@ -2991,11 +2991,12 @@ def calculate_shipping():
     total_weight_kg = 0.0
     for item in cart_items:
         # Precise weight: product + 5g polythine
-        price = float(item.product.price) if item.product.price else 0
-        if price <= 45:
-            item_weight = 0.06  # 55g + 5g = 60g
+        grams = product_grams(item.product.name)   # net weight from the name, e.g. "Garam Masala - 50g"
+        if grams:
+            item_weight = (grams + 5) / 1000       # + 5 g polythene
         else:
-            item_weight = 0.11  # 105g + 5g = 110g
+            price = float(item.product.price) if item.product.price else 0
+            item_weight = 0.06 if price <= 45 else 0.11
         total_weight_kg += item_weight * item.quantity
     
     mode = get_setting('delivery_mode', 'hybrid')
