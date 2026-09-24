@@ -1,3 +1,6 @@
+# razorpay imports pkg_resources, which Python 3.12+/3.13 virtualenvs (Render) do not include.
+# Pinned below 81 because newer setuptools releases drop pkg_resources.
+setuptools<81
 Flask==3.1.1
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.1.0
