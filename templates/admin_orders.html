@@ -194,6 +194,14 @@
                     </form>
                     {% endif %}
                   {% endif %}
+                  {% if order.payment_status == 'paid' %}
+                    {% set wl = wa_link(order) %}
+                    {% if wl %}
+                    <a href="{{ wl }}" target="_blank" rel="noopener" class="btn btn-sm rounded-pill w-100" style="background:#25D366;color:#fff;" title="Opens WhatsApp with a ready message for this customer">
+                      <i class="fab fa-whatsapp me-1"></i> WhatsApp customer
+                    </a>
+                    {% endif %}
+                  {% endif %}
                 </div>
               </td>
             </tr>

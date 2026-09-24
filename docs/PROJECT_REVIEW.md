@@ -18,12 +18,16 @@ Items marked ✅ *verified* were reproduced by actually running the code or meas
 | B4 Nimbus status mapping | **Fixed.** Courier statuses are mapped to shipped / out for delivery / delivered / rto / cancelled; unknown statuses are ignored; finished orders never move backwards; payload no longer logged. |
 | B7 Security headers, compression, caching | **Fixed.** Headers added, gzip on (homepage HTML 54 KB → 14 KB), static files cached 7 days, notes never cached. Content-Security-Policy **not** added (needs a careful allow-list; do it separately). |
 | Hardcoded admin email (×20) | **Fixed.** `ADMIN_EMAILS` env var (defaults to the current address). |
-| DB idle-connection errors | **Fixed.** `pool_pre_ping` + recycle. |
-| B9 Tests / CI / pinned dependencies | **Done.** 20 tests + GitHub Action; all dependencies pinned. |
+| DB idle-connection errors | **Handled** with connection recycling. (`pool_pre_ping` was tried and removed: it added a database round trip to every request.) |
+| B9 Tests / CI / pinned dependencies | **Done.** 57 tests; all dependencies pinned. The GitHub Action file exists locally (`.github/workflows/tests.yml`) but could not be pushed: the GitHub token lacks the *workflow* permission. |
 | Slugs / sitemap | **Fixed** for new posts; sitemap URLs now valid and complete. |
 | Repo hygiene | **Done.** Customer CSVs, legacy uploads, empty logs and unused 22 MB video removed from the repo. |
 | Front-end speed | **Partly done.** Logo 194 KB → 39 KB; hero slides 2–6 load after the page. |
-| B5 price/weight model, B6 Alembic baseline, B8 customer emails, product pages, guest checkout | **Not done** — these need database changes, an email/WhatsApp account, or larger design work. Recommended next. |
+| B8 customer messages | **Built, free plan** — e-mails + WhatsApp click-to-chat (see *Switch-on checklist* below). |
+| Duplicate courier order on retry | **Fixed.** |
+| Google One Tap sign-in, sign-in prompt on "Buy Now" for logged-out visitors | **Built, off by default** (`GOOGLE_ONE_TAP_ENABLED`). |
+| Homepage: trust strip, "What will you cook?" picker, journal strip, mobile Shop/WhatsApp bar | **Live.** |
+| B5 price/weight model, B6 Alembic baseline, product pages, guest checkout | **Not done** — these need database changes or larger design work. Recommended next. |
 
 **Two things only you can do:** (1) In Razorpay Dashboard → Settings → Webhooks, add `https://www.indianheritagespices.com/api/razorpay/webhook` with events `payment.captured` and `order.paid`, choose a secret, and set the same value as `RAZORPAY_WEBHOOK_SECRET` on Render. (2) Rotate the GitHub tokens / NimbusPost credentials that were shared in chat. Old customer files are still in git *history* (only removed going forward) — make sure the GitHub repo is private.
 
@@ -32,6 +36,15 @@ Items marked ✅ *verified* were reproduced by actually running the code or meas
 ## Remaining work — second review, after the fixes went live (24 Sep 2026)
 
 Everything below was checked against the live site or by running the code, not assumed.
+
+### Switch-on checklist for what was just built (all off/harmless until you do these)
+| Feature | What to set on Render → Environment | Also needed |
+|---|---|---|
+| **Customer e-mails** (confirmed / shipped / delivered) | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` (optional: `SMTP_PORT` default 465, `MAIL_FROM`, `MAIL_FROM_NAME`). **Free options:** Gmail — turn on 2-step verification, create an *App password*, use `smtp.gmail.com` + that password (~500 mails/day); or a free Brevo account (`smtp-relay.brevo.com`, port 587). | Send yourself a test order first. Mails go to the customer's Google-account address. |
+| **WhatsApp us** button + mobile bottom bar | `WHATSAPP_NUMBER` = your number, e.g. `8459593058` (10 digits, or 91 + 10 digits) | Bar shows "Shop now" only until this is set. |
+| **WhatsApp customer** (admin) | nothing — works now | Opens WhatsApp with a ready message; you press Send. |
+| **Google One Tap** popup | `GOOGLE_ONE_TAP_ENABLED=true` (needs the existing `GOOGLE_CLIENT_ID`) | In Google Cloud Console → APIs & Services → Credentials → your OAuth client → **Authorized JavaScript origins**, add `https://www.indianheritagespices.com`. Then test in a browser signed in to Google. |
+| Homepage trust strip, "What will you cook?" picker, journal strip | nothing — live | Edit wording in `templates/partials/`. Confirm the "Lab tested / Equinox Labs" line matches your reports. |
 
 ### Why pages are slow, and what was done ✅ measured
 Live timings (first byte): pages with **no** database work ≈ **0.3 s**; `/faq` (4 queries) ≈ **1.5 s**; homepage (9 queries) ≈ **3.0 s**. So every database query costs about **0.3 s**. The database is in **Singapore** (Supabase `ap-southeast-1`); if the Render service is in the US/Europe (the default), each query crosses an ocean.
@@ -50,8 +63,8 @@ Live timings (first byte): pages with **no** database work ≈ **0.3 s**; `/faq`
 | A7 | **Supabase:** confirm backups/point-in-time recovery are on and re-run the Security Advisor. | Data safety. |
 
 ### B. Code work still open (needs your decision, an account, or database changes)
-1. **Customer notifications** — order confirmed / shipped / delivered by email or WhatsApp (needs a provider account). Biggest support-load reducer.
-2. **Courier retry creates a duplicate order** — `create_shipment()` only saves the NimbusPost order id if booking succeeds. If booking fails after the order is created, clicking Ship again creates a second courier order. Fix: save the id immediately and re-book the same order.
+1. ~~Customer notifications~~ **Built (free plan)** — confirmed / shipped / delivered e-mails over SMTP, plus a one-tap "WhatsApp customer" button in admin (see *Switch-on checklist*). The paid WhatsApp API is deliberately **not** used: Meta charges only ~₹0.115 per utility message (+18% GST) but providers add a **₹999–₹9,999/month platform fee**, which is poor value below a few hundred orders a month. Revisit at ~200+ orders/month.
+2. ~~Courier retry creates a duplicate order~~ **Fixed** — the courier order id is saved as soon as it is created, and "Ship" re-books that same order instead of creating another (falls back to a fresh order if the courier no longer knows it).
 3. **Individual product pages** (SEO, sharing, reviews) and a size selector merging the 50 g / 100 g products.
 4. **Guest checkout / phone-OTP login** (login is Google-only).
 5. **Database model:** price stored as text; parcel weight guessed from price; migrations not tracked (Alembic baseline). Needs planned production SQL.

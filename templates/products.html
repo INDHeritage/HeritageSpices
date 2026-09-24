@@ -415,6 +415,7 @@
     </div>
   </div>
   {% endfor %}
+{% with cta_href="/cart", cta_label="My cart", cta_icon="fa-cart-shopping" %}{% include "partials/mobile_cta_bar.html" %}{% endwith %}
 {% endblock %}
 
 {% block scripts %}
@@ -559,6 +560,8 @@
           alert.classList.replace('animate__fadeIn', 'animate__fadeOut');
           setTimeout(() => alert.remove(), 500);
         }, 2000);
+      } else if (data.error === 'Please login first') {
+        window.heritageAskLogin({ product_id: productId, quantity: quantity });
       } else {
         alert(data.error || 'Failed to add to cart');
       }

@@ -1,0 +1,104 @@
+<!-- Sign-in helpers used on every page:
+     * heritageAskLogin(): what happens when a logged-out visitor tries to add to cart
+     * Google One Tap ("Continue as <your Google account>") when GOOGLE_ONE_TAP_ENABLED
+     * replays an add-to-cart the visitor started before signing in -->
+<style>
+  .heritage-toast {
+    position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 3000;
+    background: #1b4332; color: #fff; padding: 10px 16px; border-radius: 999px; font-size: .9rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,.25); max-width: 92vw; text-align: center;
+  }
+  .heritage-toast a { color: #ffd166; font-weight: 700; margin-left: 6px; }
+  /* One Tap shows top-right on desktop; keep the offer popup out of its way */
+  @media (min-width: 768px) {
+    body.has-one-tap .welcome-offer-popup { top: auto; bottom: 24px; right: auto; left: 24px; }
+  }
+</style>
+<script>
+(function () {
+  window.heritageOneTap = { ready: false, prompt: function () {} };
+
+  function toast(html, ms) {
+    var el = document.createElement('div');
+    el.className = 'heritage-toast';
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    setTimeout(function () { el.remove(); }, ms || 6000);
+  }
+  window.heritageToast = toast;
+
+  // Called by the add-to-cart buttons when the server says "Please login first".
+  // Remembers what the visitor wanted so it can be added automatically after they sign in.
+  window.heritageAskLogin = function (pending) {
+    try { if (pending) sessionStorage.setItem('pendingCart', JSON.stringify(pending)); } catch (e) {}
+    if (window.heritageOneTap.ready) {
+      window.heritageOneTap.prompt();
+      toast('Sign in with Google to add this to your cart <a href="/login">or use the login page</a>', 8000);
+    } else {
+      window.location.href = '/login';
+    }
+  };
+
+{% if user %}
+  // Just signed in? Finish the add-to-cart the visitor started earlier.
+  try {
+    var pending = JSON.parse(sessionStorage.getItem('pendingCart') || 'null');
+    sessionStorage.removeItem('pendingCart');
+    if (pending && pending.product_id) {
+      fetch('/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': {{ csrf_token()|tojson }} },
+        body: JSON.stringify(pending)
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.success) {
+          var badge = document.getElementById('cart-badge');
+          if (badge) { badge.textContent = d.cart_count; badge.classList.remove('d-none'); }
+          toast('Added to your cart! <a href="/cart">View cart</a>', 6000);
+        }
+      });
+    }
+  } catch (e) {}
+{% endif %}
+})();
+</script>
+
+{% if google_one_tap %}
+<script>
+(function () {
+  document.body.classList.add('has-one-tap');
+
+  function onCredential(response) {
+    fetch('/auth/google-one-tap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': {{ csrf_token()|tojson }} },
+      body: JSON.stringify({ credential: response.credential })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.success) { window.location.reload(); }
+    }).catch(function () {});
+  }
+
+  window.onGoogleLibraryLoad = function () {
+    google.accounts.id.initialize({
+      client_id: {{ google_client_id|tojson }},
+      callback: onCredential,
+      auto_select: false,
+      cancel_on_tap_outside: false,
+      itp_support: true,
+      context: 'signin'
+    });
+    window.heritageOneTap.ready = true;
+    window.heritageOneTap.prompt = function () { google.accounts.id.prompt(); };
+
+    // Show it once the visitor has had a moment to look around: after 4 s or the first scroll.
+    var fired = false;
+    function auto() { if (!fired) { fired = true; window.heritageOneTap.prompt(); } }
+    setTimeout(auto, 4000);
+    window.addEventListener('scroll', function once() {
+      window.removeEventListener('scroll', once);
+      setTimeout(auto, 800);
+    }, { passive: true });
+  };
+})();
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}

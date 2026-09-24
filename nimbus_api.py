@@ -141,65 +141,69 @@ def create_shipment(order_data):
         }
 
     try:
-        # Step 1: Create Order
-        orders_url = f'{NIMBUS_BASE_URL}/orders'
+        # If an earlier attempt already created the courier order but booking failed, reuse it
+        # instead of creating a second (duplicate) order on every retry.
+        nimbus_order_id = order_data.get('nimbus_order_id')
+        if not nimbus_order_id:
+            # Step 1: Create Order
+            orders_url = f'{NIMBUS_BASE_URL}/orders'
         
-        # Format items for v2
-        mapped_items = []
-        for item in order_data.get('items', []):
-            mapped_items.append({
-                'name': item['name'],
-                'quantity': item['quantity'],
-                'price': item['price']  # already in rupees by the time it reaches here
-            })
+            # Format items for v2
+            mapped_items = []
+            for item in order_data.get('items', []):
+                mapped_items.append({
+                    'name': item['name'],
+                    'quantity': item['quantity'],
+                    'price': item['price']  # already in rupees by the time it reaches here
+                })
             
-        # Determine warehouse ID mapping for v2
-        wh_name = order_data.get('pickup_location', WAREHOUSE_NAME)
-        wh_id = 'WH-001' # default
-        if 'Hyderabad' in wh_name:
-            wh_id = 'WH-002'
+            # Determine warehouse ID mapping for v2
+            wh_name = order_data.get('pickup_location', WAREHOUSE_NAME)
+            wh_id = 'WH-001' # default
+            if 'Hyderabad' in wh_name:
+                wh_id = 'WH-002'
             
-        order_payload = {
-            'order_number': order_data['order_number'],
-            'order_type': 'b2c', # NimbusPost v2 accepts: b2c | document | reverse
-            'payment_mode': 'prepaid',
-            'warehouse_id': wh_id,
-            'shipping_address': {
-                'name': order_data['consignee']['name'],
-                'address': order_data['consignee']['address'],
-                'city': order_data['consignee']['city'],
-                'state': order_data['consignee']['state'],
-                # NimbusPost v2 expects both pincode and phone as numeric values,
-                # not strings -- defensively strip any stray non-digit characters
-                # (spaces, '+91', etc.) before converting either one.
-                'pincode': int(''.join(filter(str.isdigit, str(order_data['consignee']['pincode'])))),
-                'phone': int(''.join(filter(str.isdigit, str(order_data['consignee']['phone']))))
-            },
-            'items': mapped_items,
-            'package': {
-                # NimbusPost v2 expects weight in KILOGRAMS, not grams -- confirmed
-                # by a live error where a real 0.22kg order was rejected as
-                # "220000" against a "32000" (32kg) limit, only explainable if our
-                # previous grams value (220) was being read as 220 kilograms.
-                'weight': order_data.get('weight_kg', 0.5),
-                'length': 15,
-                'width': 10,
-                'height': 5
+            order_payload = {
+                'order_number': order_data['order_number'],
+                'order_type': 'b2c', # NimbusPost v2 accepts: b2c | document | reverse
+                'payment_mode': 'prepaid',
+                'warehouse_id': wh_id,
+                'shipping_address': {
+                    'name': order_data['consignee']['name'],
+                    'address': order_data['consignee']['address'],
+                    'city': order_data['consignee']['city'],
+                    'state': order_data['consignee']['state'],
+                    # NimbusPost v2 expects both pincode and phone as numeric values,
+                    # not strings -- defensively strip any stray non-digit characters
+                    # (spaces, '+91', etc.) before converting either one.
+                    'pincode': int(''.join(filter(str.isdigit, str(order_data['consignee']['pincode'])))),
+                    'phone': int(''.join(filter(str.isdigit, str(order_data['consignee']['phone']))))
+                },
+                'items': mapped_items,
+                'package': {
+                    # NimbusPost v2 expects weight in KILOGRAMS, not grams -- confirmed
+                    # by a live error where a real 0.22kg order was rejected as
+                    # "220000" against a "32000" (32kg) limit, only explainable if our
+                    # previous grams value (220) was being read as 220 kilograms.
+                    'weight': order_data.get('weight_kg', 0.5),
+                    'length': 15,
+                    'width': 10,
+                    'height': 5
+                }
             }
-        }
 
-        order_resp = requests.post(orders_url, json=order_payload, headers=_headers(), timeout=15)
-        order_data_resp = order_resp.json()
+            order_resp = requests.post(orders_url, json=order_payload, headers=_headers(), timeout=15)
+            order_data_resp = order_resp.json()
 
-        if order_resp.status_code not in [200, 201] or not order_data_resp.get('success'):
-            return {
-                'success': False,
-                'message': str(order_data_resp),
-                'awb_number': None
-            }
+            if order_resp.status_code not in [200, 201] or not order_data_resp.get('success'):
+                return {
+                    'success': False,
+                    'message': str(order_data_resp),
+                    'awb_number': None
+                }
             
-        # Extract the created order_id
-        nimbus_order_id = order_data_resp['data']['order_id']
+            # Extract the created order_id
+            nimbus_order_id = order_data_resp['data']['order_id']
         
         # Step 2: Book Shipment (Assign Courier & generate AWB)
         book_url = f'{NIMBUS_BASE_URL}/shipments/book'
@@ -224,10 +228,18 @@ def create_shipment(order_data):
                 'message': 'Shipment created successfully'
             }
             
+        if order_data.get('nimbus_order_id') and book_resp.status_code == 404:
+            # The remembered courier order no longer exists on their side -- start fresh.
+            fresh = dict(order_data)
+            fresh.pop('nimbus_order_id', None)
+            return create_shipment(fresh)
+
         return {
             'success': False,
             'message': str(book_data_resp),
-            'awb_number': None
+            'awb_number': None,
+            # Order was created but not booked: hand the id back so a retry re-books it.
+            'nimbus_order_id': nimbus_order_id
         }
 
     except Exception as e:

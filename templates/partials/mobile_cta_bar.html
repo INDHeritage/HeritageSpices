@@ -1,0 +1,30 @@
+<!-- Sticky bottom bar on phones: quick access to shopping and (if configured) WhatsApp -->
+<div class="mobile-cta-bar" id="mobileCtaBar">
+  <a href="{{ cta_href|default('/products') }}" class="cta-primary">
+    <i class="fas {{ cta_icon|default('fa-shopping-bag') }}"></i> {{ cta_label|default('Shop now') }}
+  </a>
+  {% if store_whatsapp_link %}
+  <a href="{{ store_whatsapp_link }}" target="_blank" rel="noopener" class="cta-wa" aria-label="Chat with us on WhatsApp">
+    <i class="fab fa-whatsapp"></i> WhatsApp us
+  </a>
+  {% endif %}
+</div>
+<style>
+  .mobile-cta-bar { display: none; }
+  @media (max-width: 767.98px) {
+    .mobile-cta-bar {
+      display: flex; gap: 8px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1040;
+      padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+      background: #fff; box-shadow: 0 -2px 12px rgba(0,0,0,.12);
+    }
+    .mobile-cta-bar a {
+      flex: 1; text-align: center; text-decoration: none; font-weight: 700; font-size: .95rem;
+      padding: 10px 8px; border-radius: 999px;
+    }
+    .mobile-cta-bar .cta-primary { background: #6b1d14; color: #d4a017; }
+    .mobile-cta-bar .cta-wa { background: #25D366; color: #fff; }
+    body { padding-bottom: 64px; }
+    #backToTop { bottom: 76px !important; }
+  }
+</style>
+<script>window.__hasMobileBar = true;</script>

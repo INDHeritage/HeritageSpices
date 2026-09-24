@@ -178,7 +178,7 @@ function featuredAddToCart(productId) {
       }, 2000);
     } else {
       if (data.error === 'Please login first') {
-        window.location.href = '/login';
+        window.heritageAskLogin({ product_id: productId, quantity: quantity });
         return;
       }
       alert(data.error || 'Failed to add to cart');

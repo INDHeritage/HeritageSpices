@@ -1,0 +1,34 @@
+<!-- 📖 Latest from the blog: gives visitors ideas and gives search engines fresh content -->
+{% if recent_blogs %}
+<section class="recipes-strip container mt-5 motion-section" aria-labelledby="recipesTitle">
+  <h3 class="section-title text-center mb-4" id="recipesTitle">From our kitchen &amp; journal</h3>
+  <div class="row g-4 justify-content-center">
+    {% for b in recent_blogs %}
+    <div class="col-md-6 col-lg-4">
+      <a href="/blog/{{ b.url_slug }}" class="recipe-card text-decoration-none h-100 d-flex flex-column">
+        {% if b.image_url %}
+          <img src="{{ b.image_url }}" alt="{{ b.title }}" loading="lazy" decoding="async" class="recipe-img">
+        {% else %}
+          <div class="recipe-img recipe-img-placeholder"><i class="fas fa-mortar-pestle"></i></div>
+        {% endif %}
+        <div class="p-3 d-flex flex-column flex-grow-1">
+          <small class="text-uppercase fw-bold" style="color:#6b1d14;">{{ b.category }}</small>
+          <h6 class="fw-bold text-dark my-2">{{ b.title }}</h6>
+          <p class="text-muted small mb-2">{{ b.excerpt }}</p>
+          <span class="mt-auto small fw-semibold" style="color:#1b4332;">Read more <i class="fas fa-arrow-right ms-1"></i></span>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="text-center mt-4">
+    <a href="/blog" class="btn btn-outline-success rounded-pill px-4">See all articles</a>
+  </div>
+</section>
+<style>
+  .recipe-card { background:#fff; border:1px solid #efe6d2; border-radius:16px; overflow:hidden; box-shadow:0 3px 12px rgba(0,0,0,.05); transition:transform .2s ease, box-shadow .2s ease; }
+  .recipe-card:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,.1); }
+  .recipe-img { width:100%; height:170px; object-fit:cover; display:block; }
+  .recipe-img-placeholder { display:flex; align-items:center; justify-content:center; background:#f3ead6; color:#6b1d14; font-size:2.2rem; }
+</style>
+{% endif %}

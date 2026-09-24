@@ -1,3 +1,4 @@
+import html as html_lib
 import time
 import threading
 import re
@@ -26,6 +27,7 @@ import razorpay
 import hmac
 import hashlib
 import nimbus_api
+import notifications
 import io
 import qrcode
 from flask import send_file
@@ -436,6 +438,76 @@ def set_setting(key, value):
     db.session.commit()
     _settings_cache['data'] = None  # next read reloads, so admin changes show up immediately
 
+# --- Customer messages: free e-mail + free WhatsApp click-to-chat links ---
+def order_tracking_url(order):
+    """Public courier tracking page when we have an AWB, otherwise our own tracking page."""
+    if order.awb_number:
+        return f"https://ship.nimbuspost.com/shipping/tracking/{order.awb_number}"
+    return f"{notifications.site_url()}/orders/{order.id}/track"
+
+def notify_customer(kind, order):
+    """E-mail the customer: kind is 'confirmed', 'shipped' or 'delivered'. Never raises --
+    a mail problem must not be able to affect a payment, shipment or webhook."""
+    try:
+        if kind == 'confirmed':
+            subject, text, html = notifications.order_confirmed(order)
+        elif kind == 'shipped':
+            subject, text, html = notifications.order_shipped(order, order_tracking_url(order))
+        elif kind == 'delivered':
+            subject, text, html = notifications.order_delivered(order)
+        else:
+            return False
+        return notifications.send_email(order.user_email, subject, text, html)
+    except Exception as e:
+        print(f"Customer notification ({kind}) failed:", e)
+        return False
+
+def _wa_number(phone):
+    """Digits-only WhatsApp number with India's country code, or None if it doesn't look valid."""
+    digits = ''.join(ch for ch in str(phone or '') if ch.isdigit())
+    if len(digits) == 10:
+        return '91' + digits
+    if len(digits) == 12 and digits.startswith('91'):
+        return digits
+    if len(digits) == 11 and digits.startswith('0'):
+        return '91' + digits[1:]
+    return None
+
+def wa_link(order):
+    """A wa.me link that opens WhatsApp with a ready-written message to this order's customer.
+    Free (no API): the admin just presses Send. Returns None if the phone number is unusable."""
+    number = _wa_number(order.phone)
+    if not number:
+        return None
+    name = (order.full_name or 'there').split()[0]
+    status = (order.shipping_status or 'processing').lower()
+    if status == 'delivered':
+        msg = (f"Hello {name}, your Heritage Spices order {order.order_number} has been delivered. "
+               f"We hope you enjoy it! If anything is not right, just reply here.")
+    elif status in ('shipped', 'out for delivery', 'rto'):
+        msg = (f"Hello {name}, your Heritage Spices order {order.order_number} has been shipped"
+               f"{' via ' + order.courier_name if order.courier_name else ''}. "
+               f"Tracking: {order_tracking_url(order)}")
+        if order.awb_number:
+            msg += f" (AWB {order.awb_number})"
+    elif status == 'cancelled':
+        msg = (f"Hello {name}, your Heritage Spices order {order.order_number} has been cancelled. "
+               f"Any payment will be refunded to your original payment method within 5-7 business days.")
+    else:
+        msg = (f"Hello {name}, thank you for your Heritage Spices order {order.order_number} "
+               f"(Rs {order.total_amount // 100}). We are packing it now and will share tracking details soon.")
+    return f"https://wa.me/{number}?text={urllib.parse.quote(msg)}"
+
+app.jinja_env.globals['wa_link'] = wa_link
+
+def store_whatsapp_link():
+    """Link for the storefront 'WhatsApp us' button, from the WHATSAPP_NUMBER env var (None if unset)."""
+    number = _wa_number(os.getenv('WHATSAPP_NUMBER', ''))
+    if not number:
+        return None
+    text = urllib.parse.quote("Hi Heritage Spices, I have a question about your spices.")
+    return f"https://wa.me/{number}?text={text}"
+
 # --- Telegram Bot Notification ---
 def send_telegram_notification(message):
     token = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -716,6 +788,7 @@ def index():
     track_visit(user)
     products = Product.query.limit(3).all()
     return render_template("index.html", user=user, is_logged_in=is_logged_in, products=products,
+                           recent_blogs=get_recent_blogs(3),
                            referral_enabled=get_setting('referral_enabled', 'true') == 'true',
                            refer_reward_amount=get_setting('referral_reward_amount', '50'),
                            refer_points_awarded=get_setting('referral_points_awarded', '50'))
@@ -732,71 +805,113 @@ def login():
     redirect_uri = url_for('auth', _external=True)
     return google.authorize_redirect(redirect_uri)
 
+def complete_login(user_info):
+    """Log the visitor in and run the once-per-signup extras. Shared by the "Login with Google"
+    button (/auth) and the Google One Tap popup (/auth/google-one-tap) so both behave identically:
+    saves the user, links a referral, issues the welcome coupon."""
+    session['user'] = {
+        'name': user_info['name'],
+        'email': user_info['email'],
+        'picture': user_info.get('picture')
+    }
+
+    is_new_user = save_user(user_info)
+
+    # Always clear any pending ?ref= code from the session on login,
+    # whether or not it actually gets used below -- otherwise a stale
+    # code (e.g. from an *existing* user like A clicking B's link, which
+    # correctly grants nothing since A isn't a new signup) could sit in
+    # a shared browser's session and wrongly attach to some other
+    # person's later signup on that same device.
+    ref_code = session.pop('ref_code', None)
+
+    # Link this signup to whoever referred them, only for a genuinely
+    # brand-new account. An existing user clicking someone else's link
+    # and logging back in must never create a referral or reward either
+    # side -- they're not a new signup. Only ever set once, at signup,
+    # never overwritten afterward.
+    if is_new_user and ref_code:
+        referrer = User.query.filter_by(referral_code=ref_code).first()
+        if referrer and referrer.email.lower() != user_info['email'].lower():
+            new_user = User.query.filter_by(email=user_info['email']).first()
+            new_user.referred_by_email = referrer.email
+            db.session.add(Referral(referrer_email=referrer.email, referred_email=user_info['email']))
+            db.session.commit()
+            flash(f"You were referred by a friend! Complete your first order and you'll earn bonus points.", 'success')
+
+    has_any_coupon = Coupon.query.filter_by(user_email=user_info['email']).first() is not None
+
+    # Treat "never received a welcome coupon before" the same as "new" --
+    # covers every existing account from before this feature existed,
+    # not just brand-new sign-ups from now on. Only issues once per
+    # person: after this, has_any_coupon will be True on future logins.
+    if is_new_user or not has_any_coupon:
+        code = issue_welcome_coupon(user_info['email'])
+        if code:
+            coupon = Coupon.query.filter_by(code=code).first()
+            desc = describe_coupon(coupon, first_order=True)
+            flash(f"Welcome! Here's {desc}: use code {code} at checkout. (You can find this anytime under \"My Coupons\".)", 'success')
+    else:
+        # Already has at least one coupon on record -- remind them if
+        # any of their coupons is still valid and unused
+        valid_coupon = next(
+            (c for c in Coupon.query.filter_by(user_email=user_info['email'], used=False).all()
+             if not c.expires_at or c.expires_at > datetime.utcnow()),
+            None
+        )
+        if valid_coupon:
+            desc = describe_coupon(valid_coupon)
+            flash(f"You have a coupon code available! {desc}: use code {valid_coupon.code} at checkout.", 'success')
+
+
 # ✅ OAuth Callback
 @app.route('/auth')
 def auth():
     try:
         token = google.authorize_access_token()
         user_info = google.parse_id_token(token, nonce=token.get('nonce'))
-
-        session['user'] = {
-            'name': user_info['name'],
-            'email': user_info['email'],
-            'picture': user_info.get('picture')
-        }
-
-        is_new_user = save_user(user_info)
-
-        # Always clear any pending ?ref= code from the session on login,
-        # whether or not it actually gets used below -- otherwise a stale
-        # code (e.g. from an *existing* user like A clicking B's link, which
-        # correctly grants nothing since A isn't a new signup) could sit in
-        # a shared browser's session and wrongly attach to some other
-        # person's later signup on that same device.
-        ref_code = session.pop('ref_code', None)
-
-        # Link this signup to whoever referred them, only for a genuinely
-        # brand-new account. An existing user clicking someone else's link
-        # and logging back in must never create a referral or reward either
-        # side -- they're not a new signup. Only ever set once, at signup,
-        # never overwritten afterward.
-        if is_new_user and ref_code:
-            referrer = User.query.filter_by(referral_code=ref_code).first()
-            if referrer and referrer.email.lower() != user_info['email'].lower():
-                new_user = User.query.filter_by(email=user_info['email']).first()
-                new_user.referred_by_email = referrer.email
-                db.session.add(Referral(referrer_email=referrer.email, referred_email=user_info['email']))
-                db.session.commit()
-                flash(f"You were referred by a friend! Complete your first order and you'll earn bonus points.", 'success')
-
-        has_any_coupon = Coupon.query.filter_by(user_email=user_info['email']).first() is not None
-
-        # Treat "never received a welcome coupon before" the same as "new" --
-        # covers every existing account from before this feature existed,
-        # not just brand-new sign-ups from now on. Only issues once per
-        # person: after this, has_any_coupon will be True on future logins.
-        if is_new_user or not has_any_coupon:
-            code = issue_welcome_coupon(user_info['email'])
-            if code:
-                coupon = Coupon.query.filter_by(code=code).first()
-                desc = describe_coupon(coupon, first_order=True)
-                flash(f"Welcome! Here's {desc}: use code {code} at checkout. (You can find this anytime under \"My Coupons\".)", 'success')
-        else:
-            # Already has at least one coupon on record -- remind them if
-            # any of their coupons is still valid and unused
-            valid_coupon = next(
-                (c for c in Coupon.query.filter_by(user_email=user_info['email'], used=False).all()
-                 if not c.expires_at or c.expires_at > datetime.utcnow()),
-                None
-            )
-            if valid_coupon:
-                desc = describe_coupon(valid_coupon)
-                flash(f"You have a coupon code available! {desc}: use code {valid_coupon.code} at checkout.", 'success')
-
+        complete_login(user_info)
         return redirect('/')
     except Exception as e:
         print("OAuth error:", e)
         return "OAuth Failed", 500
+
+
+# ✅ Google One Tap: the small "Continue as <your Google account>" popup.
+# Google gives the page a signed ID token (a JWT); we verify it against Google's public keys
+# here on the server -- never trust the browser's claim about who the visitor is.
+GOOGLE_ONE_TAP_ENABLED = os.getenv('GOOGLE_ONE_TAP_ENABLED', 'false').strip().lower() == 'true'
+_ONE_TAP_SKIP_PATHS = ('/checkout', '/cart', '/admin', '/login', '/auth', '/orders', '/collect-details', '/logout')
+
+def verify_google_credential(credential):
+    """Return the verified Google profile for a One Tap credential, or raise ValueError."""
+    if not credential or not app.config.get('GOOGLE_CLIENT_ID'):
+        raise ValueError('missing credential or client id')
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+    info = id_token.verify_oauth2_token(credential, google_requests.Request(), app.config['GOOGLE_CLIENT_ID'])
+    if info.get('iss') not in ('accounts.google.com', 'https://accounts.google.com'):
+        raise ValueError('bad issuer')
+    if not info.get('email') or not info.get('email_verified'):
+        raise ValueError('unverified e-mail')
+    info.setdefault('name', info['email'].split('@')[0])
+    return info
+
+@app.route('/auth/google-one-tap', methods=['POST'])
+def google_one_tap():
+    if not GOOGLE_ONE_TAP_ENABLED:
+        abort(404)
+    if _redeem_rate_limited(f"onetap:{request.remote_addr}"):
+        return jsonify({'success': False, 'error': 'Too many attempts. Please try again later.'}), 429
+    credential = (request.get_json(silent=True) or {}).get('credential')
+    try:
+        user_info = verify_google_credential(credential)
+    except Exception as e:
+        print("One Tap verification failed:", e)
+        return jsonify({'success': False, 'error': 'Sign-in could not be verified.'}), 401
+    complete_login(user_info)
+    return jsonify({'success': True})
+
 
 # ✅ Collect Additional User Details
 @app.route('/collect-details', methods=['GET', 'POST'])
@@ -959,6 +1074,27 @@ BLOG_DRIVE_URL = "https://drive.google.com/uc?export=download&id=1SqjuYdwGnPIMbz
 # --- Blog CRUD Helpers ---
 def get_all_blogs():
     return Blog.query.order_by(Blog.id.desc()).all()
+
+# Home page "from our journal" strip. Cached for 5 minutes: without this every homepage visit
+# would pay another ~0.3 s database round trip just to list three posts.
+_recent_blogs_cache = {'data': None, 'loaded_at': 0.0}
+
+def get_recent_blogs(limit=3):
+    now = time.time()
+    if _recent_blogs_cache['data'] is None or now - _recent_blogs_cache['loaded_at'] > 300:
+        cards = []
+        for b in Blog.query.order_by(Blog.id.desc()).limit(limit).all():
+            plain = re.sub(r'\s+', ' ', html_lib.unescape(re.sub(r'<[^>]+>', ' ', b.content or ''))).strip()
+            cards.append({
+                'title': b.title,
+                'category': b.category,
+                'image_url': b.image_url,
+                'excerpt': (plain[:110].rsplit(' ', 1)[0] + '...') if len(plain) > 110 else plain,
+                'url_slug': urllib.parse.quote(b.slug, safe='-_.~'),
+            })
+        _recent_blogs_cache['data'] = cards
+        _recent_blogs_cache['loaded_at'] = now
+    return _recent_blogs_cache['data']
 
 def get_blog_by_slug(slug):
     return Blog.query.filter_by(slug=slug).first()
@@ -1712,6 +1848,11 @@ def hide_science_hub():
 def inject_flags():
     return {
         'is_admin': is_admin_user(session.get('user')),
+        'store_whatsapp_link': store_whatsapp_link(),
+        'google_one_tap': bool(GOOGLE_ONE_TAP_ENABLED and app.config.get('GOOGLE_CLIENT_ID')
+                               and not session.get('user')
+                               and not request.path.startswith(_ONE_TAP_SKIP_PATHS)),
+        'google_client_id': app.config.get('GOOGLE_CLIENT_ID') or '',
         'science_hub_enabled': SCIENCE_HUB_ENABLED or is_admin_user(session.get('user')),
     }
 
@@ -2644,6 +2785,7 @@ def finalize_paid_order(razorpay_order_id, razorpay_payment_id):
     except Exception as e:
         print("Telegram notification error (order still paid successfully):", e)
 
+    notify_customer('confirmed', order)
     return order, True
 
 
@@ -3092,6 +3234,8 @@ def ship_order(order_id):
     }
     if warehouse:
         shipment_data['pickup_location'] = warehouse
+    if order.nimbus_order_id:
+        shipment_data['nimbus_order_id'] = order.nimbus_order_id  # re-book, don't duplicate
     
     result = nimbus_api.create_shipment(shipment_data)
 
@@ -3104,6 +3248,7 @@ def ship_order(order_id):
         order.nimbus_order_id = result.get('nimbus_order_id')
         db.session.commit()
         flash(f"Order {order.order_number} shipped! AWB: {order.awb_number}", "success")
+        notify_customer('shipped', order)
     elif not nimbus_api.is_configured():
         # NimbusPost isn't set up at all -- this is an intentional manual-shipping
         # fallback, not a failure, so it's fine to mark it shipped here.
@@ -3119,6 +3264,10 @@ def ship_order(order_id):
         # (the Ship button disappears once shipping_status is 'shipped',
         # so there'd be no way to notice and retry).
         db.session.rollback()
+        if result.get('nimbus_order_id'):
+            # The courier order exists but wasn't booked; remember it so "Ship" retries the booking.
+            order.nimbus_order_id = result['nimbus_order_id']
+            db.session.commit()
         flash(f"Shipping failed for order {order.order_number} -- order NOT marked as shipped, please fix and retry. NimbusPost said: {result.get('message', 'Unknown error')}", "danger")
 
     return redirect('/admin/orders')
@@ -3220,6 +3369,8 @@ def nimbus_webhook():
         if order and new_status and order.shipping_status not in ('delivered', 'cancelled'):
             order.shipping_status = new_status
             db.session.commit()
+            if new_status == 'delivered':
+                notify_customer('delivered', order)
 
     return jsonify({'success': True}), 200
 
