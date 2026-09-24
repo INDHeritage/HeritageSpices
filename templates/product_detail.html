@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} | Heritage Spices{% endblock %}
+{% block meta_description %}{{ description[:150] }}{% endblock %}
+{% block og_title %}{{ product.name }} | Heritage Spices{% endblock %}
+{% block twitter_title %}{{ product.name }} | Heritage Spices{% endblock %}
+{% block og_image %}{{ product.image_url or (request.url_root.rstrip('/') ~ url_for('static', filename='images/logo.png')) }}{% endblock %}
+{% block canonical %}{{ page_url }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-md-5">
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small mb-0">
+      <li class="breadcrumb-item"><a href="/" class="text-decoration-none">Home</a></li>
+      <li class="breadcrumb-item"><a href="/products" class="text-decoration-none">Products</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+    </ol>
+  </nav>
+
+  <div class="row g-4 g-lg-5">
+    <!-- Image -->
+    <div class="col-md-5">
+      <div class="pd-image-box">
+        {% if product.image_url %}
+          <img src="{{ product.image_url }}" alt="{{ product.name }}" class="pd-image" decoding="async">
+        {% else %}
+          <i class="fas fa-leaf fa-4x text-success"></i>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Details -->
+    <div class="col-md-7">
+      <h1 class="h2 fw-bold text-success mb-2">{{ product.name }}</h1>
+
+      <div class="mb-3">
+        {% if reviews %}
+          <span class="text-warning">
+            {% for i in range((product.avg_rating|round|int)) %}<i class="fas fa-star"></i>{% endfor %}{% for i in range(5 - (product.avg_rating|round|int)) %}<i class="far fa-star"></i>{% endfor %}
+          </span>
+          <a href="#reviews" class="small text-muted text-decoration-none ms-1">{{ product.avg_rating }} · {{ reviews|length }} review{{ 's' if reviews|length != 1 else '' }}</a>
+        {% else %}
+          <a href="#reviews" class="small text-muted text-decoration-none">No reviews yet</a>
+        {% endif %}
+      </div>
+
+      {% if price is not none %}
+        <div class="d-flex align-items-baseline gap-3 flex-wrap mb-1">
+          <span class="display-6 fw-bold" style="color:#6b1d14;">₹{{ price }}</span>
+          {% if per_10g %}<span class="text-muted small">₹{{ per_10g }} per 10 g</span>{% endif %}
+        </div>
+      {% endif %}
+      <p class="text-muted small mb-3"><i class="fas fa-info-circle me-1"></i>Minimum order: 2 pouches · inclusive of taxes · shipping calculated at checkout</p>
+
+      {% if sizes|length > 1 %}
+      <div class="mb-3">
+        <div class="small text-uppercase fw-bold text-muted mb-2">Choose size</div>
+        <div class="d-flex flex-wrap gap-2">
+          {% for s in sizes %}
+            <a href="/product/{{ s.id }}" class="pd-size {{ 'active' if s.id == product.id else '' }}">{{ s.name.rsplit(' - ', 1)[-1] }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if out_of_stock %}
+        <div class="alert alert-secondary py-2">Currently out of stock.</div>
+      {% else %}
+        {% if low_stock %}<div class="text-danger small fw-semibold mb-2">Only {{ product.stock }} left</div>{% else %}<div class="text-success small fw-semibold mb-2"><i class="fas fa-check-circle me-1"></i>In stock</div>{% endif %}
+        <form class="d-flex gap-2 mb-3" style="max-width:420px;" onsubmit="event.preventDefault(); pdAddToCart();">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="number" id="pd-qty" class="form-control text-center fw-semibold" style="max-width:90px;" value="2" min="2" max="5" aria-label="Quantity">
+          <button type="submit" id="pd-btn" class="btn btn-success flex-grow-1 fw-semibold"><i class="fas fa-cart-plus me-1"></i> Add to cart</button>
+        </form>
+      {% endif %}
+
+      <div class="row g-2 mb-4 text-center small">
+        <div class="col-4"><div class="pd-trust"><i class="fas fa-certificate"></i>FSSAI licensed</div></div>
+        <div class="col-4"><div class="pd-trust"><i class="fas fa-lock"></i>Secure payment</div></div>
+        <div class="col-4"><div class="pd-trust"><i class="fas fa-box-open"></i>Packed fresh</div></div>
+      </div>
+
+      <h2 class="h6 fw-bold text-uppercase text-muted">About this product</h2>
+      <p style="white-space: pre-line;">{{ description }}</p>
+    </div>
+  </div>
+
+  <!-- Reviews -->
+  <section id="reviews" class="mt-5">
+    <h2 class="h4 fw-bold text-success mb-3">Customer reviews</h2>
+    <div class="row g-4">
+      <div class="col-lg-7">
+        {% if reviews %}
+          {% for r in reviews %}
+            <div class="pb-3 mb-3 border-bottom">
+              <div class="d-flex justify-content-between">
+                <strong>{{ r.user_name }}</strong>
+                <span class="text-muted small">{{ r.created_at.strftime('%d %b %Y') if r.created_at else '' }}</span>
+              </div>
+              <div class="text-warning small mb-1">
+                {% for i in range(r.rating) %}<i class="fas fa-star"></i>{% endfor %}{% for i in range(5 - r.rating) %}<i class="far fa-star"></i>{% endfor %}
+              </div>
+              <p class="mb-0" style="white-space: pre-line;">{{ r.review_text }}</p>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted">No reviews yet. Bought this? Be the first to tell others what you think.</p>
+        {% endif %}
+      </div>
+      <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4"><div class="card-body">
+          <h3 class="h6 fw-bold">Write a review</h3>
+          {% if user %}
+            <form id="pd-review-form" onsubmit="pdSubmitReview(event)">
+              <select id="pd-rating" class="form-select form-select-sm mb-2" aria-label="Rating">
+                {% for n in [5,4,3,2,1] %}<option value="{{ n }}">{{ n }} star{{ 's' if n != 1 else '' }}</option>{% endfor %}
+              </select>
+              <textarea id="pd-review-text" class="form-control mb-2" rows="3" placeholder="What did you think of this spice?" required></textarea>
+              <button class="btn btn-outline-success btn-sm" type="submit">Submit review</button>
+              <div id="pd-review-msg" class="small mt-2"></div>
+            </form>
+            <p class="text-muted small mt-2 mb-0">Reviews appear after we approve them.</p>
+          {% else %}
+            <p class="text-muted small">Sign in to write a review.</p>
+            <a href="/login" class="btn btn-outline-success btn-sm">Login with Google</a>
+          {% endif %}
+        </div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="application/ld+json">{{ json_ld|tojson }}</script>
+
+<style>
+  .pd-image-box { background: linear-gradient(135deg,#fdf8ef,#f3ead6); border-radius: 20px; min-height: 320px;
+    display:flex; align-items:center; justify-content:center; padding: 18px; }
+  .pd-image { max-width: 100%; max-height: 420px; object-fit: contain; }
+  .pd-size { border:1.5px solid #1b4332; color:#1b4332; border-radius:999px; padding:6px 16px; font-weight:600; text-decoration:none; background:#fff; }
+  .pd-size.active { background:#1b4332; color:#fff; }
+  .pd-trust { background:#faf5ea; border-radius:10px; padding:8px 4px; color:#1b4332; font-weight:600; }
+  .pd-trust i { display:block; color:#6b1d14; margin-bottom:2px; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  function pdAddToCart() {
+    var qty = Math.min(5, Math.max(2, parseInt(document.getElementById('pd-qty').value) || 2));
+    document.getElementById('pd-qty').value = qty;
+    var btn = document.getElementById('pd-btn');
+    var original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Adding...';
+    fetch('/cart/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value },
+      body: JSON.stringify({ product_id: {{ product.id }}, quantity: qty })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      btn.disabled = false; btn.innerHTML = original;
+      if (d.success) {
+        var badge = document.getElementById('cart-badge');
+        if (badge) { badge.textContent = d.cart_count; badge.classList.remove('d-none'); }
+        heritageToast('Added to your cart! <a href="/cart">View cart</a>', 5000);
+      } else if (d.error === 'Please login first') {
+        heritageAskLogin({ product_id: {{ product.id }}, quantity: qty });
+      } else {
+        alert(d.error || 'Could not add to cart');
+      }
+    }).catch(function () { btn.disabled = false; btn.innerHTML = original; alert('Something went wrong. Please try again.'); });
+  }
+
+  function pdSubmitReview(ev) {
+    ev.preventDefault();
+    var msg = document.getElementById('pd-review-msg');
+    var body = new URLSearchParams();
+    body.append('rating', document.getElementById('pd-rating').value);
+    body.append('review_text', document.getElementById('pd-review-text').value);
+    fetch('/product/{{ product.id }}/review', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token() }}', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      msg.className = 'small mt-2 ' + (d.success ? 'text-success' : 'text-danger');
+      msg.textContent = d.message || (d.success ? 'Thanks!' : 'Could not submit.');
+      if (d.success) { document.getElementById('pd-review-form').reset(); }
+    }).catch(function () { msg.className = 'small mt-2 text-danger'; msg.textContent = 'Something went wrong.'; });
+  }
+</script>
+{% endblock %}

@@ -62,7 +62,7 @@
         <ul class="list-group list-group-flush">
           {% for r in referrals %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
-            <span>{{ r.referred_email }}</span>
+            <span>{{ r.referred_email|mask_email }}</span>
             {% if r.status == 'rewarded' %}
               <span class="badge bg-success">Reward earned</span>
             {% elif r.status == 'capped' %}
@@ -75,6 +75,22 @@
         </ul>
       </div>
       {% endif %}
+
+      <div class="card shadow-sm border-0 rounded-4 mt-4">
+        <div class="card-header bg-white fw-bold">Your points history</div>
+        {% if ledger %}
+        <ul class="list-group list-group-flush">
+          {% for t in ledger %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ t.reason }}<br><small class="text-muted">{{ t.created_at.strftime('%d %b %Y') if t.created_at else '' }}</small></span>
+            <span class="fw-bold {{ 'text-success' if t.points > 0 else 'text-danger' }}">{{ '+' if t.points > 0 }}{{ t.points }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="card-body text-muted small">No points yet. When a friend joins with your link and places their first order, you'll see the activity here.</div>
+        {% endif %}
+      </div>
     </div>
   </div>
   {% endif %}

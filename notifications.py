@@ -210,3 +210,56 @@ def order_delivered(order):
         f"If anything isn't right, just reply to this e-mail and we'll sort it out.",
         '', _button(f"{site_url()}/blog", 'Get cooking ideas'))
     return subject, text, html
+
+
+# ---------- referral messages ----------
+
+def referral_joined(referrer_name, friend_name, reward_amount):
+    """To the referrer: a friend just signed up with their link."""
+    subject = f"{friend_name} joined Heritage Spices using your link"
+    text = "\n".join([
+        f"Hi {referrer_name},", "",
+        f"Good news - {friend_name} just signed up using your referral link.",
+        f"As soon as they complete their first paid order you'll get a Rs {reward_amount} coupon.", "",
+        f"See your referrals: {site_url()}/refer", "", "Heritage Spices"])
+    html = _wrap_html(
+        "Your friend just joined!",
+        f"<b>{escape(friend_name)}</b> signed up using your referral link. As soon as they complete their "
+        f"first paid order you'll get a <b>\u20b9{escape(str(reward_amount))}</b> coupon.",
+        '', _button(f"{site_url()}/refer", 'See my referrals'))
+    return subject, text, html
+
+
+def referral_reward_for_referrer(referrer_name, friend_name, coupon_code, reward_amount, expiry_days):
+    """To the referrer: their friend paid, here is the coupon."""
+    subject = "You earned a reward: your friend placed their first order"
+    expiry = f" It is valid for {expiry_days} days." if expiry_days else ""
+    text = "\n".join([
+        f"Hi {referrer_name},", "",
+        f"{friend_name} placed their first order, so here is your reward: Rs {reward_amount} off.",
+        f"Coupon code: {coupon_code}.{expiry}",
+        "Use it at checkout, or find it anytime under My Coupons.", "",
+        f"{site_url()}/my-coupons", "", "Heritage Spices"])
+    html = _wrap_html(
+        "You earned a reward!",
+        f"<b>{escape(friend_name)}</b> placed their first order, so here is your reward: "
+        f"<b>\u20b9{escape(str(reward_amount))} off</b>.{escape(expiry)}",
+        _box('Your coupon code', [coupon_code]),
+        _button(f"{site_url()}/my-coupons", 'View my coupons'))
+    return subject, text, html
+
+
+def referral_points_for_friend(friend_name, points, balance):
+    """To the referred friend: bonus points were credited."""
+    subject = f"You earned {points} bonus points"
+    text = "\n".join([
+        f"Hi {friend_name},", "",
+        f"Thanks for your first order! We've added {points} bonus points to your account.",
+        f"Your balance is now {balance} points - use them at checkout on your next order.", "",
+        f"{site_url()}/refer", "", "Heritage Spices"])
+    html = _wrap_html(
+        f"{points} bonus points added",
+        f"Thanks for your first order! We've added <b>{points} points</b> to your account. "
+        f"Your balance is now <b>{balance} points</b> - use them at checkout on your next order.",
+        '', _button(f"{site_url()}/refer", 'See my points'))
+    return subject, text, html

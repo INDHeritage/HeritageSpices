@@ -619,11 +619,13 @@ _redeem_attempts = {}
 _REDEEM_MAX_ATTEMPTS = 10
 _REDEEM_WINDOW_SECONDS = 300
 
-def _redeem_rate_limited(key):
+def _redeem_rate_limited(key, max_attempts=None, window=None):
+    max_attempts = max_attempts or _REDEEM_MAX_ATTEMPTS
+    window = window or _REDEEM_WINDOW_SECONDS
     now = datetime.utcnow().timestamp()
     attempts = _redeem_attempts.setdefault(key, [])
-    attempts[:] = [t for t in attempts if now - t < _REDEEM_WINDOW_SECONDS]
-    if len(attempts) >= _REDEEM_MAX_ATTEMPTS:
+    attempts[:] = [t for t in attempts if now - t < window]
+    if len(attempts) >= max_attempts:
         return True
     attempts.append(now)
     return False
@@ -693,6 +695,48 @@ def award_referral_points(email, order_id):
     db.session.commit()
     return points
 
+def _display_name(email):
+    row = User.query.filter_by(email=email).first()
+    return (row.name if row and row.name else (email or '').split('@')[0]) or 'a friend'
+
+def mask_email(email):
+    """'ashok.kumar@gmail.com' -> 'as***@gmail.com' (so a referrer doesn't see a friend's full address)."""
+    local, _, domain = (email or '').partition('@')
+    return f"{local[:2]}***@{domain}" if domain else (email or '')
+
+app.jinja_env.filters['mask_email'] = mask_email
+
+def notify_referral_joined(referrer_email, friend_email):
+    """Someone signed up with a referral link: tell the referrer and the owner. Never raises."""
+    try:
+        referrer, friend = _display_name(referrer_email), _display_name(friend_email)
+        amount = int(float(get_setting('referral_reward_amount', '50') or 50))
+        subject, text, html = notifications.referral_joined(referrer, friend, amount)
+        notifications.send_email(referrer_email, subject, text, html)
+        send_telegram_notification(
+            f"🤝 <b>New referral signup</b>\n{html_lib.escape(friend)} joined using "
+            f"{html_lib.escape(referrer)}'s link (waiting on their first order)")
+    except Exception as e:
+        print("Referral signup notification failed:", e)
+
+def notify_referral_rewarded(referrer_email, friend_email, coupon_code, points):
+    """A referral was rewarded: tell the referrer (coupon), the friend (points) and the owner. Never raises."""
+    try:
+        referrer, friend = _display_name(referrer_email), _display_name(friend_email)
+        amount = int(float(get_setting('referral_reward_amount', '50') or 50))
+        expiry_days = int(get_setting('referral_reward_expiry_days', '30') or 30)
+        if coupon_code:
+            subject, text, html = notifications.referral_reward_for_referrer(referrer, friend, coupon_code, amount, expiry_days)
+            notifications.send_email(referrer_email, subject, text, html)
+        if points:
+            subject, text, html = notifications.referral_points_for_friend(friend, points, get_points_balance(friend_email))
+            notifications.send_email(friend_email, subject, text, html)
+        send_telegram_notification(
+            f"🎁 <b>Referral rewarded</b>\n{html_lib.escape(referrer)} gets coupon {html_lib.escape(coupon_code or '-')}; "
+            f"{html_lib.escape(friend)} gets {points} points")
+    except Exception as e:
+        print("Referral reward notification failed:", e)
+
 def process_referral_reward(referred_email, order_id):
     """Called right after an order is confirmed paid. Only rewards on the
     referred person's FIRST paid order, and only once per referral."""
@@ -725,12 +769,13 @@ def process_referral_reward(referred_email, order_id):
             db.session.commit()
             return
 
-    issue_referral_reward_coupon(referral.referrer_email)
-    award_referral_points(referred_email, order_id)
+    coupon_code = issue_referral_reward_coupon(referral.referrer_email)
+    points = award_referral_points(referred_email, order_id)
     referral.status = 'rewarded'
     referral.rewarded_at = datetime.utcnow()
     referral.order_id = order_id
     db.session.commit()
+    notify_referral_rewarded(referral.referrer_email, referred_email, coupon_code, points)
 
 def compute_points_redemption(requested_points, subtotal_rupees, balance):
     """Returns (points_to_actually_deduct, rupee_discount), clamped by the
@@ -838,6 +883,7 @@ def complete_login(user_info):
             db.session.add(Referral(referrer_email=referrer.email, referred_email=user_info['email']))
             db.session.commit()
             flash(f"You were referred by a friend! Complete your first order and you'll earn bonus points.", 'success')
+            notify_referral_joined(referrer.email, user_info['email'])
 
     has_any_coupon = Coupon.query.filter_by(user_email=user_info['email']).first() is not None
 
@@ -944,31 +990,99 @@ def collect_details():
 def about():
     return render_template('about.html', user=session.get('user'), is_logged_in=bool(session.get('user')))
 
+# --- Contact form spam defence -------------------------------------------------------------
+# Live data showed one bot sending bursts of identical link-filled messages (50 of 61 stored
+# messages) plus a "what's your price" template in many languages. Layers, cheapest first:
+#   honeypot field -> signed "time trap" -> rate limit -> link filter -> duplicate filter ->
+#   optional Cloudflare Turnstile. Rejected messages get the same friendly "thank you" so the
+#   bot can't tell it was caught.
+CONTACT_MIN_SECONDS = 4          # a human needs longer than this to fill the form
+CONTACT_MAX_AGE_SECONDS = 86400  # a page left open for over a day is treated as stale
+_LINK_RE = re.compile(r'https?://|www\.|\b[\w-]+\.(?:com|net|org|ru|xyz|info|ly|me|io)/', re.I)
+
+def _form_serializer():
+    from itsdangerous import URLSafeTimedSerializer
+    return URLSafeTimedSerializer(app.secret_key, salt='contact-form')
+
+def make_form_token():
+    return _form_serializer().dumps(int(time.time()))
+
+def form_token_age(token):
+    """Seconds since the form was rendered, or None if the token is missing/forged/stale."""
+    try:
+        issued = _form_serializer().loads(token or '', max_age=CONTACT_MAX_AGE_SECONDS)
+    except Exception:
+        return None
+    return time.time() - issued
+
+def looks_like_spam(text):
+    return bool(_LINK_RE.search(text or ''))
+
+def turnstile_passed(response_token):
+    """Cloudflare Turnstile check. Always True when Turnstile isn't configured."""
+    secret = os.getenv('TURNSTILE_SECRET')
+    if not secret:
+        return True
+    if not response_token:
+        return False
+    try:
+        r = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify',
+                          data={'secret': secret, 'response': response_token, 'remoteip': request.remote_addr},
+                          timeout=8)
+        return bool(r.json().get('success'))
+    except Exception as e:
+        print("Turnstile check failed:", e)
+        return True  # don't lock real customers out if Cloudflare is unreachable
+
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
-        # Honeypot: a hidden field real visitors never see or fill. Any bot that
-        # fills every field it finds trips this -- silently discard without
-        # letting it know it was caught (don't flash an error, just act as if
-        # the message was sent).
-        if request.form.get('website'):
-            flash('Thank you for contacting us! We will get back to you soon.', 'success')
-            return redirect('/contact')
+        thanks = lambda: (flash('Thank you for contacting us! We will get back to you soon.', 'success'),
+                          redirect('/contact'))[1]
 
-        if _redeem_rate_limited(f"contact:{request.remote_addr}"):
+        # 1) Honeypot: hidden field real visitors never fill.
+        if request.form.get('website'):
+            return thanks()
+
+        # 2) Time trap: bots post instantly; the token proves when the form was rendered.
+        age = form_token_age(request.form.get('form_ts'))
+        if age is None or age < CONTACT_MIN_SECONDS:
+            return thanks()
+
+        # 3) Rate limit: 3 messages per hour per IP (counted even when rejected below).
+        if _redeem_rate_limited(f"contact:{request.remote_addr}", max_attempts=3, window=3600):
             flash('Too many messages sent recently. Please try again later.', 'warning')
             return redirect('/contact')
 
-        name = request.form.get('name')
-        email = request.form.get('email')
-        message = request.form.get('message')
-        if name and email and message:
-            new_msg = ContactMessage(name=name, email=email, message=message)
-            db.session.add(new_msg)
-            db.session.commit()
-        flash('Thank you for contacting us! We will get back to you soon.', 'success')
-        return redirect('/contact')
-    return render_template('contact.html')
+        name = (request.form.get('name') or '').strip()
+        email = (request.form.get('email') or '').strip()
+        message = (request.form.get('message') or '').strip()
+        if not (name and email and message):
+            return thanks()
+
+        # 4) Links: genuine enquiries about spices rarely need one; nearly all spam does.
+        if looks_like_spam(message) or looks_like_spam(name):
+            return thanks()
+
+        # 5) Duplicates: the same text (from any address) or the same sender+text in the last 24 h.
+        since = datetime.utcnow() - timedelta(hours=24)
+        if ContactMessage.query.filter(ContactMessage.timestamp >= since,
+                                       db.func.lower(ContactMessage.message) == message.lower()).first():
+            return thanks()
+
+        # 6) Optional Cloudflare Turnstile (set TURNSTILE_SITE_KEY + TURNSTILE_SECRET).
+        if not turnstile_passed(request.form.get('cf-turnstile-response')):
+            flash('Please complete the security check and try again.', 'warning')
+            return redirect('/contact')
+
+        db.session.add(ContactMessage(name=name[:100], email=email[:200], message=message[:5000]))
+        db.session.commit()
+        send_telegram_notification(
+            f"📩 <b>New contact message</b>\n<b>From:</b> {html_lib.escape(name)} ({html_lib.escape(email)})\n"
+            f"{html_lib.escape(message[:300])}")
+        return thanks()
+    return render_template('contact.html', form_ts=make_form_token(),
+                           turnstile_site_key=os.getenv('TURNSTILE_SITE_KEY', ''))
 
 @app.route('/wholesale-inquiry', methods=['GET', 'POST'])
 def wholesale_inquiry():
@@ -1043,11 +1157,12 @@ def sitemap():
     
     blogs = get_all_blogs()
     blog_urls = ["/blog/" + urllib.parse.quote(b.slug, safe='-_.~') for b in blogs]
+    product_urls = [f"/product/{p.id}" for p in Product.query.order_by(Product.id).all()]
 
     sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
-    for url in static_urls + blog_urls:
+    for url in static_urls + product_urls + blog_urls:
         sitemap_xml += f"  <url><loc>{xml_escape(base + url)}</loc></url>\n"
 
     sitemap_xml += '</urlset>'
@@ -1471,7 +1586,26 @@ def admin_messages():
     
     page = request.args.get('page', 1, type=int)
     pagination = ContactMessage.query.order_by(ContactMessage.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
-    return render_template('admin_messages.html', messages=pagination.items, pagination=pagination)
+    seen = {}
+    for m in pagination.items:
+        seen[(m.email, m.message)] = seen.get((m.email, m.message), 0) + 1
+    # Hint for the "Select spam-looking" button: contains a link, or repeated on this page.
+    spam_ids = [m.id for m in pagination.items if looks_like_spam(m.message) or seen[(m.email, m.message)] > 1]
+    return render_template('admin_messages.html', messages=pagination.items, pagination=pagination,
+                           spam_ids=spam_ids)
+
+# ✅ Admin: Delete several contact messages at once (admin ticks them first)
+@app.route('/admin/messages/bulk-delete', methods=['POST'])
+@admin_required
+def bulk_delete_messages():
+    ids = [int(i) for i in request.form.getlist('ids') if i.isdigit()]
+    if not ids:
+        flash('No messages were selected.', 'warning')
+        return redirect('/admin/messages')
+    deleted = ContactMessage.query.filter(ContactMessage.id.in_(ids)).delete(synchronize_session=False)
+    db.session.commit()
+    flash(f'Deleted {deleted} message{"s" if deleted != 1 else ""}.', 'success')
+    return redirect('/admin/messages')
 
 # ✅ Admin: Delete Contact Message
 @app.route('/admin/messages/delete/<int:id>', methods=['POST'])
@@ -1548,6 +1682,50 @@ def admin_coupons():
     return render_template('admin_coupons.html', coupons=pagination.items, pagination=pagination, now=datetime.utcnow(),
                            total_coupons=total_coupons, welcome_issued=welcome_issued, welcome_used=welcome_used)
 
+@app.route('/admin/points')
+@admin_required
+def admin_points_lookup():
+    email = (request.args.get('email') or '').strip()
+    if not email:
+        return redirect('/admin/referrals')
+    return redirect('/admin/points/' + urllib.parse.quote(email, safe='@'))
+
+@app.route('/admin/points/<email>')
+@admin_required
+def admin_points_detail(email):
+    row = User.query.filter(db.func.lower(User.email) == email.lower()).first()
+    if not row:
+        flash(f"No customer found with the e-mail {email}.", 'warning')
+        return redirect('/admin/referrals')
+    ledger = PointsTransaction.query.filter_by(user_email=row.email).order_by(PointsTransaction.id.desc()).limit(100).all()
+    return render_template(
+        'admin_points.html', customer=row, balance=get_points_balance(row.email), ledger=ledger,
+        referred_by=Referral.query.filter_by(referred_email=row.email).first(),
+        referred_people=Referral.query.filter_by(referrer_email=row.email).order_by(Referral.signup_at.desc()).all(),
+        points_per_rupee=float(get_setting('points_per_rupee', '10') or 10))
+
+@app.route('/admin/points/<email>/adjust', methods=['POST'])
+@admin_required
+def admin_points_adjust(email):
+    row = User.query.filter(db.func.lower(User.email) == email.lower()).first_or_404()
+    back = '/admin/points/' + urllib.parse.quote(row.email, safe='@')
+    try:
+        points = int(request.form.get('points', '0'))
+    except ValueError:
+        points = 0
+    reason = (request.form.get('reason') or '').strip()[:150]
+    if points == 0 or abs(points) > 100000 or not reason:
+        flash('Enter a points amount (not 0) and a reason.', 'danger')
+        return redirect(back)
+    balance = get_points_balance(row.email)
+    if points < 0 and balance + points < 0:
+        flash(f"Cannot remove {abs(points)} points: this customer only has {balance}.", 'danger')
+        return redirect(back)
+    db.session.add(PointsTransaction(user_email=row.email, points=points, reason=f"Admin adjustment: {reason}"))
+    db.session.commit()
+    flash(f"{'Added' if points > 0 else 'Removed'} {abs(points)} points. New balance: {get_points_balance(row.email)}.", 'success')
+    return redirect(back)
+
 @app.route('/admin/referrals')
 def admin_referrals():
     if not is_admin_user(session.get('user')):
@@ -1569,8 +1747,9 @@ def admin_referrals():
         .all()
     )
 
+    names = {u.email: u.name for u in User.query.filter(User.email.in_([b[0] for b in balances])).all()} if balances else {}
     return render_template('admin_referrals.html', referrals=pagination.items, pagination=pagination, total_referrals=total_referrals,
-                           rewarded=rewarded, total_points_outstanding=total_points_outstanding, balances=balances)
+                           rewarded=rewarded, total_points_outstanding=total_points_outstanding, balances=balances, names=names)
 
 @app.route('/admin/coupons/create', methods=['GET', 'POST'])
 def admin_create_coupon():
@@ -1674,6 +1853,85 @@ def products():
     products = Product.query.options(joinedload(Product.reviews)).all()
     user = session.get('user')
     return render_template('products.html', products=products, user=user)
+
+# --- Product detail page ---
+def product_base_name(name):
+    """'Garam Masala - 50g' -> 'Garam Masala' (sizes of one product share the part before ' - ')."""
+    return name.rsplit(' - ', 1)[0].strip() if ' - ' in (name or '') else (name or '')
+
+def product_grams(name):
+    """Pack size in grams parsed from a name like 'Garam Masala - 100g' (None if there isn't one)."""
+    m = re.search(r'(\d+(?:\.\d+)?)\s*(kg|g)\b', name or '', re.I)
+    if not m:
+        return None
+    return float(m.group(1)) * (1000 if m.group(2).lower() == 'kg' else 1)
+
+def product_price_rupees(product):
+    try:
+        return int(float(product.price))
+    except (TypeError, ValueError):
+        return None
+
+def _plain_text(html_text, limit=None):
+    plain = re.sub(r'\s+', ' ', html_lib.unescape(re.sub(r'<[^>]+>', ' ', html_text or ''))).strip()
+    if limit and len(plain) > limit:
+        plain = plain[:limit].rsplit(' ', 1)[0] + '...'
+    return plain
+
+@app.route('/product/<int:product_id>')
+def product_detail(product_id):
+    product = Product.query.options(joinedload(Product.reviews)).filter_by(id=product_id).first_or_404()
+
+    base = product_base_name(product.name)
+    sizes = [product]
+    if base != product.name:
+        like = base.replace('%', '').replace('_', '') + ' - %'
+        sizes += Product.query.filter(Product.name.like(like), Product.id != product.id).all()
+    sizes.sort(key=lambda p: (product_grams(p.name) or 0, p.id))
+
+    price = product_price_rupees(product)
+    grams = product_grams(product.name)
+    per_10g = round(price / grams * 10, 1) if price and grams else None
+
+    out_of_stock = product.stock is not None and product.stock <= 0
+    low_stock = product.stock is not None and 0 < product.stock <= 5
+
+    reviews = product.approved_reviews
+    site = notifications.site_url()
+    url = f"{site}/product/{product.id}"
+    description = _plain_text(product.description)
+
+    json_ld = {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        'name': product.name,
+        'description': description[:500],
+        'sku': f"HS-{product.id}",
+        'brand': {'@type': 'Brand', 'name': 'Heritage Spices'},
+        'url': url,
+    }
+    if product.image_url:
+        json_ld['image'] = [product.image_url]
+    if price is not None:
+        json_ld['offers'] = {
+            '@type': 'Offer', 'url': url, 'priceCurrency': 'INR', 'price': f"{price:.2f}",
+            'availability': 'https://schema.org/OutOfStock' if out_of_stock else 'https://schema.org/InStock',
+        }
+    # Only ever describe real, approved reviews -- never invent a rating.
+    if reviews:
+        json_ld['aggregateRating'] = {'@type': 'AggregateRating', 'ratingValue': str(product.avg_rating),
+                                      'reviewCount': str(len(reviews))}
+        json_ld['review'] = [{
+            '@type': 'Review', 'author': {'@type': 'Person', 'name': r.user_name},
+            'datePublished': r.created_at.strftime('%Y-%m-%d') if r.created_at else None,
+            'reviewBody': r.review_text,
+            'reviewRating': {'@type': 'Rating', 'ratingValue': str(r.rating), 'bestRating': '5'},
+        } for r in reviews]
+
+    return render_template('product_detail.html', product=product, sizes=sizes, price=price, per_10g=per_10g,
+                           out_of_stock=out_of_stock, low_stock=low_stock, reviews=reviews,
+                           description=description, json_ld=json_ld, page_url=url,
+                           user=session.get('user'), is_logged_in=bool(session.get('user')))
 
 # --- QR Code Scan Tracking ---
 # No personal data is collected here -- just an anonymous log of which
@@ -2931,9 +3189,10 @@ def refer_and_earn():
 
     referrals = Referral.query.filter_by(referrer_email=user['email']).order_by(Referral.signup_at.desc()).all()
     points_balance = get_points_balance(user['email'])
+    ledger = PointsTransaction.query.filter_by(user_email=user['email']).order_by(PointsTransaction.id.desc()).limit(20).all()
 
     return render_template('refer_and_earn.html', user=user, is_logged_in=True,
-                           referral_link=referral_link, referrals=referrals, points_balance=points_balance,
+                           referral_link=referral_link, referrals=referrals, points_balance=points_balance, ledger=ledger,
                            reward_amount=get_setting('referral_reward_amount', '50'),
                            points_awarded=get_setting('referral_points_awarded', '50'),
                            referral_enabled=get_setting('referral_enabled', 'true') == 'true')
@@ -3176,25 +3435,39 @@ def admin_delivery_zones():
 @app.route('/admin/orders')
 @admin_required
 def admin_orders():
-    orders = SpiceOrder.query.options(joinedload(SpiceOrder.items)).order_by(SpiceOrder.created_at.desc()).all()
-    
+    page = request.args.get('page', 1, type=int)
+    pagination = (SpiceOrder.query.options(joinedload(SpiceOrder.items))
+                  .order_by(SpiceOrder.created_at.desc())
+                  .paginate(page=page, per_page=25, error_out=False))
+
+    # Totals come from one aggregate query over the whole table, so they stay correct
+    # while the list below only loads one page of orders.
+    is_paid = SpiceOrder.payment_status == 'paid'
+    total, revenue, pending_shipments, delivered = db.session.query(
+        db.func.count(SpiceOrder.id),
+        db.func.coalesce(db.func.sum(db.case((is_paid, SpiceOrder.total_amount), else_=0)), 0),
+        db.func.coalesce(db.func.sum(db.case(((is_paid) & (SpiceOrder.shipping_status == 'processing'), 1), else_=0)), 0),
+        db.func.coalesce(db.func.sum(db.case((SpiceOrder.shipping_status == 'delivered', 1), else_=0)), 0),
+    ).one()
     stats = {
-        'total_orders': len(orders),
-        'total_revenue': sum(o.total_amount for o in orders if o.payment_status == 'paid') // 100,
-        'pending_shipments': sum(1 for o in orders if o.payment_status == 'paid' and o.shipping_status == 'processing'),
-        'delivered': sum(1 for o in orders if o.shipping_status == 'delivered')
+        'total_orders': total,
+        'total_revenue': int(revenue) // 100,
+        'pending_shipments': int(pending_shipments),
+        'delivered': int(delivered),
     }
 
     # Orders still unpaid after 30 minutes -- most are abandoned checkouts, but a
     # customer whose browser closed mid-payment can be charged while the order
     # stays here, so surface them and offer a one-click check against Razorpay.
-    stale_cutoff = datetime.utcnow() - timedelta(minutes=30)
-    stale_pending = [o for o in orders if o.payment_status == 'pending'
-                     and o.created_at and o.created_at < stale_cutoff
-                     and o.created_at > datetime.utcnow() - timedelta(days=7)]
+    now = datetime.utcnow()
+    stale_pending = (SpiceOrder.query
+                     .filter(SpiceOrder.payment_status == 'pending',
+                             SpiceOrder.created_at < now - timedelta(minutes=30),
+                             SpiceOrder.created_at > now - timedelta(days=7))
+                     .order_by(SpiceOrder.created_at.desc()).limit(50).all())
 
-    return render_template('admin_orders.html', orders=orders, stats=stats, stale_pending=stale_pending,
-                           user=session.get('user'), is_logged_in=True)
+    return render_template('admin_orders.html', orders=pagination.items, pagination=pagination, stats=stats,
+                           stale_pending=stale_pending, user=session.get('user'), is_logged_in=True)
 
 @app.route('/admin/orders/ship/<int:order_id>', methods=['POST'])
 @admin_required

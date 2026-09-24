@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.name }} - Points | Heritage Spices Admin{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h1 class="text-primary fw-bold mb-0"><i class="fas fa-coins me-2"></i>{{ customer.name }}</h1>
+      <div class="text-muted">{{ customer.email }}</div>
+    </div>
+    <a href="/admin/referrals" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Referrals</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-3 bg-light"><div class="card-body text-center py-3">
+        <div class="text-muted small text-uppercase">Points balance</div>
+        <div class="fs-2 fw-bold text-warning">{{ balance }}</div>
+        <div class="small text-muted">worth about &#8377;{{ (balance / points_per_rupee)|int }} at checkout</div>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-3 bg-light"><div class="card-body text-center py-3">
+        <div class="text-muted small text-uppercase">Referred by</div>
+        <div class="fw-bold">{{ referred_by.referrer_email if referred_by else 'Nobody (signed up directly)' }}</div>
+        {% if referred_by %}<span class="badge bg-{{ 'success' if referred_by.status == 'rewarded' else 'warning text-dark' }}">{{ referred_by.status }}</span>{% endif %}
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-3 bg-light"><div class="card-body text-center py-3">
+        <div class="text-muted small text-uppercase">Friends referred</div>
+        <div class="fs-2 fw-bold text-dark">{{ referred_people|length }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <h5 class="fw-bold mb-3">Points history</h5>
+      {% if ledger %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle bg-white shadow-sm rounded-3 overflow-hidden">
+          <thead class="table-light"><tr><th>Date</th><th>Reason</th><th class="text-end">Points</th></tr></thead>
+          <tbody>
+            {% for t in ledger %}
+            <tr>
+              <td>{{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '' }}</td>
+              <td>{{ t.reason }}</td>
+              <td class="text-end fw-bold {{ 'text-success' if t.points > 0 else 'text-danger' }}">{{ '+' if t.points > 0 }}{{ t.points }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-info">No points activity yet.</div>
+      {% endif %}
+
+      {% if referred_people %}
+      <h5 class="fw-bold mb-3 mt-4">Friends this customer referred</h5>
+      <ul class="list-group">
+        {% for r in referred_people %}
+        <li class="list-group-item d-flex justify-content-between">
+          <span>{{ r.referred_email }}</span>
+          <span class="badge bg-{{ 'success' if r.status == 'rewarded' else 'secondary' }}">{{ r.status }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4"><div class="card-body">
+        <h5 class="fw-bold">Adjust points</h5>
+        <p class="text-muted small">Use for goodwill gestures or corrections. Every change is recorded in the history with your reason.</p>
+        <form method="POST" action="/admin/points/{{ customer.email|urlencode }}/adjust">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label small fw-semibold">Points (use a minus to remove)</label>
+          <input type="number" name="points" class="form-control mb-2" placeholder="e.g. 50 or -20" required>
+          <label class="form-label small fw-semibold">Reason</label>
+          <input type="text" name="reason" maxlength="150" class="form-control mb-3" placeholder="e.g. Delayed delivery apology" required>
+          <button class="btn btn-success w-100" type="submit">Save adjustment</button>
+        </form>
+      </div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

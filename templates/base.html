@@ -23,7 +23,7 @@
   <!-- Open Graph -->
   <meta property="og:title" content="{% block og_title %}Indian Heritage Spices{% endblock %}" />
   <meta property="og:description" content="{% block og_description %}Shop 100% organic spices like Garam Masala, Goda Masala, and more.{% endblock %}" />
-  <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='images/logo.jpg') }}{% endblock %}" />
+  <meta property="og:image" content="{% block og_image %}{{ request.url_root.rstrip('/') }}{{ url_for('static', filename='images/logo.png') }}{% endblock %}" />
   <meta property="og:url" content="{% block og_url %}https://www.indianheritagespices.com{{ request.path }}{% endblock %}" />
   <meta property="og:type" content="website" />
 

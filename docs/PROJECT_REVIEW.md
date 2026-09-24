@@ -27,7 +27,12 @@ Items marked ✅ *verified* were reproduced by actually running the code or meas
 | Duplicate courier order on retry | **Fixed.** |
 | Google One Tap sign-in, sign-in prompt on "Buy Now" for logged-out visitors | **Built, off by default** (`GOOGLE_ONE_TAP_ENABLED`). |
 | Homepage: trust strip, "What will you cook?" picker, journal strip, mobile Shop/WhatsApp bar | **Live.** |
-| B5 price/weight model, B6 Alembic baseline, product pages, guest checkout | **Not done** — these need database changes or larger design work. Recommended next. |
+| Product pages (`/product/<id>`) with size links, price per 10 g, honest stock notes, real-reviews-only structured data, sitemap entries | **Built.** Cards link to them. |
+| Admin orders page pagination (25/page, totals cover all orders) | **Built.** |
+| Contact-form spam: 50 of 61 stored messages were one link-spam bot | **Fixed.** Time-trap, 3/hour limit, link filter, duplicate filter, optional Cloudflare Turnstile (`TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET`); admin gets tick-and-delete tools; genuine messages now alert you on Telegram. |
+| Referral updates | **Built.** E-mail + Telegram when a friend signs up and when a reward is earned; customer points history; admin page per customer (history, who referred whom, manual points adjustment). |
+| Social-share image (`logo.jpg` did not exist) | **Fixed.** |
+| B5 price/weight model, B6 Alembic baseline, guest checkout, content-security-policy | **Not done** — these need database changes or larger design work. Recommended next. |
 
 **Two things only you can do:** (1) In Razorpay Dashboard → Settings → Webhooks, add `https://www.indianheritagespices.com/api/razorpay/webhook` with events `payment.captured` and `order.paid`, choose a secret, and set the same value as `RAZORPAY_WEBHOOK_SECRET` on Render. (2) Rotate the GitHub tokens / NimbusPost credentials that were shared in chat. Old customer files are still in git *history* (only removed going forward) — make sure the GitHub repo is private.
 
@@ -40,10 +45,11 @@ Everything below was checked against the live site or by running the code, not a
 ### Switch-on checklist for what was just built (all off/harmless until you do these)
 | Feature | What to set on Render → Environment | Also needed |
 |---|---|---|
-| **Customer e-mails** (confirmed / shipped / delivered) | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` (optional: `SMTP_PORT` default 465, `MAIL_FROM`, `MAIL_FROM_NAME`). **Free options:** Gmail — turn on 2-step verification, create an *App password*, use `smtp.gmail.com` + that password (~500 mails/day); or a free Brevo account (`smtp-relay.brevo.com`, port 587). | Send yourself a test order first. Mails go to the customer's Google-account address. |
+| **Customer e-mails** (confirmed / shipped / delivered, referral updates) | **On Render's free plan use the free HTTPS relay** (Render blocks SMTP there): `EMAIL_WEBHOOK_URL` + `EMAIL_WEBHOOK_SECRET`. Setup steps are in `docs/email_relay.gs` (a 5-minute Google Apps Script sent from your own Gmail, ~100 mails/day). On a paid plan you can instead use `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`. | Click **Send Test E-mail** on the admin dashboard. Mails go to the customer's Google-account address. |
 | **WhatsApp us** button + mobile bottom bar | `WHATSAPP_NUMBER` = your number, e.g. `8459593058` (10 digits, or 91 + 10 digits) | Bar shows "Shop now" only until this is set. |
 | **WhatsApp customer** (admin) | nothing — works now | Opens WhatsApp with a ready message; you press Send. |
 | **Google One Tap** popup | `GOOGLE_ONE_TAP_ENABLED=true` (needs the existing `GOOGLE_CLIENT_ID`) | In Google Cloud Console → APIs & Services → Credentials → your OAuth client → **Authorized JavaScript origins**, add `https://www.indianheritagespices.com`. Then test in a browser signed in to Google. |
+| **Contact-form bot check** (optional, free) | `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET` from a free Cloudflare Turnstile widget (dash.cloudflare.com → Turnstile → add site `www.indianheritagespices.com`) | Catches the spam that has no links (e.g. the "what is your price" bot). |
 | Homepage trust strip, "What will you cook?" picker, journal strip | nothing — live | Edit wording in `templates/partials/`. Confirm the "Lab tested / Equinox Labs" line matches your reports. |
 
 ### Why pages are slow, and what was done ✅ measured

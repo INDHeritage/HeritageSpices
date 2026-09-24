@@ -7,6 +7,7 @@
       <h1 class="fw-bold text-success mb-3"><i class="fas fa-envelope-open-text me-2"></i>Contact Us</h1>
       <form method="POST" action="/contact">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="form_ts" value="{{ form_ts }}">
         <!-- Honeypot: invisible to real visitors, bots often fill every field they find -->
         <div style="position: absolute; left: -9999px;" aria-hidden="true">
           <label for="contact-website">Website</label>
@@ -24,6 +25,10 @@
           <label for="contact-message" class="form-label fw-semibold">Your Message</label>
           <textarea class="form-control" id="contact-message" name="message" rows="5" placeholder="How can we help?" required></textarea>
         </div>
+        {% if turnstile_site_key %}
+        <div class="cf-turnstile mb-3" data-sitekey="{{ turnstile_site_key }}"></div>
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        {% endif %}
         <button class="btn btn-success" type="submit">Send Message</button>
       </form>
     </div>

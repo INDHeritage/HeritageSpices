@@ -9,13 +9,24 @@
   </div>
 
   {% if messages %}
+    <form id="bulkForm" method="POST" action="/admin/messages/bulk-delete" class="d-flex flex-wrap gap-2 align-items-center mb-3"
+          onsubmit="return confirm('Delete the ticked messages? This cannot be undone.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="pickMessages(true)">Select all on this page</button>
+      <button type="button" class="btn btn-sm btn-outline-warning" onclick="pickSpam()">Select spam-looking</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="pickMessages(false)">Clear</button>
+      <button type="submit" class="btn btn-sm btn-danger ms-auto"><i class="fas fa-trash me-1"></i>Delete selected</button>
+    </form>
     <div class="row g-4">
       {% for msg in messages %}
       <div class="col-md-6">
         <div class="card h-100 shadow-sm border-0 border-start border-4 border-primary">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
-              <h5 class="card-title fw-bold mb-0">{{ msg.name }}</h5>
+              <h5 class="card-title fw-bold mb-0">
+                <input type="checkbox" class="form-check-input me-2 msg-pick" form="bulkForm" name="ids" value="{{ msg.id }}"
+                       {% if msg.id in spam_ids %}data-spam="1"{% endif %} aria-label="Select message">{{ msg.name }}
+              </h5>
               <small class="text-muted">{{ msg.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
             </div>
             <h6 class="card-subtitle mb-3 text-muted"><a href="mailto:{{ msg.email }}" class="text-decoration-none">{{ msg.email }}</a></h6>
@@ -40,4 +51,14 @@
     </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  function pickMessages(on) { document.querySelectorAll('.msg-pick').forEach(function (c) { c.checked = on; }); }
+  function pickSpam() {
+    document.querySelectorAll('.msg-pick').forEach(function (c) { c.checked = c.getAttribute('data-spam') === '1'; });
+  }
+</script>
 {% endblock %}
