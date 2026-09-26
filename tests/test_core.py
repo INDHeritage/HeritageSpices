@@ -238,3 +238,12 @@ def test_healthz_is_cheap_and_public(client):
     r = client.get('/healthz')
     assert r.status_code == 200 and r.data == b'ok'
     assert _count_statements(lambda: client.get('/healthz')) == 0
+
+
+def test_database_urls_map_to_the_installed_driver():
+    n = appmod.normalize_db_url
+    assert n('postgres://u:p@h:5432/db') == 'postgresql+psycopg2://u:p@h:5432/db'
+    assert n('postgresql://u:p@h/db') == 'postgresql+psycopg2://u:p@h/db'
+    assert n('postgresql+psycopg://u:p@h/db?sslmode=require') == 'postgresql+psycopg2://u:p@h/db?sslmode=require'
+    assert n('postgresql+psycopg2://u:p@h/db') == 'postgresql+psycopg2://u:p@h/db'
+    assert n('sqlite://') == 'sqlite://'

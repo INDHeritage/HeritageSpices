@@ -141,6 +141,16 @@ def set_security_headers(resp):
 db_url = os.getenv('DATABASE_URL')
 if not db_url:
     db_url = "sqlite:///:memory:"
+
+def normalize_db_url(url):
+    """We install psycopg2. Providers hand out postgres://, postgresql:// or postgresql+psycopg://
+    (the psycopg3 name); all of them must map to the driver that is actually installed."""
+    for prefix in ('postgres://', 'postgresql://', 'postgresql+psycopg://'):
+        if url.startswith(prefix):
+            return 'postgresql+psycopg2://' + url[len(prefix):]
+    return url
+
+db_url = normalize_db_url(db_url.strip())
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 if db_url.startswith('postgres'):
