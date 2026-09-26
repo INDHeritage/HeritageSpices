@@ -1,5 +1,8 @@
 # Heritage Spices — Full Project Review
 
+> **Latest audit (Sep 2026):** see [WEBSITE_AUDIT_2026-09.md](WEBSITE_AUDIT_2026-09.md) for content/claims, speed, NimbusPost and the owner action list.
+
+
 Scope: backend (`app.py` 3,149 lines, `nimbus_api.py`), database, deployment, and front end (44 templates + 9 partials, static assets). Reviewed 24 Sep 2026.
 
 **How to read this:** every item says *where*, *why it matters*, and *what to do*. Effort: **S** = under 2 hours, **M** = about a day, **L** = several days.

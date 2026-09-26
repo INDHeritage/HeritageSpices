@@ -177,7 +177,7 @@ def create_shipment(order_data):
                     # not strings -- defensively strip any stray non-digit characters
                     # (spaces, '+91', etc.) before converting either one.
                     'pincode': int(''.join(filter(str.isdigit, str(order_data['consignee']['pincode'])))),
-                    'phone': int(''.join(filter(str.isdigit, str(order_data['consignee']['phone']))))
+                    'phone': int(''.join(filter(str.isdigit, str(order_data['consignee']['phone'])))[-10:])   # last 10 digits: drops +91 / 0
                 },
                 'items': mapped_items,
                 'package': {

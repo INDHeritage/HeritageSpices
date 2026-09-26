@@ -8,7 +8,7 @@ def _reset_blog_cache():
 
 def test_home_has_trust_strip_and_dish_picker(client):
     html = client.get('/').get_data(as_text=True)
-    assert 'FSSAI Licensed' in html and '21521175000514' in html
+    assert 'FSSAI Licensed' in html and appmod.FSSAI_LICENSE in html
     assert 'What will you cook today?' in html and 'data-dish="paneer"' in html
 
 

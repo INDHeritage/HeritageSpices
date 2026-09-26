@@ -516,6 +516,10 @@ def google_site_verification_tokens():
     raw = os.getenv('GOOGLE_SITE_VERIFICATION', '')
     return [t for t in re.split(r'[,;\s]+', raw) if re.fullmatch(r'[A-Za-z0-9_-]{10,}', t)]
 
+# Printed on the pouch and required on a food seller's website. Set FSSAI_LICENSE on Render to override.
+FSSAI_LICENSE = os.getenv('FSSAI_LICENSE', '21521275000514').strip()
+
+
 def google_review_info():
     """Link (and optional rating) to our Google Business reviews. Shown only when GOOGLE_REVIEW_URL is set.
     The rating/count are typed in by the owner, never copied from Google, so update them now and then."""
@@ -2351,6 +2355,7 @@ def inject_flags():
         'store_whatsapp_link': store_whatsapp_link(),
         'google_site_verification': google_site_verification_tokens(),
         'google_review': google_review_info(),
+        'fssai_license': FSSAI_LICENSE,
         'google_one_tap': bool(GOOGLE_ONE_TAP_ENABLED and app.config.get('GOOGLE_CLIENT_ID')
                                and not session.get('user')
                                and not request.path.startswith(_ONE_TAP_SKIP_PATHS)),
@@ -3007,6 +3012,19 @@ def check_pincode():
     result = nimbus_api.check_serviceability(pincode)
     return jsonify(result)
 
+PACKING_G = 5   # polythene/outer packing added to each pouch
+
+
+def item_weight_kg(name, price_rupees):
+    """Shipping weight of ONE pouch in kg: net weight from the product name ("... - 50g") plus packing.
+    Used for the rate quote, the order total and the courier booking so all three always agree.
+    Falls back to a price guess only for products without a size in the name."""
+    grams = product_grams(name or '')
+    if grams:
+        return (grams + PACKING_G) / 1000
+    return 0.06 if (price_rupees or 0) <= 45 else 0.11
+
+
 @app.route('/checkout/calculate-shipping', methods=['POST'])
 def calculate_shipping():
     user = session.get('user')
@@ -3020,14 +3038,7 @@ def calculate_shipping():
     cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
     total_weight_kg = 0.0
     for item in cart_items:
-        # Precise weight: product + 5g polythine
-        grams = product_grams(item.product.name)   # net weight from the name, e.g. "Garam Masala - 50g"
-        if grams:
-            item_weight = (grams + 5) / 1000       # + 5 g polythene
-        else:
-            price = float(item.product.price) if item.product.price else 0
-            item_weight = 0.06 if price <= 45 else 0.11
-        total_weight_kg += item_weight * item.quantity
+        total_weight_kg += item_weight_kg(item.product.name, float(item.product.price or 0)) * item.quantity
     
     mode = get_setting('delivery_mode', 'hybrid')
     
@@ -3086,9 +3097,7 @@ def create_checkout_order():
     # the same value a legitimate request would have sent).
     total_weight_kg = 0.0
     for item in cart_items:
-        price = float(item.product.price) if item.product.price else 0
-        item_weight = 0.06 if price <= 45 else 0.11
-        total_weight_kg += item_weight * item.quantity
+        total_weight_kg += item_weight_kg(item.product.name, float(item.product.price or 0)) * item.quantity
 
     delivery_mode = get_setting('delivery_mode', 'hybrid')
     if delivery_mode == 'manual':
@@ -3730,11 +3739,7 @@ def ship_order(order_id):
     
     total_weight_kg = 0.0
     for item in order.items:
-        if item.unit_price <= 4500: # paise
-            item_weight = 0.06
-        else:
-            item_weight = 0.11
-        total_weight_kg += item_weight * item.quantity
+        total_weight_kg += item_weight_kg(item.product_name, item.unit_price / 100) * item.quantity
 
     # Push to NimbusPost
     shipment_data = {
@@ -3899,8 +3904,17 @@ def nimbus_webhook():
     if not data:
         return jsonify({'error': 'No data'}), 400
 
-    awb = data.get('awb_number') or data.get('awb') or data.get('awbNumber')
-    status = data.get('current_status') or data.get('status')
+    # Payloads may be flat or wrapped ({"event": ..., "data": {...}}); accept both.
+    inner = data.get('data') if isinstance(data.get('data'), dict) else {}
+    ship = inner.get('shipment') if isinstance(inner.get('shipment'), dict) else {}
+    def pick(*keys):
+        for src in (data, inner, ship):
+            for k in keys:
+                if src.get(k):
+                    return src[k]
+        return None
+    awb = pick('awb_number', 'awb', 'awbNumber')
+    status = pick('current_status', 'status', 'shipStatus', 'currentStatus')
     # Log only what's needed to debug -- the full payload contains customer PII.
     print(f"NimbusPost webhook: awb={awb} status={status}")
 
