@@ -75,3 +75,20 @@ def test_pouch_taglines_are_used(client):
 def test_chat_widget_is_not_loaded_up_front(client):
     html = client.get('/').get_data(as_text=True)
     assert 'embed.tawk.to' in html and 'loadTawk' in html
+
+
+def test_visit_logging_thread_cleans_up_inside_its_app_context(monkeypatch, capsys):
+    import threading
+    monkeypatch.setitem(appmod.app.config, 'TESTING', False)
+    started = []
+    real = threading.Thread
+
+    class T(real):
+        def start(self):
+            started.append(self); super().start(); self.join()
+
+    monkeypatch.setattr(appmod.threading, 'Thread', T)
+    with appmod.app.test_request_context('/', headers={'User-Agent': 'Mozilla/5.0 Chrome/120'}):
+        appmod.track_visit(None)
+    assert started
+    assert 'outside of application context' not in capsys.readouterr().err

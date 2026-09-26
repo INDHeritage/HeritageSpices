@@ -842,14 +842,17 @@ def track_visit(user=None):
     ip, email = request.remote_addr, (user['email'] if user else 'Guest')
 
     def _write():
-        try:
-            with app.app_context():
+        # The session must be created, used AND removed inside the same app context; removing it
+        # after the block raised "Working outside of application context" on every visit.
+        with app.app_context():
+            try:
                 db.session.add(Visit(timestamp=datetime.utcnow(), ip=ip, user_agent=ua, email=email))
                 db.session.commit()
-        except Exception as e:
-            print("Visit logging failed:", e)
-        finally:
-            db.session.remove()
+            except Exception as e:
+                db.session.rollback()
+                print("Visit logging failed:", e)
+            finally:
+                db.session.remove()
 
     if app.config.get('TESTING'):
         _write()
