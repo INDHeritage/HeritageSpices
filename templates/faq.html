@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}FAQ | Help Center | Heritage Spices{% endblock %}
-{% block meta_description %}Answers about Heritage Spices: organic sourcing, shipping and delivery times, wholesale orders and how to store spices for freshness.{% endblock %}
+{% block meta_description %}Answers about Heritage Spices: ingredients, shipping and delivery times, wholesale orders and how to store spices for freshness.{% endblock %}
 
 {% block content %}
 {% if json_ld %}<script type="application/ld+json">{{ json_ld|tojson }}</script>{% endif %}
@@ -27,12 +27,12 @@
         <div class="accordion-item border-0 mb-3 shadow-sm overflow-hidden">
           <h2 class="accordion-header" id="faqOne">
             <button class="accordion-button fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFaqOne" aria-expanded="true" aria-controls="collapseFaqOne">
-              <i class="fas fa-seedling text-success me-2.5"></i> Are your spices really 100% organic and chemical-free?
+              <i class="fas fa-seedling text-success me-2.5"></i> What is in Heritage Garam Masala, and is it free from additives?
             </button>
           </h2>
           <div id="collapseFaqOne" class="accordion-collapse collapse show" aria-labelledby="faqOne" data-bs-parent="#faqAccordion">
             <div class="accordion-body text-muted" style="line-height: 1.6;">
-              Yes, absolutely! All Heritage Spices products are 100% organic, chemical-free, and natural. We source directly from trusted partner farmers who use traditional organic cultivation methods without harmful chemical pesticides, additives, or synthetic preservatives.
+              Our Garam Masala is a blend of 14 natural spices: black/green cardamom, black stone flower, nutmeg, cinnamon, black pepper, fenugreek seed, coriander seed, clove, black cumin seed, Himalayan pink salt, red chilli, bay leaf, star anise and dry mace. It contains no gluten, no GMO ingredients, no artificial ingredients or fillers and no added preservatives. We are FSSAI licensed (Lic. No. {{ fssai_license }}).
             </div>
           </div>
         </div>

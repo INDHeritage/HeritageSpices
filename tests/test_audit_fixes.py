@@ -92,3 +92,62 @@ def test_visit_logging_thread_cleans_up_inside_its_app_context(monkeypatch, caps
         appmod.track_visit(None)
     assert started
     assert 'outside of application context' not in capsys.readouterr().err
+
+
+def test_webhook_keeps_every_status_and_tracking_page_shows_them(client, make_order, monkeypatch):
+    from conftest import login
+    order, _ = make_order()
+    order.awb_number = 'AWB9'; order.shipping_status = 'shipped'
+    appmod.db.session.commit()
+    for st in ('Picked Up', 'In Transit', 'In Transit', 'Out for delivery'):
+        assert _signed(client, {'awb': 'AWB9', 'status': st, 'location': 'Nagpur'}, monkeypatch).status_code == 200
+    rows = appmod.ShipmentEvent.query.order_by(appmod.ShipmentEvent.id).all()
+    assert [r.status for r in rows] == ['Picked Up', 'In Transit', 'Out for delivery']   # repeat not stored twice
+    monkeypatch.setattr(nimbus_api, 'track_shipment', lambda awb: {'success': False, 'history': [], 'current_status': 'Unknown'})
+    login(client, order.user_email)
+    html = client.get(f'/orders/{order.id}/track').get_data(as_text=True)
+    assert 'Picked Up' in html and 'In Transit' in html and 'Out for delivery' in html
+
+
+def test_failed_delivery_alerts_the_owner(client, make_order, monkeypatch):
+    order, _ = make_order()
+    order.awb_number = 'AWB7'; order.shipping_status = 'shipped'
+    appmod.db.session.commit()
+    sent = []
+    monkeypatch.setattr(appmod, 'send_telegram_notification', lambda m: sent.append(m))
+    _signed(client, {'awb': 'AWB7', 'status': 'Undelivered - customer not available'}, monkeypatch)
+    assert sent and 'HS-TEST0001' in sent[0]
+    sent.clear()
+    _signed(client, {'awb': 'AWB7', 'status': 'In Transit'}, monkeypatch)
+    assert not sent
+
+
+def test_one_flat_charge_for_every_fallback(monkeypatch):
+    monkeypatch.setattr(nimbus_api, 'is_configured', lambda: False)
+    rates = nimbus_api.get_shipping_rates('441222', 0.11)
+    assert len(rates) == 1 and rates[0]['rate'] == nimbus_api.SHIPPING_FLAT_INR
+
+
+def test_booking_returns_the_delivery_date(monkeypatch):
+    class R:
+        status_code = 200
+        def __init__(self, body): self.body = body
+        def json(self): return self.body
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        if url.endswith('/orders'):
+            return R({'success': True, 'data': {'order_id': 'N1'}})
+        return R({'success': True, 'data': {'awb': 'A1', 'courier_name': 'X', 'edd': '2026-10-03T00:00:00Z'}})
+
+    monkeypatch.setattr(nimbus_api, 'is_configured', lambda: True)
+    monkeypatch.setattr(nimbus_api.requests, 'post', fake_post)
+    r = nimbus_api.create_shipment({'order_number': 'HS1', 'items': [], 'weight_kg': 0.1,
+                                    'consignee': {'name': 'A', 'address': 'x', 'city': 'c', 'state': 's',
+                                                  'pincode': '441222', 'phone': '8999449765'}})
+    assert r['success'] and r['estimated_delivery'] == '03 Oct 2026'
+
+
+def test_public_pages_no_longer_claim_organic_or_worldwide(client):
+    for path in ('/', '/products', '/about', '/faq'):
+        html = client.get(path).get_data(as_text=True).lower()
+        assert '100% organic' not in html and 'worldwide' not in html and 'across the globe' not in html, path

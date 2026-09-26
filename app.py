@@ -365,6 +365,16 @@ class CartItem(db.Model):
     product = db.relationship('Product', backref='cart_items')
 
 # --- Spice Order ---
+class ShipmentEvent(db.Model):
+    """One courier status update received from the NimbusPost webhook (the tracking API only returns the latest)."""
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, index=True, nullable=False)
+    awb = db.Column(db.String(100))
+    status = db.Column(db.String(200), nullable=False)
+    location = db.Column(db.String(200))
+    event_time = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class SpiceOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(50), unique=True, nullable=False)
@@ -3049,7 +3059,7 @@ def calculate_shipping():
         rates = [{
             'courier_id': 'flat',
             'courier_name': 'Standard Flat Rate',
-            'rate': 40,
+            'rate': nimbus_api.SHIPPING_FLAT_INR,
             'estimated_days': '5-7',
             'min_weight': 0.5
         }]
@@ -3104,10 +3114,10 @@ def create_checkout_order():
 
     delivery_mode = get_setting('delivery_mode', 'hybrid')
     if delivery_mode == 'manual':
-        shipping_rate = 40
+        shipping_rate = nimbus_api.SHIPPING_FLAT_INR
     else:
         computed_rates = nimbus_api.get_shipping_rates(pincode, total_weight_kg)
-        shipping_rate = computed_rates[0]['rate'] if computed_rates else 60
+        shipping_rate = computed_rates[0]['rate'] if computed_rates else nimbus_api.SHIPPING_FLAT_INR
 
     # Calculate totals
     subtotal_rupees = sum(int(float(item.product.price)) * item.quantity for item in cart_items)
@@ -3472,7 +3482,15 @@ def track_order(order_id):
     tracking = {'current_status': order.shipping_status, 'history': [], 'estimated_delivery': order.estimated_delivery or 'N/A'}
     if order.awb_number:
         tracking = nimbus_api.track_shipment(order.awb_number)
-    
+    stored = ShipmentEvent.query.filter_by(order_id=order.id).order_by(ShipmentEvent.id.desc()).limit(30).all()
+    if stored:
+        history = [{'status': e.status, 'location': e.location or '',
+                    'date': e.event_time.strftime('%d %b %Y, %I:%M %p') if e.event_time else ''} for e in stored]
+        live = (tracking.get('history') or [None])[0]
+        if live and live.get('status') and live['status'] not in [h['status'] for h in history]:
+            history.insert(0, live)
+        tracking = dict(tracking, history=history)
+
     return render_template('order_tracking.html', order=order, tracking=tracking,
                            user=user, is_logged_in=True)
 
@@ -3925,6 +3943,15 @@ def nimbus_webhook():
         order = SpiceOrder.query.filter_by(awb_number=awb).first()
         new_status = normalize_shipping_status(status)
         # Ignore statuses we don't recognise, and never move a finished order backwards.
+        if order:
+            last = ShipmentEvent.query.filter_by(order_id=order.id).order_by(ShipmentEvent.id.desc()).first()
+            if not last or last.status != str(status)[:200]:
+                db.session.add(ShipmentEvent(order_id=order.id, awb=str(awb)[:100], status=str(status)[:200],
+                                             location=str(pick('location', 'current_location', 'city') or '')[:200]))
+                db.session.commit()
+                if any(w in str(status).lower() for w in ('ndr', 'undeliver', 'not deliver', 'attempt', 'failed', 'rto', 'return')):
+                    send_telegram_notification(f"Delivery problem: order {order.order_number} (AWB {awb}) - {status}. "
+                                               f"Call the customer or check the NimbusPost panel.")
         if order and new_status and order.shipping_status not in ('delivered', 'cancelled'):
             order.shipping_status = new_status
             db.session.commit()
@@ -3933,29 +3960,6 @@ def nimbus_webhook():
 
     return jsonify({'success': True}), 200
 
-
-@app.route('/admin/test-nimbus-login')
-@admin_required
-def test_nimbus_login():
-    import os, requests
-    email = os.getenv('NIMBUS_EMAIL')
-    password = os.getenv('NIMBUS_PASSWORD')
-    if not email or not password:
-        return "NIMBUS_EMAIL or NIMBUS_PASSWORD not set in environment."
-    try:
-        url = 'https://api.nimbuspost.com/v1/users/login'
-        payload = {'email': email, 'password': password}
-        resp = requests.post(url, json=payload, timeout=10)
-        # Don't echo the raw response body -- it can contain a live auth
-        # token. Just confirm whether login succeeded.
-        body = resp.json() if resp.headers.get('content-type', '').startswith('application/json') else {}
-        return jsonify({
-            'status_code': resp.status_code,
-            'login_ok': bool(resp.status_code == 200 and body.get('status')),
-        })
-    except Exception as e:
-        print("Nimbus login test error:", e)
-        return jsonify({'error': 'Request failed, see server logs.'}), 500
 
 # -------------------------
 # Update existing routes

@@ -13,6 +13,16 @@ WAREHOUSE_CITY = os.getenv('WAREHOUSE_CITY', 'Nagpur')
 WAREHOUSE_STATE = os.getenv('WAREHOUSE_STATE', 'Maharashtra')
 WAREHOUSE_PINCODE = os.getenv('WAREHOUSE_PINCODE', '441222')
 WAREHOUSE_PHONE = os.getenv('WAREHOUSE_PHONE', '')
+# The pickup address id shown in the NimbusPost panel. Falls back to the old name-based guess.
+WAREHOUSE_ID = os.getenv('NIMBUS_WAREHOUSE_ID', '').strip()
+
+# Packed parcel size in cm (measure a real packed order and set these on Render if it differs).
+PARCEL_L = int(os.getenv('NIMBUS_PARCEL_L', '15'))
+PARCEL_W = int(os.getenv('NIMBUS_PARCEL_W', '10'))
+PARCEL_H = int(os.getenv('NIMBUS_PARCEL_H', '5'))
+
+# ONE flat delivery charge used whenever live rates are unavailable (manual mode, API error, no couriers).
+SHIPPING_FLAT_INR = float(os.getenv('SHIPPING_FLAT_INR', '40'))
 
 def _headers():
     return {
@@ -43,9 +53,9 @@ def check_serviceability(delivery_pincode, weight_kg=0.5, payment_mode='prepaid'
             'orderValuePaise': order_value_paise,
             'packages': [{
                 'weight': int(weight_kg * 1000),  # v2 expects grams
-                'length': 15,
-                'width': 10,
-                'height': 5
+                'length': PARCEL_L,
+                'width': PARCEL_W,
+                'height': PARCEL_H
             }]
         }
         
@@ -78,7 +88,7 @@ def check_serviceability(delivery_pincode, weight_kg=0.5, payment_mode='prepaid'
             'available': True,
             'couriers': [{
                 'courier_name': 'Standard Delivery (Fallback)',
-                'rate': 40,
+                'rate': SHIPPING_FLAT_INR,
                 'estimated_delivery': '3-7 days'
             }],
             'message': 'Fallback to Standard Delivery'
@@ -113,7 +123,7 @@ def get_shipping_rates(delivery_pincode, weight_kg=0.5):
         rates = [{
             'courier_id': 'default',
             'courier_name': 'Standard Delivery',
-            'rate': 60,  # Default ₹60 shipping
+            'rate': SHIPPING_FLAT_INR,
             'estimated_days': '5-7',
             'min_weight': 0.5
         }]
@@ -159,9 +169,7 @@ def create_shipment(order_data):
             
             # Determine warehouse ID mapping for v2
             wh_name = order_data.get('pickup_location', WAREHOUSE_NAME)
-            wh_id = 'WH-001' # default
-            if 'Hyderabad' in wh_name:
-                wh_id = 'WH-002'
+            wh_id = WAREHOUSE_ID or ('WH-002' if 'Hyderabad' in wh_name else 'WH-001')
             
             order_payload = {
                 'order_number': order_data['order_number'],
@@ -186,9 +194,9 @@ def create_shipment(order_data):
                     # "220000" against a "32000" (32kg) limit, only explainable if our
                     # previous grams value (220) was being read as 220 kilograms.
                     'weight': order_data.get('weight_kg', 0.5),
-                    'length': 15,
-                    'width': 10,
-                    'height': 5
+                    'length': PARCEL_L,
+                    'width': PARCEL_W,
+                    'height': PARCEL_H
                 }
             }
 
@@ -216,7 +224,14 @@ def create_shipment(order_data):
         
         if book_resp.status_code in [200, 201] and book_data_resp.get('success'):
             shipment = book_data_resp.get('data', {})
+            edd = ''
+            if shipment.get('edd'):
+                try:
+                    edd = datetime.fromisoformat(str(shipment['edd']).replace('Z', '+00:00')).strftime('%d %b %Y')
+                except (ValueError, TypeError):
+                    edd = str(shipment['edd'])
             return {
+                'estimated_delivery': edd,
                 'success': True,
                 'awb_number': shipment.get('awb'),
                 'courier_name': shipment.get('courier_name'),
