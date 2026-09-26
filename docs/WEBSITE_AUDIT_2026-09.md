@@ -116,3 +116,36 @@ What the integration does today: serviceability + rates at checkout, order creat
 6. Merchant Center: second slab ₹; better photos; contact details; wait for review.
 7. Rename/rewrite the Kerala blog post.
 8. Re-generate pouch mock-ups with the spelling errors fixed if you use them in ads.
+
+---
+
+## 8. Round 2 — completed ("do all")
+
+**Content (made to match the pouch)**
+- Every "100% organic" claim replaced with pouch-backed wording (natural; no gluten, no GMO ingredients, no artificial fillers, no added preservatives): hero, FAQ (page + homepage teaser + FAQ structured data), mission slide, products page, meta keywords, About page.
+- "Since 2012", "international standards", "fair trade", "farm-level traceability" removed. "Lab Tested / Equinox Labs" kept (specific and yours to substantiate).
+- FAQ now answers with the real 14-ingredient list and the licence number.
+- Instagram link and structured data now use **@indian_heritage_spices** (the account that exists; the old handle did not). The Twitter-search icon was replaced with WhatsApp.
+- **Product descriptions in the live database were rewritten** (both sizes) to match the pouch. Backup of the old text: `scratchpad/product_desc_backup.json` . Edit later in Admin → Products.
+- Not done (needs your words): the blog post "Why Kerala Spices Are World Famous".
+
+**NimbusPost**
+- `NIMBUS_WAREHOUSE_ID` (pickup id), `NIMBUS_PARCEL_L/W/H` (cm) and `SHIPPING_FLAT_INR` (one flat charge for manual mode, API failure and "no couriers", default ₹40) are now environment settings.
+- Every courier status from the webhook is stored (`ShipmentEvent` table, created automatically) and shown in the order tracking timeline.
+- A failed delivery / NDR / return-to-origin status sends you a Telegram alert.
+- The delivery date returned when booking is saved on the order.
+- The legacy `/admin/test-nimbus-login` route (old v1 API) was removed.
+- Not done (needs NimbusPost API documentation to be safe): passing the quoted courier id when booking, reverse-pickup for replacements.
+
+**Speed**
+- Deleted 8 unused images; favicon 118 KB → 22 KB; two section photos ~40% smaller.
+- Still yours: Render paid plan or health pings, start command, real product photos.
+
+## 9. What is still on your list
+
+1. Verify FSSAI 21521275000514 against the certificate.
+2. Render: `EMAIL_WEBHOOK_URL` + `EMAIL_WEBHOOK_SECRET` (order e-mails are not sent until set), `NIMBUS_WEBHOOK_SECRET` + register the webhook URL in NimbusPost, optional `NIMBUS_WAREHOUSE_ID`, `SHIPPING_FLAT_INR`.
+3. Render plan / health ping / `--workers 1 --threads 8`.
+4. Merchant Center: second weight slab price, better photos, contact details; wait for review.
+5. Rewrite the Kerala blog post.
+6. Measure a packed order and set `NIMBUS_PARCEL_L/W/H`.
