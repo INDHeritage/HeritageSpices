@@ -3,6 +3,8 @@ import hashlib
 import hmac
 import json
 
+import pytest
+
 import app as appmod
 import nimbus_api
 
@@ -151,3 +153,45 @@ def test_public_pages_no_longer_claim_organic_or_worldwide(client):
     for path in ('/', '/products', '/about', '/faq'):
         html = client.get(path).get_data(as_text=True).lower()
         assert '100% organic' not in html and 'worldwide' not in html and 'across the globe' not in html, path
+
+
+# ---------- Telegram alerts for admin activity ----------
+
+@pytest.fixture()
+def telegram(monkeypatch):
+    sent = []
+    monkeypatch.setattr(appmod, 'send_telegram_notification', lambda msg: sent.append(msg))
+    return sent
+
+
+def test_new_signup_sends_one_telegram_alert(telegram):
+    with appmod.app.test_request_context('/'):
+        appmod.complete_login({'name': 'Priya', 'email': 'priya@example.com', 'picture': None})
+    signup = [m for m in telegram if 'New customer signed up' in m]
+    assert len(signup) == 1 and 'Priya' in signup[0] and 'priya@example.com' in signup[0]
+    assert not any('logged in' in m for m in telegram)
+
+
+def test_returning_customer_login_alerts_once_then_cools_down(telegram):
+    with appmod.app.test_request_context('/'):
+        appmod.db.session.add(appmod.User(name='Asha', email='asha@example.com'))
+        appmod.db.session.commit()
+    telegram.clear()
+    with appmod.app.test_request_context('/'):
+        appmod.complete_login({'name': 'Asha', 'email': 'asha@example.com', 'picture': None})
+    assert any('Customer logged in' in m and 'Asha' in m for m in telegram)
+    telegram.clear()
+    with appmod.app.test_request_context('/'):
+        appmod.complete_login({'name': 'Asha', 'email': 'asha@example.com', 'picture': None})
+    assert not telegram   # second login right after: no repeat alert within the cooldown
+
+
+def test_new_review_alerts_the_owner(client, telegram):
+    from conftest import login
+    p = appmod.Product(name='Garam Masala - 50g', description='x', price='55', stock=5)
+    appmod.db.session.add(p)
+    appmod.db.session.commit()
+    login(client, 'buyer@example.com')
+    r = client.post(f'/product/{p.id}/review', data={'rating': '4', 'review_text': 'Great aroma'})
+    assert r.status_code == 200
+    assert any('awaiting approval' in m and 'Great aroma' in m for m in telegram)

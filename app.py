@@ -554,6 +554,10 @@ def store_whatsapp_link():
     return f"https://wa.me/{number}?text={text}"
 
 # --- Telegram Bot Notification ---
+_LOGIN_ALERT_COOLDOWN_S = 6 * 3600  # one "logged in" alert per returning customer per 6 hours
+_last_login_alert = {}
+
+
 def send_telegram_notification(message):
     token = os.getenv('TELEGRAM_BOT_TOKEN')
     chat_id = os.getenv('TELEGRAM_CHAT_ID')
@@ -918,6 +922,14 @@ def complete_login(user_info):
     }
 
     is_new_user = save_user(user_info)
+    name, email = user_info['name'], user_info['email']
+    if is_new_user:
+        send_telegram_notification(f"🆕 <b>New customer signed up</b>\n{html_lib.escape(name)} ({html_lib.escape(email)})")
+    else:
+        now = time.time()
+        if now - _last_login_alert.get(email, 0) > _LOGIN_ALERT_COOLDOWN_S:
+            _last_login_alert[email] = now
+            send_telegram_notification(f"👋 <b>Customer logged in</b>\n{html_lib.escape(name)} ({html_lib.escape(email)})")
 
     # Always clear any pending ?ref= code from the session on login,
     # whether or not it actually gets used below -- otherwise a stale
@@ -4014,6 +4026,9 @@ def submit_review(product_id):
     )
     db.session.add(new_review)
     db.session.commit()
+    send_telegram_notification(
+        f"⭐ <b>New review awaiting approval</b>\n{html_lib.escape(product.name)} - {rating}★ by "
+        f"{html_lib.escape(new_review.user_name)}\n{html_lib.escape(review_text[:200])}")
     
     return jsonify({'success': True, 'message': 'Review submitted successfully! It will appear once approved.'})
 
