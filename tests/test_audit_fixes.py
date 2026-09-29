@@ -149,6 +149,80 @@ def test_booking_returns_the_delivery_date(monkeypatch):
     assert r['success'] and r['estimated_delivery'] == '03 Oct 2026'
 
 
+# ---------- NimbusPost v2 schema fixes (Sept 2026 doc re-check) ----------
+
+def test_order_items_use_qty_and_sku_not_quantity(monkeypatch):
+    sent = {}
+
+    class R:
+        status_code = 200
+        def __init__(self, body): self.body = body
+        def json(self): return self.body
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        if url.endswith('/orders'):
+            sent['items'] = json['items']
+            return R({'success': True, 'data': {'order_id': 'N1'}})
+        return R({'success': True, 'data': {'awb': 'A1', 'courier_name': 'X'}})
+
+    monkeypatch.setattr(nimbus_api, 'is_configured', lambda: True)
+    monkeypatch.setattr(nimbus_api.requests, 'post', fake_post)
+    nimbus_api.create_shipment({'order_number': 'HS1', 'weight_kg': 0.1,
+                                'items': [{'name': 'Garam Masala - 100g', 'quantity': 2, 'price': 105, 'sku': 'HS-2'}],
+                                'consignee': {'name': 'A', 'address': 'x', 'city': 'c', 'state': 's',
+                                              'pincode': '441222', 'phone': '8999449765'}})
+    assert sent['items'] == [{'name': 'Garam Masala - 100g', 'qty': 2, 'price': 105, 'sku': 'HS-2'}]
+
+
+def test_booking_uses_the_apis_own_tracking_url(monkeypatch):
+    class R:
+        status_code = 200
+        def __init__(self, body): self.body = body
+        def json(self): return self.body
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        if url.endswith('/orders'):
+            return R({'success': True, 'data': {'order_id': 'N1'}})
+        return R({'success': True, 'data': {'awb': 'AWB123456789', 'courier_name': 'X',
+                                             'tracking_url': 'https://track.nimbuspost.com/track/AWB123456789'}})
+
+    monkeypatch.setattr(nimbus_api, 'is_configured', lambda: True)
+    monkeypatch.setattr(nimbus_api.requests, 'post', fake_post)
+    r = nimbus_api.create_shipment({'order_number': 'HS1', 'items': [], 'weight_kg': 0.1,
+                                    'consignee': {'name': 'A', 'address': 'x', 'city': 'c', 'state': 's',
+                                                  'pincode': '441222', 'phone': '8999449765'}})
+    assert r['tracking_url'] == 'https://track.nimbuspost.com/track/AWB123456789'
+
+
+def test_cancel_sends_a_single_awb_not_a_list(monkeypatch):
+    sent = {}
+
+    class R:
+        status_code = 200
+        def __init__(self, body): self.body = body
+        def json(self): return self.body
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        sent.update(json)
+        return R({'success': True})
+
+    monkeypatch.setattr(nimbus_api, 'is_configured', lambda: True)
+    monkeypatch.setattr(nimbus_api.requests, 'post', fake_post)
+    r = nimbus_api.cancel_shipment('AWB123456789')
+    assert sent == {'awb': 'AWB123456789'}
+    assert r['success']
+
+
+def test_order_tracking_url_prefers_the_stored_api_url(client, make_order):
+    order, _ = make_order()
+    order.tracking_url = 'https://track.nimbuspost.com/track/AWB999'
+    order.awb_number = 'AWB999'
+    appmod.db.session.commit()
+    assert appmod.order_tracking_url(order) == 'https://track.nimbuspost.com/track/AWB999'
+    order.tracking_url = None
+    assert appmod.order_tracking_url(order) == 'https://track.nimbuspost.com/track/AWB999'
+
+
 def test_public_pages_no_longer_claim_organic_or_worldwide(client):
     for path in ('/', '/products', '/about', '/faq'):
         html = client.get(path).get_data(as_text=True).lower()

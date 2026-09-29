@@ -137,7 +137,7 @@ def create_shipment(order_data):
     order_data should contain:
         - order_number
         - consignee (name, address, city, state, pincode, phone)
-        - items (list of {name, quantity, price})
+        - items (list of {name, quantity, price, sku})
         - total_amount
         - weight_kg
         - courier_id (optional, for specific courier)
@@ -163,8 +163,9 @@ def create_shipment(order_data):
             for item in order_data.get('items', []):
                 mapped_items.append({
                     'name': item['name'],
-                    'quantity': item['quantity'],
-                    'price': item['price']  # already in rupees by the time it reaches here
+                    'qty': item['quantity'],  # v2 requires 'qty', not 'quantity'
+                    'price': item['price'],  # already in rupees by the time it reaches here
+                    'sku': item.get('sku') or 'HS-0'  # v2 requires a non-empty sku per item
                 })
             
             # Determine warehouse ID mapping for v2
@@ -235,7 +236,9 @@ def create_shipment(order_data):
                 'success': True,
                 'awb_number': shipment.get('awb'),
                 'courier_name': shipment.get('courier_name'),
-                'tracking_url': f"https://ship.nimbuspost.com/tracking/{shipment.get('awb')}",
+                # v2's booking response always includes tracking_url -- use it directly rather
+                # than guessing the tracking domain/path ourselves.
+                'tracking_url': shipment.get('tracking_url') or f"https://track.nimbuspost.com/track/{shipment.get('awb')}",
                 # v2's booking response returns the label under 'label_url', not 'label' --
                 # confirmed against the partner API v2 spec (POST /v2/shipments/book).
                 'label_url': shipment.get('label_url', ''),
@@ -367,7 +370,7 @@ def cancel_shipment(awb_number):
 
     try:
         url = f'{NIMBUS_BASE_URL}/shipments/cancel'
-        payload = {'awbs': [awb_number]}
+        payload = {'awb': awb_number}  # v2 takes a single 'awb' string, not an 'awbs' array
         resp = requests.post(url, json=payload, headers=_headers(), timeout=10)
         data = resp.json()
 

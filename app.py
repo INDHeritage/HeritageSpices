@@ -409,6 +409,7 @@ class SpiceOrder(db.Model):
     shipping_status = db.Column(db.String(50), default='processing')
     estimated_delivery = db.Column(db.String(50))
     label_url = db.Column(db.String(500))
+    tracking_url = db.Column(db.String(500))
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     items = db.relationship('OrderItem', backref='order', lazy=True)
@@ -461,8 +462,12 @@ def set_setting(key, value):
 # --- Customer messages: free e-mail + free WhatsApp click-to-chat links ---
 def order_tracking_url(order):
     """Public courier tracking page when we have an AWB, otherwise our own tracking page."""
+    if order.tracking_url:
+        return order.tracking_url
     if order.awb_number:
-        return f"https://ship.nimbuspost.com/shipping/tracking/{order.awb_number}"
+        # NimbusPost's booking response normally gives us tracking_url directly (saved above);
+        # this is only a fallback for older orders shipped before that was stored.
+        return f"https://track.nimbuspost.com/track/{order.awb_number}"
     return f"{notifications.site_url()}/orders/{order.id}/track"
 
 def notify_customer(kind, order):
@@ -3785,7 +3790,8 @@ def ship_order(order_id):
             'pincode': order.pincode,
             'phone': order.phone
         },
-        'items': [{'name': item.product_name, 'quantity': item.quantity, 'price': item.unit_price // 100}
+        'items': [{'name': item.product_name, 'quantity': item.quantity, 'price': item.unit_price // 100,
+                   'sku': f"HS-{item.product_id}"}
                   for item in order.items],
         'total_amount': order.total_amount // 100,
         'weight_kg': total_weight_kg
@@ -3803,6 +3809,7 @@ def ship_order(order_id):
         order.shipping_status = 'shipped'
         order.estimated_delivery = result.get('estimated_delivery', '')
         order.label_url = result.get('label_url')
+        order.tracking_url = result.get('tracking_url')
         order.nimbus_order_id = result.get('nimbus_order_id')
         db.session.commit()
         flash(f"Order {order.order_number} shipped! AWB: {order.awb_number}", "success")
