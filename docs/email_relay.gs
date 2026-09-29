@@ -17,7 +17,9 @@
  *  4. Copy the "Web app URL" (ends with /exec). It goes into Render as EMAIL_WEBHOOK_URL.
  *
  * Limits: a normal Gmail account can send about 100 e-mails a day this way - plenty for a
- * shop that ships a few orders a day (each order sends up to 3 e-mails).
+ * shop that ships a few orders a day (each order sends up to 6 e-mails: confirmed with a PDF
+ * receipt attached, shipped, out for delivery, a failed-delivery-attempt notice if it happens,
+ * RTO if it's returned, and delivered).
  * If you ever edit the script, use Deploy -> Manage deployments -> Edit -> New version.
  */
 const SECRET = 'PASTE_A_LONG_RANDOM_SECRET_HERE';
@@ -31,13 +33,21 @@ function doPost(e) {
     if (!data.to || !data.subject) {
       return reply({ ok: false, error: 'missing recipient or subject' });
     }
-    MailApp.sendEmail({
+    const options = {
       to: data.to,
       subject: data.subject,
       body: data.text || '',
       htmlBody: data.html || undefined,
       name: data.name || 'Heritage Spices'
-    });
+    };
+    if (data.attachment && data.attachment.base64 && data.attachment.filename) {
+      options.attachments = [Utilities.newBlob(
+        Utilities.base64Decode(data.attachment.base64),
+        data.attachment.mimeType || 'application/pdf',
+        data.attachment.filename
+      )];
+    }
+    MailApp.sendEmail(options);
     return reply({ ok: true });
   } catch (err) {
     return reply({ ok: false, error: String(err) });

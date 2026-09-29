@@ -28,6 +28,7 @@ import hmac
 import hashlib
 import nimbus_api
 import notifications
+import receipts
 import io
 import qrcode
 from flask import send_file
@@ -471,18 +472,29 @@ def order_tracking_url(order):
     return f"{notifications.site_url()}/orders/{order.id}/track"
 
 def notify_customer(kind, order):
-    """E-mail the customer: kind is 'confirmed', 'shipped' or 'delivered'. Never raises --
-    a mail problem must not be able to affect a payment, shipment or webhook."""
+    """E-mail the customer: kind is 'confirmed', 'shipped', 'delivered', 'out for delivery',
+    'rto', 'cancelled' or 'failed_attempt'. Never raises -- a mail problem must not be able
+    to affect a payment, shipment or webhook."""
     try:
+        attachment = None
         if kind == 'confirmed':
             subject, text, html = notifications.order_confirmed(order)
+            try:
+                pdf_bytes = receipts.build_receipt_pdf(order)
+                attachment = (f"{order.order_number}-receipt.pdf", pdf_bytes, 'application/pdf')
+            except Exception as e:
+                print(f"Receipt PDF generation failed for {order.order_number}:", e)
         elif kind == 'shipped':
             subject, text, html = notifications.order_shipped(order, order_tracking_url(order))
         elif kind == 'delivered':
             subject, text, html = notifications.order_delivered(order)
+        elif kind == 'failed_attempt':
+            subject, text, html = notifications.delivery_attempt_failed(order, order_tracking_url(order))
+        elif kind in ('out for delivery', 'rto', 'cancelled'):
+            subject, text, html = notifications.order_status_update(order, kind, order_tracking_url(order))
         else:
             return False
-        return notifications.send_email(order.user_email, subject, text, html)
+        return notifications.send_email(order.user_email, subject, text, html, attachment=attachment)
     except Exception as e:
         print(f"Customer notification ({kind}) failed:", e)
         return False
@@ -3961,6 +3973,8 @@ def nimbus_webhook():
     if awb and status:
         order = SpiceOrder.query.filter_by(awb_number=awb).first()
         new_status = normalize_shipping_status(status)
+        is_failed_attempt = any(w in str(status).lower() for w in
+                                 ('ndr', 'undeliver', 'not deliver', 'attempt', 'failed', 'rto', 'return'))
         # Ignore statuses we don't recognise, and never move a finished order backwards.
         if order:
             last = ShipmentEvent.query.filter_by(order_id=order.id).order_by(ShipmentEvent.id.desc()).first()
@@ -3968,14 +3982,18 @@ def nimbus_webhook():
                 db.session.add(ShipmentEvent(order_id=order.id, awb=str(awb)[:100], status=str(status)[:200],
                                              location=str(pick('location', 'current_location', 'city') or '')[:200]))
                 db.session.commit()
-                if any(w in str(status).lower() for w in ('ndr', 'undeliver', 'not deliver', 'attempt', 'failed', 'rto', 'return')):
+                if is_failed_attempt:
                     send_telegram_notification(f"Delivery problem: order {order.order_number} (AWB {awb}) - {status}. "
                                                f"Call the customer or check the NimbusPost panel.")
-        if order and new_status and order.shipping_status not in ('delivered', 'cancelled'):
+                    if 'attempt' in str(status).lower() or 'undeliver' in str(status).lower() or 'not deliver' in str(status).lower():
+                        notify_customer('failed_attempt', order)
+        if order and new_status and order.shipping_status not in ('delivered', 'cancelled') and order.shipping_status != new_status:
             order.shipping_status = new_status
             db.session.commit()
             if new_status == 'delivered':
                 notify_customer('delivered', order)
+            elif new_status in ('out for delivery', 'rto', 'cancelled'):
+                notify_customer(new_status, order)
 
     return jsonify({'success': True}), 200
 

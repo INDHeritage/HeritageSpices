@@ -50,20 +50,29 @@ def is_configured():
     return provider() is not None
 
 
-def _send_now(to, subject, text, html):
-    """Send one e-mail with whichever method is configured. Raises on failure."""
+def _send_now(to, subject, text, html, attachment=None):
+    """Send one e-mail with whichever method is configured. Raises on failure.
+    attachment, if given, is (filename, bytes, mimetype)."""
     if provider() == 'webhook':
-        return _send_webhook(to, subject, text, html)
-    return _send_smtp(to, subject, text, html)
+        return _send_webhook(to, subject, text, html, attachment)
+    return _send_smtp(to, subject, text, html, attachment)
 
 
-def _send_webhook(to, subject, text, html):
+def _send_webhook(to, subject, text, html, attachment=None):
+    import base64
     import requests  # local import: only needed on this path
     name = os.getenv('MAIL_FROM_NAME', 'Heritage Spices')
-    resp = requests.post(os.getenv('EMAIL_WEBHOOK_URL'), json={
+    payload = {
         'secret': os.getenv('EMAIL_WEBHOOK_SECRET'), 'to': to, 'subject': subject,
         'text': text, 'html': html or '', 'name': name,
-    }, timeout=25)
+    }
+    if attachment:
+        filename, content, mimetype = attachment
+        payload['attachment'] = {
+            'filename': filename, 'mimeType': mimetype,
+            'base64': base64.b64encode(content).decode('ascii'),
+        }
+    resp = requests.post(os.getenv('EMAIL_WEBHOOK_URL'), json=payload, timeout=25)
     try:
         data = resp.json()
     except ValueError:
@@ -73,7 +82,7 @@ def _send_webhook(to, subject, text, html):
         raise RuntimeError(f"mail relay refused the request: {data.get('error', 'unknown error')}")
 
 
-def _send_smtp(to, subject, text, html):
+def _send_smtp(to, subject, text, html, attachment=None):
     host = os.getenv('SMTP_HOST')
     port = int(os.getenv('SMTP_PORT', '465'))
     user = os.getenv('SMTP_USER')
@@ -88,6 +97,10 @@ def _send_smtp(to, subject, text, html):
     msg.set_content(text)
     if html:
         msg.add_alternative(html, subtype='html')
+    if attachment:
+        filename, content, mimetype = attachment
+        maintype, _, subtype = mimetype.partition('/')
+        msg.add_attachment(content, maintype=maintype, subtype=subtype or 'octet-stream', filename=filename)
 
     context = ssl.create_default_context()
     if port == 465:
@@ -101,14 +114,15 @@ def _send_smtp(to, subject, text, html):
             server.send_message(msg)
 
 
-def send_email(to, subject, text, html=None):
-    """Queue an e-mail. Returns True if it was handed off, False if e-mail isn't set up."""
+def send_email(to, subject, text, html=None, attachment=None):
+    """Queue an e-mail. Returns True if it was handed off, False if e-mail isn't set up.
+    attachment, if given, is (filename, bytes, mimetype) -- e.g. a PDF receipt."""
     if not to or not is_configured():
         return False
 
     def _work():
         try:
-            _send_now(to, subject, text, html)
+            _send_now(to, subject, text, html, attachment)
         except Exception as e:  # never let a mail problem touch an order
             print(f"E-mail to {to} failed: {e}")
 
@@ -194,6 +208,49 @@ def order_shipped(order, tracking_url):
         f"Your order <b>{escape(order.order_number)}</b> has shipped with <b>{escape(courier)}</b>.",
         _box('Tracking', lines) + _box('Delivering to', _address_lines(order)),
         _button(tracking_url, 'Track my parcel'))
+    return subject, text, html
+
+
+_STATUS_UPDATE_COPY = {
+    'out for delivery': ("Out for delivery today", "is out for delivery and should arrive today."),
+    'rto': ("Order returned to us", "could not be delivered and is on its way back to us. "
+                                     "We'll be in touch about next steps."),
+    'cancelled': ("Order cancelled", "has been cancelled."),
+}
+
+
+def order_status_update(order, status, tracking_url):
+    """Milestone e-mail sent whenever the courier's status moves to 'out for delivery',
+    'rto' or 'cancelled' (delivered/shipped/confirmed have their own dedicated e-mails)."""
+    title, sentence = _STATUS_UPDATE_COPY.get(status, ("Order update", f"status is now: {status}."))
+    subject = f"{title}: {order.order_number}"
+    text = "\n".join([
+        f"Hi {order.full_name},", "",
+        f"Your order {order.order_number} {sentence}", "",
+        f"Track your parcel: {tracking_url}", "", "Heritage Spices"])
+    html = _wrap_html(
+        title,
+        f"Your order <b>{escape(order.order_number)}</b> {escape(sentence)}",
+        '', _button(tracking_url, 'Track my parcel'))
+    return subject, text, html
+
+
+def delivery_attempt_failed(order, tracking_url):
+    """Sent when a courier delivery attempt fails (NDR/undelivered) -- one per distinct attempt."""
+    subject = f"We couldn't deliver order {order.order_number}"
+    text = "\n".join([
+        f"Hi {order.full_name},", "",
+        f"Our courier attempted to deliver order {order.order_number} but wasn't able to complete it "
+        f"(you may have missed the delivery, or the address needs confirming).",
+        "They will usually retry automatically - reply to this e-mail if you'd like to change the "
+        "address or arrange a better time.",
+        "", f"Track your parcel: {tracking_url}", "", "Heritage Spices"])
+    html = _wrap_html(
+        "We couldn't deliver your order",
+        f"Our courier attempted to deliver order <b>{escape(order.order_number)}</b> but wasn't able to "
+        f"complete it. They will usually retry automatically &mdash; reply to this e-mail if you'd like "
+        f"to change the address or arrange a better time.",
+        '', _button(tracking_url, 'Track my parcel'))
     return subject, text, html
 
 

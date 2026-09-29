@@ -13,7 +13,8 @@ def outbox(monkeypatch):
     monkeypatch.setenv('SMTP_USER', 'shop@example.com')
     monkeypatch.setenv('SMTP_PASSWORD', 'secret')
     monkeypatch.setattr(notifications, 'RUN_IN_BACKGROUND', False)
-    monkeypatch.setattr(notifications, '_send_now', lambda to, subject, text, html: sent.append((to, subject, text, html)))
+    monkeypatch.setattr(notifications, '_send_now',
+                        lambda to, subject, text, html, attachment=None: sent.append((to, subject, text, html)))
     return sent
 
 

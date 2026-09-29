@@ -8,6 +8,7 @@ import pytest
 import app as appmod
 import nimbus_api
 import notifications
+import receipts
 from conftest import ADMIN, login
 
 
@@ -20,7 +21,7 @@ def outbox(monkeypatch):
     monkeypatch.setenv('SMTP_PASSWORD', 'secret')
     monkeypatch.setattr(notifications, 'RUN_IN_BACKGROUND', False)
     monkeypatch.setattr(notifications, '_send_now',
-                        lambda to, subject, text, html: sent.append((to, subject, text, html)))
+                        lambda to, subject, text, html, attachment=None: sent.append((to, subject, text, html, attachment)))
     return sent
 
 
@@ -40,9 +41,12 @@ def test_paying_sends_one_confirmation_email(make_order, outbox):
     appmod.finalize_paid_order('order_TEST1', 'pay_1')
     appmod.finalize_paid_order('order_TEST1', 'pay_1')  # duplicate call must not send a second mail
     assert len(outbox) == 1
-    to, subject, text, html = outbox[0]
+    to, subject, text, html, attachment = outbox[0]
     assert to == 'buyer@example.com'
     assert 'HS-TEST0001' in subject and '₹147' in text and 'Garam Masala' in html
+    filename, content, mimetype = attachment
+    assert filename == 'HS-TEST0001-receipt.pdf' and mimetype == 'application/pdf'
+    assert content.startswith(b'%PDF')
 
 
 def test_email_content_is_html_escaped(make_order, outbox):
@@ -86,6 +90,73 @@ def test_courier_delivered_webhook_sends_delivery_email_once(client, make_order,
     hook('Delivered')
     hook('Delivered')
     assert len(outbox) == 1 and 'delivered' in outbox[0][1].lower()
+
+
+# ---------- PDF order receipt ----------
+
+def test_receipt_pdf_is_a_real_pdf_with_a_reasonable_size(make_order):
+    order, _ = make_order()
+    pdf_bytes = receipts.build_receipt_pdf(order)
+    assert pdf_bytes.startswith(b'%PDF')
+    assert len(pdf_bytes) > 1000
+
+
+def test_confirmation_email_attaches_the_receipt(make_order, outbox):
+    make_order(email='buyer@example.com')
+    appmod.finalize_paid_order('order_TEST1', 'pay_1')
+    filename, content, mimetype = outbox[0][4]
+    assert filename == 'HS-TEST0001-receipt.pdf'
+    assert mimetype == 'application/pdf'
+    assert content.startswith(b'%PDF')
+
+
+def test_a_broken_receipt_still_lets_the_confirmation_email_send(make_order, outbox, monkeypatch):
+    monkeypatch.setattr(receipts, 'build_receipt_pdf', lambda order: 1 / 0)
+    make_order(email='buyer@example.com')
+    appmod.finalize_paid_order('order_TEST1', 'pay_1')
+    assert len(outbox) == 1 and outbox[0][4] is None
+
+
+# ---------- Milestone e-mails driven by the courier webhook ----------
+
+def _hook(client, secret, **payload):
+    import hashlib, hmac as hmac_mod, json as json_mod
+    body = json_mod.dumps(payload).encode()
+    sig = hmac_mod.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    return client.post('/api/nimbus/webhook', data=body,
+                       headers={'x-nimbus-signature': sig, 'Content-Type': 'application/json'})
+
+
+def test_out_for_delivery_sends_one_customer_email(client, make_order, outbox, monkeypatch):
+    monkeypatch.setenv('NIMBUS_WEBHOOK_SECRET', 'nimbus_secret')
+    order, _ = make_order()
+    order.awb_number = 'AWB1'
+    order.shipping_status = 'shipped'
+    appmod.db.session.commit()
+    _hook(client, 'nimbus_secret', awb='AWB1', status='Out for delivery')
+    _hook(client, 'nimbus_secret', awb='AWB1', status='Out for delivery')  # repeat: no second mail
+    assert len(outbox) == 1 and 'out for delivery' in outbox[0][1].lower()
+
+
+def test_rto_sends_one_customer_email(client, make_order, outbox, monkeypatch):
+    monkeypatch.setenv('NIMBUS_WEBHOOK_SECRET', 'nimbus_secret')
+    order, _ = make_order()
+    order.awb_number = 'AWB2'
+    order.shipping_status = 'shipped'
+    appmod.db.session.commit()
+    _hook(client, 'nimbus_secret', awb='AWB2', status='RTO Initiated')
+    assert len(outbox) == 1 and 'returned' in outbox[0][1].lower()
+
+
+def test_failed_delivery_attempt_emails_the_customer_too(client, make_order, outbox, monkeypatch):
+    monkeypatch.setenv('NIMBUS_WEBHOOK_SECRET', 'nimbus_secret')
+    monkeypatch.setattr(appmod, 'send_telegram_notification', lambda msg: None)
+    order, _ = make_order()
+    order.awb_number = 'AWB3'
+    order.shipping_status = 'shipped'
+    appmod.db.session.commit()
+    _hook(client, 'nimbus_secret', awb='AWB3', status='Undelivered - customer not available')
+    assert len(outbox) == 1 and "couldn't deliver" in outbox[0][1].lower()
 
 
 # ---------- Free WhatsApp click-to-chat links ----------
