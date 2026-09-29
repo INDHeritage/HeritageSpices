@@ -562,6 +562,42 @@ def google_review_info():
         rating = count = None
     return {'url': url, 'rating': rating, 'count': count}
 
+
+def organization_json_ld():
+    """Site-wide Organization/LocalBusiness structured data. Only adds aggregateRating
+    when a real Google rating is configured -- never fabricates one."""
+    data = {
+        '@context': 'https://schema.org',
+        '@type': ['Organization', 'LocalBusiness'],
+        'name': 'Heritage Spices',
+        'legalName': 'Heritage Spices Pvt. Ltd.',
+        'url': 'https://www.indianheritagespices.com/',
+        'logo': 'https://www.indianheritagespices.com/static/images/logo.png',
+        'sameAs': ['https://www.instagram.com/indian_heritage_spices/'],
+        'address': {
+            '@type': 'PostalAddress',
+            'addressLocality': 'Sindewahi',
+            'addressRegion': 'Maharashtra',
+            'postalCode': '441222',
+            'addressCountry': 'IN',
+        },
+        'contactPoint': {
+            '@type': 'ContactPoint',
+            'telephone': '+91-8999449765',
+            'contactType': 'Customer Service',
+            'areaServed': 'IN',
+            'availableLanguage': ['English', 'Hindi'],
+        },
+    }
+    review = google_review_info()
+    if review and review.get('rating'):
+        data['aggregateRating'] = {
+            '@type': 'AggregateRating',
+            'ratingValue': str(review['rating']),
+            'reviewCount': str(review['count']),
+        }
+    return data
+
 def store_whatsapp_link():
     """Link for the storefront 'WhatsApp us' button, from the WHATSAPP_NUMBER env var (None if unset)."""
     number = _wa_number(os.getenv('WHATSAPP_NUMBER', ''))
@@ -1252,7 +1288,7 @@ def robots():
 @app.route('/sitemap.xml')
 def sitemap():
     base = "https://www.indianheritagespices.com"
-    static_urls = ['/', '/about', '/contact', '/privacy', '/blog', '/products', '/faq', '/terms', '/refund']
+    static_urls = ['/', '/about', '/contact', '/privacy', '/blog', '/products', '/faq', '/terms', '/refund', '/disclaimer']
 
     entries = [(u, None) for u in static_urls]
     entries += [(f"/product/{p.id}", None) for p in Product.query.order_by(Product.id).all()]
@@ -1994,10 +2030,17 @@ def products():
     products = Product.query.options(joinedload(Product.reviews)).all()
     user = session.get('user')
     site = notifications.site_url()
-    json_ld = {'@context': 'https://schema.org', '@type': 'ItemList', 'itemListElement': [
+    item_list = {'@context': 'https://schema.org', '@type': 'ItemList', 'itemListElement': [
         {'@type': 'ListItem', 'position': i, 'url': f"{site}/product/{p.id}", 'name': p.name}
         for i, p in enumerate(products, 1)]}
-    return render_template('products.html', products=products, user=user, json_ld=json_ld)
+    breadcrumbs = {
+        '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+        'itemListElement': [
+            {'@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': site + '/'},
+            {'@type': 'ListItem', 'position': 2, 'name': 'Products', 'item': site + '/products'},
+        ],
+    }
+    return render_template('products.html', products=products, user=user, json_ld=[item_list, breadcrumbs])
 
 # --- Product detail page ---
 def product_base_name(name):
@@ -2089,10 +2132,18 @@ def product_detail(product_id):
             'reviewBody': r.review_text,
             'reviewRating': {'@type': 'Rating', 'ratingValue': str(r.rating), 'bestRating': '5'},
         } for r in reviews]
+    breadcrumbs = {
+        '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+        'itemListElement': [
+            {'@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': site + '/'},
+            {'@type': 'ListItem', 'position': 2, 'name': 'Products', 'item': site + '/products'},
+            {'@type': 'ListItem', 'position': 3, 'name': product.name, 'item': url},
+        ],
+    }
 
     return render_template('product_detail.html', product=product, sizes=sizes, price=price, per_10g=per_10g,
                            out_of_stock=out_of_stock, low_stock=low_stock, reviews=reviews,
-                           description=description, json_ld=json_ld, page_url=url,
+                           description=description, json_ld=[json_ld, breadcrumbs], page_url=url,
                            user=session.get('user'), is_logged_in=bool(session.get('user')))
 
 # --- Google Merchant Center product feed ---
@@ -2397,6 +2448,7 @@ def inject_flags():
         'store_whatsapp_link': store_whatsapp_link(),
         'google_site_verification': google_site_verification_tokens(),
         'google_review': google_review_info(),
+        'organization_ld': organization_json_ld(),
         'fssai_license': FSSAI_LICENSE,
         'google_one_tap': bool(GOOGLE_ONE_TAP_ENABLED and app.config.get('GOOGLE_CLIENT_ID')
                                and not session.get('user')

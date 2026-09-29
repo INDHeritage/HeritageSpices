@@ -3,7 +3,8 @@
 {% block meta_description %}Shop authentic spices from Heritage Spices: farm-sourced Garam Masala in convenient pouches, FSSAI licensed, delivered fresh to your door.{% endblock %}
 
 {% block content %}
-<script type="application/ld+json">{{ json_ld|tojson }}</script>
+{% for block in json_ld %}<script type="application/ld+json">{{ block|tojson }}</script>
+{% endfor %}
 <div class="container py-4">
 
   <!-- 🌿 Shop Hero Banner -->
@@ -11,7 +12,7 @@
     <div class="shop-hero-overlay"></div>
     <div class="shop-hero-content position-relative z-1 py-4">
       <span class="badge bg-warning text-dark fw-bold mb-2 text-uppercase tracking-wider">Spice up your kitchen</span>
-      <h1 class="display-4 fw-bold mb-3">Authentic Farm-Sourced Spices</h1>
+      <h1 class="display-4 fw-bold mb-3">Authentic Farm-Sourced Garam Masala & Spices</h1>
       <p class="lead mx-auto" style="max-width: 600px;">
         Natural, hand-milled and sourced directly from trusted partner farmers. Purity in every pinch.
       </p>
@@ -44,7 +45,7 @@
 
           <!-- Product Details -->
           <div class="card-body d-flex flex-column p-4">
-            <h5 class="card-title fw-bold mb-1"><a href="/product/{{ product.id }}" class="text-dark text-decoration-none">{{ product.name }}</a></h5>
+            <h2 class="card-title fw-bold mb-1" style="font-size: 1.25rem;"><a href="/product/{{ product.id }}" class="text-dark text-decoration-none">{{ product.name }}</a></h2>
             
             <!-- ⭐ Star Rating & Review Link -->
             <div class="d-flex align-items-center mb-2 gap-2">

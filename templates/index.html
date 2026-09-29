@@ -2,6 +2,9 @@
 
 {% block title %}Buy Garam Masala & Farm-Sourced Spices Online | Heritage Spices{% endblock %}
 {% block meta_description %}Buy Heritage Spices Garam Masala online. Authentic spices sourced from partner farms, FSSAI licensed, freshly packed and delivered to your door.{% endblock %}
+{% block head %}
+<link rel="preload" as="image" href="{{ url_for('static', filename='images/hero-pouches-range.webp') }}" fetchpriority="high">
+{% endblock %}
 
 {% block content %}
 

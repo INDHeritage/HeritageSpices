@@ -127,7 +127,10 @@ def test_all_structured_data_is_valid_json(site, path):
 
 
 def test_organization_data_is_consistent_and_points_at_real_files(site):
-    org = next(b for b in _blocks(parse(site, '/')) if b.get('@type') == 'Organization')
+    def _has_type(block, name):
+        t = block.get('@type')
+        return t == name or (isinstance(t, list) and name in t)
+    org = next(b for b in _blocks(parse(site, '/')) if _has_type(b, 'Organization'))
     assert org['url'].startswith('https://www.')
     logo_file = org['logo'].split('/static/', 1)[1]
     assert os.path.exists(os.path.join(appmod.app.root_path, 'static', logo_file)), org['logo']
@@ -141,6 +144,38 @@ def test_products_page_lists_products_with_valid_markup(site):
     assert lists and lists[0]['itemListElement'][0]['url'].startswith('https://www.indianheritagespices.com/product/')
     assert not [b for b in _blocks(h) if b.get('@type') == 'Product'], 'per-card Product blocks were the broken ones'
     assert len(h.h1) == 1
+
+
+def test_organization_is_also_a_local_business(site):
+    org = next(b for b in _blocks(parse(site, '/')) if b.get('@type') == ['Organization', 'LocalBusiness'])
+    assert 'aggregateRating' not in org, 'must never fabricate a rating when none is configured'
+
+
+def test_organization_aggregate_rating_only_appears_when_a_real_google_rating_is_set(site, monkeypatch):
+    monkeypatch.setenv('GOOGLE_REVIEW_URL', 'https://g.page/r/test/review')
+    monkeypatch.setenv('GOOGLE_RATING', '4.8')
+    monkeypatch.setenv('GOOGLE_REVIEW_COUNT', '120')
+    org = next(b for b in _blocks(parse(site, '/')) if b.get('@type') == ['Organization', 'LocalBusiness'])
+    assert org['aggregateRating'] == {'@type': 'AggregateRating', 'ratingValue': '4.8', 'reviewCount': '120'}
+
+
+def test_products_page_has_a_breadcrumb(site):
+    crumbs = [b for b in _blocks(parse(site, '/products')) if b.get('@type') == 'BreadcrumbList']
+    assert crumbs and [i['name'] for i in crumbs[0]['itemListElement']] == ['Home', 'Products']
+
+
+def test_product_page_has_product_and_breadcrumb_markup(site):
+    h = parse(site, '/product/1')
+    blocks = _blocks(h)
+    assert any(b.get('@type') == 'Product' for b in blocks)
+    crumbs = next(b for b in blocks if b.get('@type') == 'BreadcrumbList')
+    names = [i['name'] for i in crumbs['itemListElement']]
+    assert names == ['Home', 'Products', 'Garam Masala - 50g']
+
+
+def test_disclaimer_page_is_in_the_sitemap(site):
+    xml = site.get('/sitemap.xml').get_data(as_text=True)
+    assert '<loc>https://www.indianheritagespices.com/disclaimer</loc>' in xml
 
 
 def test_product_description_with_newlines_and_quotes_cannot_break_the_markup(site):

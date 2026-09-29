@@ -37,33 +37,7 @@
   <meta name="twitter:image" content="{% block twitter_image %}{{ self.og_image() }}{% endblock %}" />
   
   <!-- ✅ Structured Data for Google Brand Knowledge Panel -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "Heritage Spices",
-  "legalName": "Heritage Spices Pvt. Ltd.",
-  "url": "https://www.indianheritagespices.com/",
-  "logo": "https://www.indianheritagespices.com/static/images/logo.png",
-  "sameAs": [
-    "https://www.instagram.com/indian_heritage_spices/"
-  ],
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Sindewahi",
-    "addressRegion": "Maharashtra",
-    "postalCode": "441222",
-    "addressCountry": "IN"
-  },
-  "contactPoint": {
-    "@type": "ContactPoint",
-    "telephone": "+91-8999449765",
-    "contactType": "Customer Service",
-    "areaServed": "IN",
-    "availableLanguage": ["English", "Hindi"]
-  }
-}
-</script>
+<script type="application/ld+json">{{ organization_ld|tojson }}</script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",

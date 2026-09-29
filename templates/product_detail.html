@@ -129,7 +129,8 @@
   </section>
 </div>
 
-<script type="application/ld+json">{{ json_ld|tojson }}</script>
+{% for block in json_ld %}<script type="application/ld+json">{{ block|tojson }}</script>
+{% endfor %}
 
 <style>
   .pd-image-box { background: linear-gradient(135deg,#fdf8ef,#f3ead6); border-radius: 20px; min-height: 320px;
