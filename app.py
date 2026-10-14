@@ -975,6 +975,7 @@ def complete_login(user_info):
     }
 
     is_new_user = save_user(user_info)
+    merge_guest_cart(user_info['email'])
     name, email = user_info['name'], user_info['email']
     if is_new_user:
         send_telegram_notification(f"🆕 <b>New customer signed up</b>\n{html_lib.escape(name)} ({html_lib.escape(email)})")
@@ -1039,7 +1040,8 @@ def auth():
         token = google.authorize_access_token()
         user_info = google.parse_id_token(token, nonce=token.get('nonce'))
         complete_login(user_info)
-        return redirect('/')
+        # A guest who pressed Checkout is sent back there once signed in (only ever set to /checkout).
+        return redirect(session.pop('post_login_next', None) or '/')
     except Exception as e:
         print("OAuth error:", e)
         return "OAuth Failed", 500
@@ -1827,8 +1829,8 @@ def admin_carts():
     items = CartItem.query.options(joinedload(CartItem.product)).order_by(CartItem.added_at.desc()).all()
     carts_by_email = {}
     for item in items:
-        if not item.product:
-            continue
+        if not item.product or is_guest_cart_key(item.user_email):
+            continue   # guest carts have no email to contact
         entry = carts_by_email.setdefault(item.user_email, {'cart_items': [], 'subtotal': 0, 'latest': item.added_at})
         entry['cart_items'].append(item)
         entry['subtotal'] += int(float(item.product.price)) * item.quantity
@@ -2898,49 +2900,106 @@ def truncate(s, length=100):
 # 🛒 Cart Routes
 # -------------------------
 
+# Browsing and building a cart never needs an account (Google Merchant Center's "Login required"
+# policy); only checkout does. A visitor who isn't signed in gets a random per-browser key stored in
+# their session, and their cart rows live in the same table under that key. When they sign in the
+# rows are moved onto their account (see merge_guest_cart, called from complete_login).
+GUEST_CART_PREFIX = 'guest:'
+GUEST_CART_MAX_AGE_DAYS = 30
+GUEST_CART_NEW_PER_HOUR = 20   # per IP, so a script can't mint endless carts
+
+def cart_owner(create=False):
+    """Who the cart belongs to: the signed-in email, else this browser's guest key (None if it has
+    none yet and create is False)."""
+    user = session.get('user')
+    if user:
+        return user['email']
+    key = session.get('guest_cart')
+    if not key and create:
+        key = GUEST_CART_PREFIX + uuid.uuid4().hex
+        session['guest_cart'] = key
+    return key
+
+def is_guest_cart_key(email):
+    return str(email or '').startswith(GUEST_CART_PREFIX)
+
+def purge_old_guest_carts():
+    """Housekeeping, run whenever a new guest cart starts: drop abandoned guest rows."""
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=GUEST_CART_MAX_AGE_DAYS)
+        CartItem.query.filter(CartItem.user_email.like(GUEST_CART_PREFIX + '%'),
+                              CartItem.added_at < cutoff).delete(synchronize_session=False)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("guest cart purge error:", e)
+
+def merge_guest_cart(email):
+    """After sign-in, move whatever was in this browser's guest cart onto the account's cart."""
+    key = session.pop('guest_cart', None)
+    if not key:
+        return
+    try:
+        for g in CartItem.query.filter_by(user_email=key).all():
+            mine = CartItem.query.filter_by(user_email=email, product_id=g.product_id).first()
+            if mine:
+                mine.quantity = min(5, (mine.quantity or 0) + (g.quantity or 0))
+                db.session.delete(g)
+            else:
+                g.user_email = email
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("guest cart merge error:", e)
+
 @app.route('/cart')
 def view_cart():
     user = session.get('user')
-    if not user:
-        flash("Please login to view your cart.", "warning")
-        return redirect('/login')
-    
-    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
+    owner = cart_owner()
+    cart_items = (CartItem.query.filter_by(user_email=owner).options(joinedload(CartItem.product)).all()
+                  if owner else [])
     cart_total = sum(int(float(item.product.price)) * item.quantity for item in cart_items if item.product)
 
     valid_coupons = [c for c in Coupon.query.filter_by(user_email=user['email'], used=False).all()
-                      if not c.expires_at or c.expires_at > datetime.utcnow()]
+                      if not c.expires_at or c.expires_at > datetime.utcnow()] if user else []
 
     return render_template('cart.html', cart_items=cart_items, cart_total=cart_total,
-                           user=user, is_logged_in=True, valid_coupons=valid_coupons)
+                           user=user, is_logged_in=bool(user), valid_coupons=valid_coupons)
 
 @app.route('/cart/add', methods=['POST'])
 def add_to_cart():
-    user = session.get('user')
-    if not user:
-        return jsonify({'error': 'Please login first'}), 401
-    
     # Check if store is open
     if get_setting('store_open', 'true') == 'false':
         return jsonify({'error': 'Store is currently closed'}), 503
-    
-    data = request.json
+
+    data = request.json or {}
     product_id = data.get('product_id')
-    quantity = int(data.get('quantity', 2))
-    
+    try:
+        quantity = int(data.get('quantity', 2))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid quantity'}), 400
+
     if quantity < 2:
         return jsonify({'error': 'Minimum order quantity is 2 pouches.'}), 400
-    
+
     product = Product.query.get(product_id)
     if not product:
         return jsonify({'error': 'Product not found'}), 404
-    
+
     # Check stock
     if product.stock is not None and product.stock < quantity:
         return jsonify({'error': f'Only {product.stock} items available'}), 400
-    
+
+    # First add from a visitor who isn't signed in: start a guest cart (rate-limited per IP)
+    owner = cart_owner()
+    if not owner:
+        if _redeem_rate_limited(f"guestcart:{request.remote_addr}", max_attempts=GUEST_CART_NEW_PER_HOUR, window=3600):
+            return jsonify({'error': 'Too many new carts from this connection. Please try again later.'}), 429
+        owner = cart_owner(create=True)
+        purge_old_guest_carts()
+
     # Max 5 per product
-    existing = CartItem.query.filter_by(user_email=user['email'], product_id=product_id).first()
+    existing = CartItem.query.filter_by(user_email=owner, product_id=product_id).first()
     if existing:
         new_qty = existing.quantity + quantity
         if new_qty > 5:
@@ -2949,24 +3008,24 @@ def add_to_cart():
     else:
         if quantity > 5:
             return jsonify({'error': 'Maximum 5 per product allowed'}), 400
-        item = CartItem(user_email=user['email'], product_id=product_id, quantity=quantity)
+        item = CartItem(user_email=owner, product_id=product_id, quantity=quantity)
         db.session.add(item)
-    
+
     db.session.commit()
-    count = CartItem.query.filter_by(user_email=user['email']).count()
+    count = CartItem.query.filter_by(user_email=owner).count()
     return jsonify({'success': True, 'message': f'{product.name} added to cart!', 'cart_count': count})
 
 @app.route('/cart/update', methods=['POST'])
 def update_cart():
-    user = session.get('user')
-    if not user:
-        return jsonify({'error': 'Please login first'}), 401
-    
+    owner = cart_owner()
+    if not owner:
+        return jsonify({'error': 'Item not found'}), 404
+
     data = request.json
     item_id = data.get('item_id')
     quantity = int(data.get('quantity', 1))
-    
-    item = CartItem.query.filter_by(id=item_id, user_email=user['email']).first()
+
+    item = CartItem.query.filter_by(id=item_id, user_email=owner).first()
     if not item:
         return jsonify({'error': 'Item not found'}), 404
     
@@ -2985,38 +3044,38 @@ def update_cart():
     db.session.commit()
     
     # Recalculate totals
-    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
+    cart_items = CartItem.query.filter_by(user_email=owner).options(joinedload(CartItem.product)).all()
     cart_total = sum(int(float(ci.product.price)) * ci.quantity for ci in cart_items if ci.product)
     count = len(cart_items)
-    
+
     return jsonify({'success': True, 'cart_total': cart_total, 'cart_count': count})
 
 @app.route('/cart/remove', methods=['POST'])
 def remove_from_cart():
-    user = session.get('user')
-    if not user:
-        return jsonify({'error': 'Please login first'}), 401
-    
+    owner = cart_owner()
+    if not owner:
+        return jsonify({'success': True, 'cart_total': 0, 'cart_count': 0})
+
     data = request.json
     item_id = data.get('item_id')
-    
-    item = CartItem.query.filter_by(id=item_id, user_email=user['email']).first()
+
+    item = CartItem.query.filter_by(id=item_id, user_email=owner).first()
     if item:
         db.session.delete(item)
         db.session.commit()
-    
-    cart_items = CartItem.query.filter_by(user_email=user['email']).options(joinedload(CartItem.product)).all()
+
+    cart_items = CartItem.query.filter_by(user_email=owner).options(joinedload(CartItem.product)).all()
     cart_total = sum(int(float(ci.product.price)) * ci.quantity for ci in cart_items if ci.product)
     count = len(cart_items)
-    
+
     return jsonify({'success': True, 'cart_total': cart_total, 'cart_count': count})
 
 @app.route('/cart/count')
 def cart_count():
-    user = session.get('user')
-    if not user:
+    owner = cart_owner()
+    if not owner:
         return jsonify({'count': 0})
-    count = CartItem.query.filter_by(user_email=user['email']).count()
+    count = CartItem.query.filter_by(user_email=owner).count()
     return jsonify({'count': count})
 
 
@@ -3028,7 +3087,8 @@ def cart_count():
 def checkout():
     user = session.get('user')
     if not user:
-        flash("Please login to checkout.", "warning")
+        session['post_login_next'] = '/checkout'
+        flash("Sign in with Google to complete your order. Your cart is saved.", "info")
         return redirect('/login')
     
     if get_setting('store_open', 'true') == 'false':
@@ -3543,6 +3603,7 @@ def sync_pending_payments():
 def my_orders():
     user = session.get('user')
     if not user:
+        session['post_login_next'] = '/orders'
         flash("Please login to view your orders.", "warning")
         return redirect('/login')
     
@@ -3553,6 +3614,7 @@ def my_orders():
 def my_coupons():
     user = session.get('user')
     if not user:
+        session['post_login_next'] = '/my-coupons'
         flash("Please login to view your coupons.", "warning")
         return redirect('/login')
 
@@ -3563,6 +3625,7 @@ def my_coupons():
 def refer_and_earn():
     user = session.get('user')
     if not user:
+        session['post_login_next'] = '/refer'
         flash("Please login to get your referral link.", "warning")
         return redirect('/login')
 
@@ -4091,9 +4154,9 @@ def nimbus_webhook():
 # Inject cart count into all templates
 @app.context_processor
 def inject_cart_count():
-    user = session.get('user')
-    if user:
-        count = CartItem.query.filter_by(user_email=user['email']).count()
+    owner = cart_owner()
+    if owner:
+        count = CartItem.query.filter_by(user_email=owner).count()
         return {'cart_count': count}
     return {'cart_count': 0}
 
