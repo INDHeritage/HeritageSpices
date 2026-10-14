@@ -80,9 +80,11 @@
       color: var(--text-charcoal);
       margin: 0;
       padding: 66px 0 0 0;   /* room for the fixed header */
+      overflow-x: clip;      /* a slid-in or off-screen element can never make the phone page wider than the screen */
     }
 
-    header {
+    /* Scoped to the site's top bar (a direct child of body), never a header element inside an article. */
+    body > header {
       /* Same light-grey as the animated logo's own background, so the logo blends into the
          bar instead of sitting on a visibly different white strip. */
       background-color: rgba(236, 236, 236, 0.92);
@@ -292,6 +294,31 @@
     @keyframes fadeIn {
       from { opacity: 0; transform: scale(0.95); }
       to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ---- Phone comfort: finger-sized tap targets and a tidier bottom of the screen ---- */
+    @media (max-width: 767.98px) {
+      .carousel-indicators [data-bs-target] { border-top-width: 16px; border-bottom-width: 16px; }
+      .social-icons a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin-right: 0 !important; }
+      .footer-link, .back-link, a.text-success.fw-bold { display: inline-block; padding: 8px 0; }
+      .breadcrumb a, .card-title a { display: inline-block; padding: 8px 2px; }
+      .btn-sm { min-height: 38px; min-width: 38px; }
+      .welcome-offer-btn { padding: 10px 20px; }
+      #cookie-banner a { display: inline-block; padding: 6px 0; }
+      .input-group-sm > .btn, .input-group-sm > .form-control { min-height: 40px; min-width: 40px; }
+      .category-pill { min-height: 40px; display: inline-flex; align-items: center; }
+      .welcome-offer-close { top: 0; right: 0; padding: 10px 14px; font-size: 1.4rem; }
+
+      /* Cookie notice: a compact card that leaves room for the chat bubble (right) and, on pages
+         with the sticky order bar, sits above it instead of hiding it. */
+      #cookie-banner {
+        left: 8px; right: 84px; bottom: 8px; width: auto;
+        border-radius: 12px !important; padding: 8px 12px;
+        font-size: .78rem; line-height: 1.35; text-align: left !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,.2);
+      }
+      html.has-mobile-bar #cookie-banner { bottom: calc(66px + env(safe-area-inset-bottom)); }
+      #cookie-banner .btn { display: block; margin: 6px 0 0 !important; min-height: 38px; padding: 6px 18px; }
     }
   </style>
 
