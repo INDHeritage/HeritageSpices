@@ -1,7 +1,7 @@
 <!-- 🔥 Tagline Banner -->
 <section class="tagline-banner motion-section text-center">
   <div class="container position-relative">
-    <h2 class="tagline-heading">One Spice. <span>Every Dish. Every Time.</span></h2>
+    <h2 class="tagline-heading" id="taglineHeading" aria-label="One Spice. Every Dish. Every Time."><span class="tl-a">One Spice.</span> <span class="tl-b">Every Dish. Every Time.</span></h2>
     <p class="tagline-sub">Rooted in Tradition. Rich in Flavor. Straight from our partner farms to your kitchen.</p>
     <a href="/products" class="btn tagline-btn">
       <i class="fas fa-fire me-2"></i>Shop The Collection
@@ -30,11 +30,13 @@
     animation: tagline-glow 2.4s ease-in-out infinite alternate;
   }
 
-  .tagline-heading span {
+  .tagline-heading .tl-b {
     display: block;
     color: #d4a017;
     font-size: 1.1em;
   }
+  .tagline-heading .tl-a, .tagline-heading .tl-b { transition: opacity .6s ease; }
+  .tagline-heading.fading .tl-a, .tagline-heading.fading .tl-b { opacity: 0; }
 
   @keyframes tagline-glow {
     from {
@@ -79,3 +81,29 @@
     .tagline-heading { animation: none; }
   }
 </style>
+<script>
+(function () {
+  // Starts on the brand line ("One Spice. Every Dish. Every Time."), then rotates through a few
+  // others and comes back to it. The real text stays in the HTML + aria-label for SEO/screen readers.
+  var h = document.getElementById('taglineHeading');
+  if (!h || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  var a = h.querySelector('.tl-a'), b = h.querySelector('.tl-b');
+  var lines = [
+    ['One Spice.', 'Every Dish. Every Time.'],
+    ['Taste Like', 'Never Before.'],
+    ['Ground Fresh.', 'Packed With Care.'],
+    ['Pure Spice.', 'True Heritage.']
+  ];
+  var i = 0;
+  setInterval(function () {
+    if (document.hidden) return;
+    h.classList.add('fading');
+    setTimeout(function () {
+      i = (i + 1) % lines.length;
+      a.textContent = lines[i][0];
+      b.textContent = lines[i][1];
+      h.classList.remove('fading');
+    }, 650);
+  }, 5000);
+})();
+</script>
