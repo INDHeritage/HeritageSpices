@@ -2218,13 +2218,36 @@ def google_merchant_feed():
     ])
     return xml, 200, {'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=900'}
 
-# --- QR Code Scan Tracking ---
-# No personal data is collected here -- just an anonymous log of which
-# product's QR code was scanned, so the owner can see which products get
-# scanned most. Redirects straight to the shop page.
+# --- QR Code Scan Landing ---
+# This URL is printed on the pouches, so it must never change. No personal data is collected:
+# just an anonymous log of which product's QR code was scanned. The page shows the product the
+# customer is holding, how to cook with it, recipes from the blog, and a way to reorder/review.
+_recipe_blogs_cache = {'data': None, 'loaded_at': 0.0}
+
+def get_recipe_blogs(limit=3):
+    """Latest blog posts for the scan page, recipes first (cached 5 min like the homepage strip)."""
+    now = time.time()
+    if _recipe_blogs_cache['data'] is None or now - _recipe_blogs_cache['loaded_at'] > 300:
+        posts = Blog.query.order_by(Blog.id.desc()).limit(12).all()
+        recipes = [b for b in posts if 'recipe' in (b.category or '').lower()]
+        picked = (recipes + [b for b in posts if b not in recipes])[:limit]
+        cards = []
+        for b in picked:
+            plain = re.sub(r'\s+', ' ', html_lib.unescape(re.sub(r'<[^>]+>', ' ', b.content or ''))).strip()
+            cards.append({
+                'title': b.title,
+                'category': b.category,
+                'image_url': b.image_url,
+                'excerpt': (plain[:110].rsplit(' ', 1)[0] + '...') if len(plain) > 110 else plain,
+                'url_slug': slugify(b.slug),
+            })
+        _recipe_blogs_cache['data'] = cards
+        _recipe_blogs_cache['loaded_at'] = now
+    return _recipe_blogs_cache['data']
+
 @app.route('/scan/<int:product_id>')
 def scan_product(product_id):
-    product = Product.query.get_or_404(product_id)
+    product = Product.query.options(joinedload(Product.reviews)).filter_by(id=product_id).first_or_404()
     try:
         db.session.add(ProductScan(
             product_id=product.id,
@@ -2236,7 +2259,18 @@ def scan_product(product_id):
     except Exception as e:
         db.session.rollback()
         print("ProductScan logging error:", e)
-    return redirect('/products')
+
+    base = product_base_name(product.name)
+    others = []
+    if base != product.name:
+        like = base.replace('%', '').replace('_', '') + ' - %'
+        others = Product.query.filter(Product.name.like(like), Product.id != product.id).all()
+
+    site = notifications.site_url()
+    return render_template('scan_landing.html', product=product, others=others,
+                           price=product_price_rupees(product), reviews=product.approved_reviews,
+                           recent_blogs=get_recipe_blogs(3), user=session.get('user'),
+                           page_url=f"{site}/product/{product.id}")
 
 # --- Admin: QR Codes for products (generate + download, view scan counts) ---
 @app.route('/admin/qr-codes')

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} | Heritage Spices{% endblock %}
+{% block meta_description %}Thank you for choosing Heritage Spices {{ product.name }}. See how to cook with it, recipes from our kitchen, and reorder fresh.{% endblock %}
+{% block canonical %}{{ page_url }}{% endblock %}
+{% block robots %}noindex, follow{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-md-5" style="max-width: 920px;">
+
+  <div class="scan-hero text-center" id="products">
+    <span class="badge bg-warning text-dark fw-bold text-uppercase mb-2">Thanks for scanning</span>
+    <h1 class="h2 fw-bold text-success mb-1">{{ product.name }}</h1>
+    <p class="text-muted mb-3">Rooted in Tradition. Rich in Flavor.</p>
+
+    {% if product.image_url %}
+    <div class="scan-img-box mx-auto mb-3">
+      <img src="{{ product.image_url }}" alt="{{ product.name }} pouch" class="scan-img" decoding="async">
+    </div>
+    {% endif %}
+
+    {% if price is not none %}<div class="fw-bold fs-3 mb-1" style="color:#6b1d14;">&#8377;{{ price }}</div>{% endif %}
+    {% if reviews %}
+      <div class="text-warning mb-2" aria-label="{{ product.avg_rating }} out of 5 stars">
+        {% for i in range((product.avg_rating|round|int)) %}<i class="fas fa-star"></i>{% endfor %}{% for i in range(5 - (product.avg_rating|round|int)) %}<i class="far fa-star"></i>{% endfor %}
+        <span class="text-muted small ms-1">{{ product.avg_rating }} &middot; {{ reviews|length }} review{{ 's' if reviews|length != 1 else '' }}</span>
+      </div>
+    {% endif %}
+
+    <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+      <a href="/product/{{ product.id }}" class="btn btn-success rounded-pill px-4"><i class="fas fa-cart-plus me-1"></i> Order more</a>
+      {% for o in others %}
+        <a href="/scan/{{ o.id }}" class="btn btn-outline-success rounded-pill px-4">See {{ o.name.rsplit(' - ', 1)[-1] }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="row g-3 text-center my-4">
+    <div class="col-4"><div class="scan-fact"><i class="fas fa-certificate"></i><span>FSSAI licensed</span></div></div>
+    <div class="col-4"><div class="scan-fact"><i class="fas fa-hourglass-half"></i><span>Best before 18 months</span></div></div>
+    <div class="col-4"><div class="scan-fact"><i class="fas fa-box-open"></i><span>Reseal &amp; store cool, dry</span></div></div>
+  </div>
+
+  {% if product.description %}
+  <section class="mb-4">
+    <h2 class="h5 fw-bold text-uppercase text-muted">What's inside</h2>
+    <p style="white-space: pre-line;">{{ product.description|striptags }}</p>
+  </section>
+  {% endif %}
+
+  <h2 class="h4 fw-bold text-success text-center mt-5 mb-0">Cook with your Garam Masala</h2>
+</div>
+
+{% include "partials/dish_picker.html" %}
+{% include "partials/recipes_strip.html" %}
+
+<div class="container pb-5 mt-5" style="max-width: 920px;">
+  <div class="row g-3">
+    {% if google_review %}
+    <div class="col-md-6">
+      <div class="scan-cta h-100">
+        <h2 class="h6 fw-bold mb-1">Loved it?</h2>
+        <p class="small text-muted mb-2">A quick Google review helps other families find real spices.</p>
+        <a href="{{ google_review.url }}" target="_blank" rel="noopener" class="btn btn-outline-success btn-sm rounded-pill"><i class="fab fa-google me-1"></i> Leave a review</a>
+      </div>
+    </div>
+    {% endif %}
+    <div class="{{ 'col-md-6' if google_review else 'col-12' }}">
+      <div class="scan-cta h-100">
+        <h2 class="h6 fw-bold mb-1">Share the flavour</h2>
+        <p class="small text-muted mb-2">Refer a friend and you both earn rewards on their first order.</p>
+        <a href="/refer" class="btn btn-outline-success btn-sm rounded-pill"><i class="fas fa-user-plus me-1"></i> Refer &amp; Earn</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .scan-img-box { max-width: 260px; background: linear-gradient(135deg,#fdf8ef,#f3ead6); border-radius: 20px; padding: 16px; }
+  .scan-img { width: 100%; max-height: 300px; object-fit: contain; }
+  .scan-fact { background: #faf5ea; border-radius: 12px; padding: 12px 8px; height: 100%; font-size: .78rem; color: #4a4033; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .scan-fact i { color: #1b4332; font-size: 1.1rem; }
+  .scan-cta { background: #fff; border: 1px solid #efe6d2; border-radius: 16px; padding: 18px; }
+</style>
+{% endblock %}

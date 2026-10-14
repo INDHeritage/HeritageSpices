@@ -10,7 +10,7 @@
   <meta name="description" content="{% block meta_description %}Authentic farm-sourced spices from Heritage Spices: freshly packed Garam Masala, FSSAI licensed, delivered to your door.{% endblock %}" />
   <meta name="author" content="Indian Heritage Spices" />
   <meta name="keywords" content="Indian Heritage Spices, Garam Masala, Farm Sourced Spices, Natural Masala, Premium Masala, Authentic Spices, Pure Masala, Spices India" />
-  <meta name="robots" content="index, follow" />
+  <meta name="robots" content="{% block robots %}index, follow{% endblock %}" />
   {% for token in google_site_verification %}<meta name="google-site-verification" content="{{ token }}" />
   {% endfor %}  <meta name="language" content="English" />
   

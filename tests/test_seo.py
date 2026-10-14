@@ -295,3 +295,33 @@ def test_headings_inside_a_post_body_never_add_a_second_h1(site):
     h = parse(site, '/blog/body-with-heading')
     assert len(h.h1) == 1
     assert 'Repeated big heading' in site.get('/blog/body-with-heading').get_data(as_text=True)
+
+
+# ---------- QR scan landing (printed on the pouches, so the URL must keep working) ----------
+
+def test_qr_scan_shows_the_product_recipes_and_logs_an_anonymous_scan(site):
+    _post(title='Easy Paneer Butter Masala', slug='easy-paneer-butter-masala')
+    appmod._recipe_blogs_cache['data'] = None
+    r = site.get('/scan/1')
+    assert r.status_code == 200
+    html = r.get_data(as_text=True)
+    assert 'Garam Masala - 50g' in html
+    assert 'href="/product/1"' in html
+    assert 'What will you cook today?' in html
+    assert '/blog/' in html
+    assert appmod.ProductScan.query.filter_by(product_id=1).count() == 1
+
+
+def test_qr_scan_page_is_noindex_with_the_product_page_as_canonical(site):
+    h = parse(site, '/scan/1')
+    assert h.meta['robots'] == 'noindex, follow'
+    assert h.canonical.endswith('/product/1')
+    assert len(h.h1) == 1
+
+
+def test_qr_scan_for_a_missing_product_is_a_404(site):
+    assert site.get('/scan/999').status_code == 404
+
+
+def test_normal_pages_are_still_indexable(site):
+    assert parse(site, '/').meta['robots'] == 'index, follow'
