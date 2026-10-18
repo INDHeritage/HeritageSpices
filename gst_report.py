@@ -4,7 +4,6 @@ and GSTR-3B worksheet built from both, and the filing record. Pure functions on 
 These are preparation figures for the owner and the CA. The GST portal's own calculation is the final word.
 """
 import json
-from collections import defaultdict
 
 import gst_tax
 from sales_stats import _i, to_ist_date

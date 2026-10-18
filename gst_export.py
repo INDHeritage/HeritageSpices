@@ -7,7 +7,6 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-import gst_tax
 
 HEAD = PatternFill('solid', fgColor='1B4332')
 SUB = PatternFill('solid', fgColor='EFE6D2')

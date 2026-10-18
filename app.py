@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 import os
 import csv
 from functools import wraps
-from flask import abort, request
+from flask import abort, Response
 import json
 import uuid
 import requests
@@ -46,7 +46,6 @@ from sqlalchemy.exc import IntegrityError
 # -------------------------
 load_dotenv()
 
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 # Admin accounts. Comma-separated ADMIN_EMAILS env var; defaults to the store owner so
 # existing behaviour is unchanged if the variable is not set.
@@ -1048,7 +1047,7 @@ def complete_login(user_info):
             new_user.referred_by_email = referrer.email
             db.session.add(Referral(referrer_email=referrer.email, referred_email=user_info['email']))
             db.session.commit()
-            flash(f"You were referred by a friend! Complete your first order and you'll earn bonus points.", 'success')
+            flash("You were referred by a friend! Complete your first order and you'll earn bonus points.", 'success')
             notify_referral_joined(referrer.email, user_info['email'])
 
     has_any_coupon = Coupon.query.filter_by(user_email=user_info['email']).first() is not None
@@ -1414,7 +1413,6 @@ def blog():
     ]
     categories = sorted(set(b.category for b in blogs))
 
-    admin_password = os.getenv("ADMIN_PASSWORD")
     return render_template(
         "blog_list.html",
         blogs=filtered,
@@ -1422,8 +1420,7 @@ def blog():
         query=query,
         selected_category=category,
         user=user,
-        is_logged_in=is_logged_in,
-        admin_password=admin_password
+        is_logged_in=is_logged_in
     )
 
 # --- Blog Detail Route ---
@@ -1451,7 +1448,6 @@ def blog_detail(slug):
         return "Post not found", 404
 
     user = session.get('user')
-    admin_password = os.getenv("ADMIN_PASSWORD")
     recent_posts = [b for b in all_blogs if b.id != post.id][:3]
 
     site = notifications.site_url()
@@ -1479,7 +1475,7 @@ def blog_detail(slug):
         ],
     }
     return render_template("blog_detail.html", post=post, recent_posts=recent_posts, user=user,
-                           is_logged_in=bool(user), admin_password=admin_password, page_url=page_url,
+                           is_logged_in=bool(user), page_url=page_url,
                            description=description, json_ld=[article, breadcrumbs])
 
 # --- Admin Add Blog Route ---
@@ -1530,16 +1526,12 @@ def manage_blogs():
         return redirect('/admin/blogs')
 
     blogs = get_all_blogs()
-    admin_password = os.getenv("ADMIN_PASSWORD")
-    return render_template("admin_blog.html", blogs=blogs, user=session.get('user'), admin_password=admin_password)
+    return render_template("admin_blog.html", blogs=blogs, user=session.get('user'))
 
 # --- Admin Delete Blog Route ---
 @app.route('/admin/blogs/delete/<int:id>', methods=['POST'])
 def delete_blog(id):
     if not is_admin_user(session.get('user')):
-        abort(403)
-    password = request.form.get('password')
-    if not ADMIN_PASSWORD or password != ADMIN_PASSWORD:
         abort(403)
     blog = get_blog_by_id(id)
     if blog:
@@ -1741,10 +1733,6 @@ def admin_dashboard():
                            chart_revenue=chart_revenue,
                            chart_orders=chart_orders,
                            chart_visits=chart_visits)
-
-import csv
-import io
-from flask import Response
 
 @app.route('/admin/export/<data_type>')
 @admin_required
@@ -3196,7 +3184,7 @@ def delete_practice_page():
             new_path = os.path.join(upload_dir, f'page_{i}.png')
             if page_path != new_path:
                 os.rename(page_path, new_path)
-        flash(f"Page deleted and remaining pages renumbered.", "success")
+        flash("Page deleted and remaining pages renumbered.", "success")
     else:
         flash("Page not found.", "danger")
     
