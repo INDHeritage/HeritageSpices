@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Check Your Batch | Heritage Spices{% endblock %}
+{% block meta_description %}Enter the batch code printed on your Heritage Spices pouch to see whether its lab test report is available.{% endblock %}
+{% block robots %}noindex, follow{% endblock %}
+
+{% block content %}
+<style>
+  .bt-card { background:#fff; border:1px solid #efe6d2; border-radius:16px; padding:22px; box-shadow:0 2px 12px rgba(0,0,0,.04); }
+  .bt-status { border-radius:14px; padding:18px 20px; display:flex; gap:14px; align-items:flex-start; }
+  .bt-status i { font-size:1.6rem; margin-top:2px; }
+  .bt-status.ok { background:#e8f3ec; border:1px solid #b9d9c4; color:#1b4332; }
+  .bt-status.soon { background:#fff8e6; border:1px solid #f1deaa; color:#6b5311; }
+  .bt-status.none { background:#fdecea; border:1px solid #f3b9b3; color:#7a1f17; }
+  .bt-code { letter-spacing:.06em; font-family:ui-monospace,Menlo,Consolas,monospace; }
+</style>
+<div class="container py-4 py-md-5" style="max-width:640px;">
+  <div class="text-center mb-4">
+    <span class="badge bg-warning text-dark fw-bold text-uppercase mb-2">Lab tested</span>
+    <h1 class="h3 fw-bold text-success mb-1">Check your batch</h1>
+    <p class="text-muted mb-0">Type the batch code printed on your pouch to see its lab test report.</p>
+  </div>
+
+  <form method="get" action="/batch" class="bt-card mb-3">
+    <label for="batch-code" class="form-label fw-semibold">Batch code</label>
+    <div class="input-group">
+      <input id="batch-code" name="code" value="{{ raw }}" class="form-control form-control-lg bt-code text-uppercase"
+             placeholder="e.g. GM-2610-A" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+      <button class="btn btn-success px-4" type="submit"><i class="fas fa-search me-1"></i> Check</button>
+    </div>
+    <div class="form-text">You'll find it near the best-before date on the pouch.</div>
+  </form>
+
+  {% if result %}
+    {% set b = result.batch %}
+    {% if result.status == 'available' %}
+      <div class="bt-status ok" role="status">
+        <i class="fas fa-circle-check"></i>
+        <div class="flex-grow-1">
+          <div class="fw-bold">Valid batch &middot; test report available</div>
+          <div class="small"><span class="bt-code">{{ result.code }}</span>{% if b.product_name %} &middot; {{ b.product_name }}{% endif %}{% if b.mfg_date %} &middot; Packed {{ b.mfg_date }}{% endif %}</div>
+          <div class="small mt-1">{{ result.count }} report{{ 's' if result.count != 1 }} on file.</div>
+          <a class="btn btn-success mt-3" href="/batch/access?code={{ result.code|urlencode }}"><i class="fas fa-lock me-1"></i> View / download report</a>
+          <div class="small mt-2 text-muted">To keep reports with the people who bought them, we ask you to sign in with Google and enter a code we e-mail you.</div>
+        </div>
+      </div>
+    {% elif result.status == 'coming_soon' %}
+      <div class="bt-status soon" role="status">
+        <i class="fas fa-hourglass-half"></i>
+        <div>
+          <div class="fw-bold">Valid batch &middot; report coming soon</div>
+          <div class="small"><span class="bt-code">{{ result.code }}</span>{% if b.product_name %} &middot; {{ b.product_name }}{% endif %}{% if b.mfg_date %} &middot; Packed {{ b.mfg_date }}{% endif %}</div>
+          <div class="small mt-1">This batch is registered with us and its lab test is on the way. Please check back in a few days.</div>
+        </div>
+      </div>
+    {% else %}
+      <div class="bt-status none" role="status">
+        <i class="fas fa-circle-xmark"></i>
+        <div>
+          <div class="fw-bold">We couldn't find that batch</div>
+          <div class="small">Check the code on your pouch and try again. If it still doesn't work, please <a href="/contact" class="text-reset">contact us</a>.</div>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

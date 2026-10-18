@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Batch Certificates | Heritage Spices{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+
+{% block content %}
+<style>
+  .b-card { background:#fff; border:1px solid #efe6d2; border-radius:14px; padding:18px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,.04); }
+  .b-pill { display:inline-block; padding:3px 12px; border-radius:999px; font-weight:700; font-size:.78rem; }
+  .b-pill.available { background:#1b4332; color:#fff; } .b-pill.coming_soon { background:#fff2b3; color:#6b5311; }
+  .b-cert { border-top:1px solid #f1ead8; padding:8px 0; }
+  details > summary { cursor:pointer; font-weight:600; color:#1b4332; padding:4px 0; }
+</style>
+<div class="container py-4" style="max-width:980px;">
+  <div class="mb-3">
+    <h1 class="h3 fw-bold text-success mb-0"><i class="fas fa-vial-circle-check me-2"></i>Batch certificates</h1>
+    <div class="text-muted small">Register each batch printed on the pouches, then upload its lab report. &middot; <a href="/admin/dashboard" class="text-decoration-none">Admin</a> &middot; <a href="/batch" class="text-decoration-none">Customer page</a></div>
+  </div>
+
+  <div class="b-card">
+    <h2 class="h6 fw-bold text-success">How customers see it</h2>
+    <div class="small text-muted">A batch you add here shows <span class="b-pill coming_soon">Coming soon</span> until you upload a certificate, then <span class="b-pill available">Available</span>. A code you haven't added shows "not found". Customers must sign in with Google and enter an e-mailed code to open the file. Files must be PDF, JPG or PNG up to {{ max_mb }} MB.</div>
+  </div>
+
+  <form method="post" action="/admin/batches/add" class="b-card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 class="h6 fw-bold text-success">Add a batch</h2>
+    <div class="row g-2">
+      <div class="col-md-3"><label class="form-label small mb-1" for="n-code">Batch code *</label><input id="n-code" name="code" class="form-control text-uppercase" maxlength="40" placeholder="GM-2610-A" required></div>
+      <div class="col-md-3"><label class="form-label small mb-1" for="n-prod">Product (optional)</label>
+        <select id="n-prod" name="product_id" class="form-select"><option value="">- any -</option>{% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-2"><label class="form-label small mb-1" for="n-mfg">Packed on</label><input id="n-mfg" name="mfg_date" class="form-control" maxlength="40" placeholder="Oct 2026"></div>
+      <div class="col-md-4"><label class="form-label small mb-1" for="n-notes">Note (admin only)</label><input id="n-notes" name="notes" class="form-control" maxlength="300"></div>
+    </div>
+    <button class="btn btn-success mt-3" type="submit"><i class="fas fa-plus me-1"></i> Add batch</button>
+  </form>
+
+  {% for row in rows %}
+    {% set b = row.batch %}
+    <div class="b-card">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+          <div class="h5 fw-bold mb-0 font-monospace">{{ b.code }} <span class="b-pill {{ row.status }} ms-1">{{ 'Available' if row.status == 'available' else 'Coming soon' }}</span></div>
+          <div class="small text-muted">{{ b.product_name or 'Any product' }}{% if b.mfg_date %} &middot; Packed {{ b.mfg_date }}{% endif %} &middot; {{ row.views }} view/download{{ 's' if row.views != 1 }}{% if b.notes %} &middot; {{ b.notes }}{% endif %}</div>
+        </div>
+        <form method="post" action="/admin/batches/{{ b.id }}/delete" onsubmit="return confirm('Delete batch {{ b.code }} and all its certificates?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-danger btn-sm" type="submit"><i class="fas fa-trash me-1"></i> Delete batch</button>
+        </form>
+      </div>
+
+      {% for c in row.certs %}
+      <div class="b-cert d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+        <div><i class="fas {{ 'fa-file-pdf text-danger' if c.ext == 'pdf' else 'fa-file-image text-success' }} me-1"></i>{{ c.title }} <span class="small text-muted">&middot; {{ c.ext|upper }} &middot; {{ (c.size / 1024)|round|int }} KB &middot; {{ c.uploaded_at.strftime('%d %b %Y') }}</span></div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-success btn-sm" href="/admin/batches/file/{{ c.id }}" target="_blank" rel="noopener">View</a>
+          <a class="btn btn-outline-secondary btn-sm" href="/admin/batches/file/{{ c.id }}?download=1">Download</a>
+          <form method="post" action="/admin/batches/cert/{{ c.id }}/delete" onsubmit="return confirm('Remove this certificate?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Remove</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+
+      <form method="post" action="/admin/batches/{{ b.id }}/upload" enctype="multipart/form-data" class="row g-2 align-items-end mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-md-4"><label class="form-label small mb-1" for="t{{ b.id }}">Title</label><input id="t{{ b.id }}" name="title" class="form-control form-control-sm" maxlength="120" placeholder="Lab test report"></div>
+        <div class="col-md-5"><label class="form-label small mb-1" for="f{{ b.id }}">File (PDF / JPG / PNG)</label><input id="f{{ b.id }}" type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="form-control form-control-sm" required></div>
+        <div class="col-md-3"><button class="btn btn-success btn-sm w-100" type="submit"><i class="fas fa-upload me-1"></i> Upload</button></div>
+      </form>
+
+      <details class="mt-2">
+        <summary>Edit details</summary>
+        <form method="post" action="/admin/batches/{{ b.id }}/edit" class="row g-2 mt-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="col-md-4"><select name="product_id" class="form-select form-select-sm" aria-label="Product"><option value="">- any -</option>{% for p in products %}<option value="{{ p.id }}" {{ 'selected' if p.id == b.product_id }}>{{ p.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-3"><input name="mfg_date" value="{{ b.mfg_date or '' }}" class="form-control form-control-sm" maxlength="40" placeholder="Packed on" aria-label="Packed on"></div>
+          <div class="col-md-4"><input name="notes" value="{{ b.notes or '' }}" class="form-control form-control-sm" maxlength="300" placeholder="Note" aria-label="Note"></div>
+          <div class="col-md-1"><button class="btn btn-outline-success btn-sm w-100" type="submit">Save</button></div>
+        </form>
+      </details>
+    </div>
+  {% else %}
+    <div class="b-card text-center text-muted">No batches yet. Add the first one above.</div>
+  {% endfor %}
+</div>
+{% endblock %}

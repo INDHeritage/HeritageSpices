@@ -28,6 +28,7 @@ import hmac
 import hashlib
 import nimbus_api
 import notifications
+import batch_certs
 import receipts
 import sales_stats
 import billing_client
@@ -208,6 +209,52 @@ class ProductScan(db.Model):
     ip = db.Column(db.String(64), nullable=True)
     user_agent = db.Column(db.String(300), nullable=True)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
+
+# --- Batch lab-test certificates (see batch_certs.py) ---
+class Batch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(batch_certs.CODE_MAX_LEN), unique=True, nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id', ondelete='SET NULL'), nullable=True)
+    product_name = db.Column(db.String(200), nullable=True)
+    mfg_date = db.Column(db.String(40), nullable=True)
+    notes = db.Column(db.String(300), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    certificates = db.relationship('BatchCertificate', backref='batch', cascade='all, delete-orphan',
+                                   order_by='BatchCertificate.id')
+
+class BatchCertificate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    batch_id = db.Column(db.Integer, db.ForeignKey('batch.id', ondelete='CASCADE'), nullable=False, index=True)
+    title = db.Column(db.String(120), nullable=False)
+    ext = db.Column(db.String(5), nullable=False)
+    mimetype = db.Column(db.String(60), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    # The file itself lives in the database (Render's disk is wiped on every deploy). Deferred so
+    # listing certificates never drags the files along.
+    data = db.deferred(db.Column(db.LargeBinary, nullable=False))
+    uploaded_by = db.Column(db.String(200))
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class BatchAccessCode(db.Model):
+    """One e-mailed one-time code. Only a keyed hash is stored, never the code."""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(200), nullable=False, index=True)
+    batch_code = db.Column(db.String(batch_certs.CODE_MAX_LEN), nullable=False)
+    code_hash = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    attempts = db.Column(db.Integer, default=0, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+
+class BatchCertView(db.Model):
+    """Who opened which certificate (the customer's verified Google e-mail)."""
+    id = db.Column(db.Integer, primary_key=True)
+    batch_code = db.Column(db.String(batch_certs.CODE_MAX_LEN), nullable=False, index=True)
+    certificate_id = db.Column(db.Integer, nullable=True)
+    email = db.Column(db.String(200), nullable=False)
+    action = db.Column(db.String(10), nullable=False)       # 'view' or 'download'
+    ip = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # --- Product Model ---
 class Product(db.Model):
@@ -2307,6 +2354,285 @@ def scan_product(product_id):
                            price=product_price_rupees(product), reviews=product.approved_reviews,
                            recent_blogs=get_recipe_blogs(3), user=session.get('user'),
                            page_url=f"{site}/product/{product.id}")
+
+# --- Batch lab-test certificates: public lookup, Google + e-mailed-code gate, admin upload ---
+def _batch_lookup(code):
+    """(batch or None, certificate_count) for an already-normalised code."""
+    batch = Batch.query.filter_by(code=code).first() if code else None
+    count = BatchCertificate.query.filter_by(batch_id=batch.id).count() if batch else 0
+    return batch, count
+
+def _batch_ip():
+    return request.remote_addr or 'unknown'
+
+def _batch_access_url(code):
+    return '/batch/access?code=' + urllib.parse.quote(code, safe='')
+
+@app.route('/batch')
+def batch_lookup():
+    """Is this batch valid, and is its lab report ready? Anyone can ask; the report itself needs sign-in."""
+    raw = (request.args.get('code') or '').strip()
+    code = batch_certs.normalize_code(raw)
+    result = None
+    if raw:
+        if _redeem_rate_limited(f"batch-lookup:{_batch_ip()}", 40, 300):
+            flash("Too many look-ups. Please wait a few minutes and try again.", "warning")
+        elif not code:
+            flash("Enter the batch code exactly as printed on your pouch.", "warning")
+        else:
+            batch, count = _batch_lookup(code)
+            result = {'code': code, 'status': batch_certs.status_for(batch, count), 'batch': batch, 'count': count}
+    return render_template('batch_lookup.html', raw=raw, code=code, result=result, user=session.get('user'))
+
+def _batch_open_or_redirect(code):
+    """Return (batch, None) when the batch exists and has a report, else (None, redirect-response)."""
+    batch, count = _batch_lookup(code)
+    if not batch or not count:
+        return None, redirect('/batch?code=' + urllib.parse.quote(code, safe=''))
+    return batch, None
+
+@app.route('/batch/access')
+def batch_access():
+    code = batch_certs.normalize_code(request.args.get('code'))
+    batch, bounce = _batch_open_or_redirect(code)
+    if bounce:
+        return bounce
+    user = session.get('user')
+    pending = None
+    if user:
+        email = user['email'].strip().lower()
+        pending = (BatchAccessCode.query
+                   .filter_by(email=email, batch_code=code, used_at=None)
+                   .filter(BatchAccessCode.expires_at > datetime.utcnow())
+                   .order_by(BatchAccessCode.id.desc()).first())
+        if batch_certs.grant_valid(session.get('batch_grants'), code, email, time.time()):
+            return redirect('/batch/certificates?code=' + urllib.parse.quote(code, safe=''))
+    else:
+        session['post_login_next'] = _batch_access_url(code)
+    return render_template('batch_access.html', batch=batch, code=code, user=user, pending=pending,
+                           email_ready=notifications.is_configured())
+
+@app.route('/batch/send', methods=['POST'])
+def batch_send_code():
+    code = batch_certs.normalize_code(request.form.get('code'))
+    batch, bounce = _batch_open_or_redirect(code)
+    if bounce:
+        return bounce
+    user = session.get('user')
+    if not user:
+        session['post_login_next'] = _batch_access_url(code)
+        return redirect('/login')
+    back = redirect(_batch_access_url(code))
+    email = user['email'].strip().lower()
+    if _redeem_rate_limited(f"batch-send-ip:{_batch_ip()}", 10, 3600):
+        flash("Too many requests from this network. Please try again later.", "warning")
+        return back
+    now = datetime.utcnow()
+    recent = BatchAccessCode.query.filter(BatchAccessCode.email == email,
+                                          BatchAccessCode.created_at > now - timedelta(hours=1)).all()
+    last = max((r.created_at for r in recent), default=None)
+    allowed, wait = batch_certs.can_send(last, len(recent), now)
+    if not allowed:
+        flash(f"A code was just sent. You can ask for another in {wait} seconds." if wait < 3600
+              else "You have asked for too many codes. Please try again in an hour.", "warning")
+        return back
+    if not notifications.is_configured():
+        flash("We can't send e-mails right now. Please try again later.", "danger")
+        return back
+    otp = batch_certs.new_otp()
+    BatchAccessCode.query.filter_by(email=email, batch_code=code, used_at=None).update({'used_at': now})
+    db.session.add(BatchAccessCode(
+        email=email, batch_code=code, created_at=now, expires_at=now + batch_certs.OTP_TTL,
+        code_hash=batch_certs.hash_otp(app.secret_key, email, code, otp)))
+    db.session.commit()
+    minutes = int(batch_certs.OTP_TTL.total_seconds() // 60)
+    notifications.send_email(
+        email, f"{otp} is your Heritage Spices verification code",
+        f"Your verification code for lab report of batch {code} is {otp}.\n\n"
+        f"It works for {minutes} minutes. If you didn't ask for it, you can ignore this e-mail.\n\n"
+        f"Heritage Spices",
+        f'<div style="font-family:Arial,sans-serif;max-width:480px">'
+        f'<p>Your verification code for the lab report of batch <b>{html_lib.escape(code)}</b>:</p>'
+        f'<p style="font-size:32px;letter-spacing:8px;font-weight:700;color:#1b4332;margin:12px 0">{otp}</p>'
+        f'<p style="color:#555">It works for {minutes} minutes. If you didn\'t ask for it, you can ignore this e-mail.</p>'
+        f'<p style="color:#555">Heritage Spices</p></div>')
+    flash(f"We've e-mailed a {batch_certs.OTP_DIGITS}-digit code to {email}.", "success")
+    return back
+
+@app.route('/batch/verify', methods=['POST'])
+def batch_verify_code():
+    code = batch_certs.normalize_code(request.form.get('code'))
+    batch, bounce = _batch_open_or_redirect(code)
+    if bounce:
+        return bounce
+    user = session.get('user')
+    if not user:
+        session['post_login_next'] = _batch_access_url(code)
+        return redirect('/login')
+    back = redirect(_batch_access_url(code))
+    email = user['email'].strip().lower()
+    if _redeem_rate_limited(f"batch-verify-ip:{_batch_ip()}", 20, 600):
+        flash("Too many attempts. Please wait a few minutes.", "warning")
+        return back
+    now = datetime.utcnow()
+    row = (BatchAccessCode.query.filter_by(email=email, batch_code=code, used_at=None)
+           .filter(BatchAccessCode.expires_at > now).order_by(BatchAccessCode.id.desc()).first())
+    if not row:
+        flash("That code has expired. Ask for a new one.", "warning")
+        return back
+    if batch_certs.otp_matches(app.secret_key, email, code, request.form.get('otp'), row.code_hash):
+        row.used_at = now
+        db.session.commit()
+        grants = dict(session.get('batch_grants') or {})
+        grants[code] = {'email': email, 'until': time.time() + batch_certs.GRANT_TTL_SECONDS}
+        session['batch_grants'] = grants
+        return redirect('/batch/certificates?code=' + urllib.parse.quote(code, safe=''))
+    row.attempts = (row.attempts or 0) + 1
+    if row.attempts >= batch_certs.OTP_MAX_WRONG_TRIES:
+        row.used_at = now
+        flash("Too many wrong codes. Ask for a new code.", "danger")
+    else:
+        flash("That code isn't right. Check the e-mail and try again.", "danger")
+    db.session.commit()
+    return back
+
+def _batch_granted(code):
+    user = session.get('user')
+    return bool(user) and batch_certs.grant_valid(session.get('batch_grants'), code,
+                                                  user['email'].strip().lower(), time.time())
+
+@app.route('/batch/certificates')
+def batch_certificates():
+    code = batch_certs.normalize_code(request.args.get('code'))
+    batch, bounce = _batch_open_or_redirect(code)
+    if bounce:
+        return bounce
+    if not _batch_granted(code):
+        return redirect(_batch_access_url(code))
+    return render_template('batch_certs.html', batch=batch, code=code, user=session.get('user'),
+                           certs=batch.certificates)
+
+def _send_certificate(cert, as_attachment):
+    filename = batch_certs.safe_filename(f"{cert.batch.code}-{cert.title}", cert.ext)
+    resp = send_file(io.BytesIO(cert.data), mimetype=cert.mimetype, as_attachment=as_attachment,
+                     download_name=filename)
+    resp.headers['Cache-Control'] = 'private, no-store'
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    return resp
+
+@app.route('/batch/file/<int:cert_id>')
+def batch_file(cert_id):
+    cert = db.session.get(BatchCertificate, cert_id)
+    if not cert:
+        abort(404)
+    code = cert.batch.code
+    if not _batch_granted(code):
+        return redirect(_batch_access_url(code))
+    download = request.args.get('download') == '1'
+    try:
+        db.session.add(BatchCertView(batch_code=code, certificate_id=cert.id, email=session['user']['email'].strip().lower(),
+                                     action='download' if download else 'view', ip=_batch_ip()))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("BatchCertView logging error:", e)
+    return _send_certificate(cert, download)
+
+# ---- admin ----
+def _batch_rows():
+    views = dict(db.session.query(BatchCertView.batch_code, db.func.count(BatchCertView.id)).group_by(BatchCertView.batch_code).all())
+    rows = []
+    for b in Batch.query.order_by(Batch.id.desc()).all():
+        rows.append({'batch': b, 'certs': b.certificates, 'views': views.get(b.code, 0),
+                     'status': batch_certs.status_for(b, len(b.certificates))})
+    return rows
+
+@app.route('/admin/batches')
+@admin_required
+def admin_batches():
+    return render_template('admin_batches.html', rows=_batch_rows(), products=Product.query.order_by(Product.name).all(),
+                           max_mb=batch_certs.MAX_FILE_BYTES // (1024 * 1024), user=session.get('user'))
+
+def _batch_product(form):
+    pid = form.get('product_id', type=int)
+    p = db.session.get(Product, pid) if pid else None
+    return (p.id, p.name[:200]) if p else (None, None)
+
+@app.route('/admin/batches/add', methods=['POST'])
+@admin_required
+def admin_batch_add():
+    code = batch_certs.normalize_code(request.form.get('code'))
+    if not code:
+        flash("Enter the batch code as printed on the pouch (letters, numbers, - _ / only).", "danger")
+    elif Batch.query.filter_by(code=code).first():
+        flash(f"Batch {code} already exists.", "warning")
+    else:
+        pid, pname = _batch_product(request.form)
+        db.session.add(Batch(code=code, product_id=pid, product_name=pname,
+                             mfg_date=(request.form.get('mfg_date') or '').strip()[:40] or None,
+                             notes=(request.form.get('notes') or '').strip()[:300] or None))
+        db.session.commit()
+        flash(f"Batch {code} added. Customers now see it as 'coming soon' until you upload its certificate.", "success")
+    return redirect('/admin/batches')
+
+@app.route('/admin/batches/<int:batch_id>/edit', methods=['POST'])
+@admin_required
+def admin_batch_edit(batch_id):
+    b = db.get_or_404(Batch, batch_id)
+    b.product_id, b.product_name = _batch_product(request.form)
+    b.mfg_date = (request.form.get('mfg_date') or '').strip()[:40] or None
+    b.notes = (request.form.get('notes') or '').strip()[:300] or None
+    db.session.commit()
+    flash(f"Batch {b.code} updated.", "success")
+    return redirect('/admin/batches')
+
+@app.route('/admin/batches/<int:batch_id>/upload', methods=['POST'])
+@admin_required
+def admin_batch_upload(batch_id):
+    b = db.get_or_404(Batch, batch_id)
+    f = request.files.get('file')
+    title = (request.form.get('title') or '').strip()[:120] or 'Lab test report'
+    try:
+        if not f or not f.filename:
+            raise ValueError("Choose a file to upload.")
+        data = f.read(batch_certs.MAX_FILE_BYTES + 1)
+        ext, mimetype = batch_certs.check_upload(f.filename, data)
+    except ValueError as e:
+        flash(str(e), "danger")
+        return redirect('/admin/batches')
+    db.session.add(BatchCertificate(batch_id=b.id, title=title, ext=ext, mimetype=mimetype, size=len(data), data=data,
+                                    uploaded_by=session['user']['email']))
+    db.session.commit()
+    flash(f"Certificate uploaded for batch {b.code}. Customers now see it as available.", "success")
+    return redirect('/admin/batches')
+
+@app.route('/admin/batches/cert/<int:cert_id>/delete', methods=['POST'])
+@admin_required
+def admin_batch_cert_delete(cert_id):
+    cert = db.get_or_404(BatchCertificate, cert_id)
+    code = cert.batch.code
+    db.session.delete(cert)
+    db.session.commit()
+    flash(f"Certificate removed from batch {code}.", "success")
+    return redirect('/admin/batches')
+
+@app.route('/admin/batches/<int:batch_id>/delete', methods=['POST'])
+@admin_required
+def admin_batch_delete(batch_id):
+    b = db.get_or_404(Batch, batch_id)
+    code = b.code
+    BatchAccessCode.query.filter_by(batch_code=code).delete()
+    db.session.delete(b)
+    db.session.commit()
+    flash(f"Batch {code} and its certificates were deleted.", "success")
+    return redirect('/admin/batches')
+
+@app.route('/admin/batches/file/<int:cert_id>')
+@admin_required
+def admin_batch_file(cert_id):
+    cert = db.get_or_404(BatchCertificate, cert_id)
+    return _send_certificate(cert, request.args.get('download') == '1')
 
 # --- Admin: sales dashboard (online orders now; the shop's offline sales plug in next) ---
 @app.template_filter('inr')

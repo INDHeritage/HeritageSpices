@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Lab Report {{ code }} | Heritage Spices{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+
+{% block content %}
+<style>
+  .bt-card { background:#fff; border:1px solid #efe6d2; border-radius:16px; padding:18px; box-shadow:0 2px 12px rgba(0,0,0,.04); margin-bottom:14px; }
+</style>
+<div class="container py-4 py-md-5" style="max-width:640px;">
+  <div class="text-center mb-4">
+    <span class="badge bg-success mb-2"><i class="fas fa-circle-check me-1"></i> Verified</span>
+    <h1 class="h3 fw-bold text-success mb-1">Lab report &middot; batch <span class="font-monospace">{{ code }}</span></h1>
+    <p class="text-muted mb-0">{% if batch.product_name %}{{ batch.product_name }}{% endif %}{% if batch.mfg_date %} &middot; Packed {{ batch.mfg_date }}{% endif %}</p>
+  </div>
+
+  {% for c in certs %}
+  <div class="bt-card d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <div class="fw-semibold"><i class="fas {{ 'fa-file-pdf text-danger' if c.ext == 'pdf' else 'fa-file-image text-success' }} me-2"></i>{{ c.title }}</div>
+      <div class="small text-muted">{{ c.ext|upper }} &middot; {{ (c.size / 1024)|round|int }} KB &middot; Added {{ c.uploaded_at.strftime('%d %b %Y') }}</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-success btn-sm" href="/batch/file/{{ c.id }}" target="_blank" rel="noopener"><i class="fas fa-eye me-1"></i> View</a>
+      <a class="btn btn-success btn-sm" href="/batch/file/{{ c.id }}?download=1"><i class="fas fa-download me-1"></i> Download</a>
+    </div>
+  </div>
+  {% endfor %}
+  <p class="small text-muted text-center">Access stays open for 30 minutes on this device. Open the batch check again to unlock it later.</p>
+  <p class="text-center small"><a href="/batch" class="text-decoration-none">Check another batch</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Open Lab Report | Heritage Spices{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+
+{% block content %}
+<style>
+  .bt-card { background:#fff; border:1px solid #efe6d2; border-radius:16px; padding:22px; box-shadow:0 2px 12px rgba(0,0,0,.04); margin-bottom:16px; }
+  .bt-step { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+  .bt-step .n { width:30px; height:30px; border-radius:50%; background:#1b4332; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none; }
+  .bt-step.todo .n { background:#d9d2c0; color:#6b6454; }
+  .bt-otp { letter-spacing:.5em; text-align:center; font-size:1.6rem; font-family:ui-monospace,Menlo,Consolas,monospace; }
+</style>
+<div class="container py-4 py-md-5" style="max-width:560px;">
+  <div class="text-center mb-4">
+    <h1 class="h3 fw-bold text-success mb-1">Lab report for batch <span class="font-monospace">{{ code }}</span></h1>
+    {% if batch.product_name %}<p class="text-muted mb-0">{{ batch.product_name }}</p>{% endif %}
+  </div>
+
+  {% if not user %}
+    <div class="bt-card">
+      <div class="bt-step"><span class="n">1</span><strong>Sign in with Google</strong></div>
+      <div class="bt-step todo"><span class="n">2</span><span>Enter the code we e-mail you</span></div>
+      <p class="small text-muted">Lab reports are shared only with verified customers. Signing in lets us send the code to your own e-mail.</p>
+      <a href="/login" class="btn btn-success w-100"><i class="fab fa-google me-1"></i> Continue with Google</a>
+    </div>
+  {% else %}
+    <div class="bt-card">
+      <div class="bt-step"><span class="n"><i class="fas fa-check"></i></span><span>Signed in as <strong>{{ user.email }}</strong></span></div>
+      <div class="bt-step"><span class="n">2</span><strong>Enter the code we e-mail you</strong></div>
+
+      {% if pending %}
+        <form method="post" action="/batch/verify" class="mt-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="code" value="{{ code }}">
+          <label for="otp" class="form-label small text-muted">6-digit code sent to {{ user.email }}</label>
+          <input id="otp" name="otp" class="form-control bt-otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                 autocomplete="one-time-code" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" required autofocus>
+          <button class="btn btn-success w-100 mt-3" type="submit"><i class="fas fa-unlock me-1"></i> Open report</button>
+        </form>
+        <form method="post" action="/batch/send" class="text-center mt-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="code" value="{{ code }}">
+          <button class="btn btn-link btn-sm" type="submit">Didn't get it? Send a new code</button>
+        </form>
+      {% elif email_ready %}
+        <p class="small text-muted mt-3">We'll e-mail a one-time code to <strong>{{ user.email }}</strong>. It works for 10 minutes.</p>
+        <form method="post" action="/batch/send">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="code" value="{{ code }}">
+          <button class="btn btn-success w-100" type="submit"><i class="fas fa-envelope me-1"></i> E-mail me the code</button>
+        </form>
+      {% else %}
+        <div class="alert alert-warning mt-3 mb-0">E-mail codes are temporarily unavailable. Please try again later.</div>
+      {% endif %}
+    </div>
+  {% endif %}
+  <p class="text-center small"><a href="/batch?code={{ code|urlencode }}" class="text-decoration-none">&larr; Back to batch check</a></p>
+</div>
+{% endblock %}

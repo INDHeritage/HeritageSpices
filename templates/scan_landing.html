@@ -40,6 +40,16 @@
     <div class="col-4"><div class="scan-fact"><i class="fas fa-box-open"></i><span>Reseal &amp; store cool, dry</span></div></div>
   </div>
 
+  <section class="scan-cta mb-4" aria-labelledby="batch-h">
+    <h2 id="batch-h" class="h6 fw-bold mb-1"><i class="fas fa-vial-circle-check text-success me-1"></i> Check your batch's lab report</h2>
+    <p class="small text-muted mb-2">Type the batch code printed on your pouch to see if its lab test report is ready.</p>
+    <form method="get" action="/batch" class="d-flex gap-2">
+      <label for="scan-batch" class="visually-hidden">Batch code</label>
+      <input id="scan-batch" name="code" class="form-control text-uppercase" maxlength="40" placeholder="Batch code" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+      <button class="btn btn-success flex-shrink-0" type="submit">Check</button>
+    </form>
+  </section>
+
   {% if product.description %}
   <section class="mb-4">
     <h2 class="h5 fw-bold text-uppercase text-muted">What's inside</h2>
