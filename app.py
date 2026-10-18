@@ -32,6 +32,8 @@ import receipts
 import sales_stats
 import billing_client
 import gst_tax
+import gst_report
+import gst_export
 import io
 import qrcode
 from flask import send_file
@@ -447,6 +449,21 @@ class GstInvoice(db.Model):
             return json.loads(self.data)
         except ValueError:
             return {}
+
+# --- GST filing record, one per quarter (QRMP): editable inputs, status, ARNs and the frozen snapshot ---
+class GstFiling(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fy_year = db.Column(db.Integer, nullable=False)             # financial-year start year, e.g. 2026 for 2026-27
+    quarter = db.Column(db.Integer, nullable=False)             # 1-4 (Apr-Jun = 1)
+    data = db.Column(db.Text, nullable=False, default='{}')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    __table_args__ = (db.UniqueConstraint('fy_year', 'quarter', name='uq_gst_filing_quarter'),)
+
+# --- GST settings (seller details, per-product HSN/rate, shipping rate): long values, unlike site_setting ---
+class GstConfig(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(60), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=False, default='')
 
 # --- Blacklisted Pincodes (admin managed) ---
 class BlacklistedPincode(db.Model):
@@ -2325,6 +2342,14 @@ def inr_filter(paise):
         s = ','.join(parts + [tail])
     return f"{sign}₹{s}.{p:02d}"
 
+@app.template_filter('rs')
+def rs_filter(paise):
+    """Paise -> '1234.50' (plain, for filling a money box)."""
+    try:
+        return f"{int(paise or 0) / 100:.2f}"
+    except (TypeError, ValueError):
+        return '0.00'
+
 _rzp_payments_cache = {}
 
 def fetch_razorpay_payments(start, end):
@@ -2410,6 +2435,232 @@ def admin_sales():
 @admin_required
 def admin_billing_redirect():
     return redirect('/admin/sales' + ('?' + request.query_string.decode() if request.query_string else ''))
+
+
+# --- Admin: GST filing helper (quarterly QRMP): online invoices + shop figures -> GSTR-1 / GSTR-3B ---
+GSTIN_RE = re.compile(r'^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$')
+
+def _gst_default_period():
+    """The most recent quarter that has ended (the one you will be filing next)."""
+    fy, q = gst_tax.quarter_of(sales_stats.ist_today())
+    return (fy, q - 1) if q > 1 else (fy - 1, 4)
+
+def _gst_period(args):
+    try:
+        fy, q = int(args.get('fy')), int(args.get('q'))
+        if q in (1, 2, 3, 4) and 2017 <= fy <= sales_stats.ist_today().year + 1:
+            return fy, q
+    except (TypeError, ValueError):
+        pass
+    return _gst_default_period()
+
+def _money_to_paise(text):
+    """'1,234.50' -> 123450; blank -> None (meaning 'use the app's figure'); bad or negative -> ValueError."""
+    t = (text or '').strip().replace(',', '').replace('\u20b9', '')
+    if t == '':
+        return None
+    from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+    try:
+        v = (Decimal(t) * 100).to_integral_value(ROUND_HALF_UP)
+    except InvalidOperation:
+        raise ValueError(text)
+    if v < 0 or v > 10**12:
+        raise ValueError(text)
+    return int(v)
+
+def _gst_filing(fy, q):
+    row = GstFiling.query.filter_by(fy_year=fy, quarter=q).first()
+    return row, gst_report.parse_filing(row.data if row else '')
+
+def _gst_store_filing(fy, q, filing, row=None):
+    row = row or GstFiling.query.filter_by(fy_year=fy, quarter=q).first()
+    payload = json.dumps(filing)
+    if row:
+        row.data = payload
+    else:
+        db.session.add(GstFiling(fy_year=fy, quarter=q, data=payload))
+    db.session.commit()
+
+def build_gst_report(fy, q):
+    """Everything the GST page and the Excel file show for one quarter."""
+    start, end = gst_tax.quarter_range(fy, q)
+    lo = datetime.combine(start - timedelta(days=3), datetime.min.time()) - sales_stats.IST
+    hi = datetime.combine(end + timedelta(days=3), datetime.min.time())
+    orders = (SpiceOrder.query.options(joinedload(SpiceOrder.items))
+              .filter(SpiceOrder.payment_status == 'paid', SpiceOrder.created_at >= lo, SpiceOrder.created_at < hi).all())
+    invs = {i.order_id: i for i in GstInvoice.query.filter(GstInvoice.order_id.in_([o.id for o in orders] or [0])).all()}
+    rows = []
+    for o in orders:
+        d = gst_order_dict(o)
+        d.update(id=o.id, order_number=o.order_number, created_at=o.created_at, payment_status=o.payment_status,
+                 shipping_status=o.shipping_status, user_email=o.user_email)
+        inv = invs.get(o.id)
+        d['invoice'] = ({'invoice_number': inv.invoice_number, 'invoice_date': inv.invoice_date, 'doc': inv.doc}
+                        if inv else None)
+        rows.append(d)
+    online = gst_report.online_supplies(rows, gst_product_tax(), gst_shipping_rate(), start, end)
+
+    shop, shop_note = None, None
+    if not billing_client.configured():
+        shop_note = 'not_connected'
+    else:
+        try:
+            shop = gst_report.normalize_shop_gst(billing_client.get_gst_summary(start, end))
+        except billing_client.BillingUnavailable as e:
+            shop_note = str(e)
+
+    row, filing = _gst_filing(fy, q)
+    outward = gst_report.outward_3b(online, shop)
+    itc = gst_report.itc_claim_from(filing, shop)
+    return {
+        'fy': fy, 'q': q, 'label': gst_tax.quarter_label(fy, q), 'start': start, 'end': end,
+        'due': gst_tax.quarter_due_dates(fy, q), 'generated': sales_stats.ist_today().isoformat(),
+        'seller': gst_seller(), 'online': online, 'shop': shop, 'shop_note': shop_note,
+        'gstr1': gst_report.gstr1_tables(online, shop), 'outward': outward, 'itc_claim': itc,
+        'worksheet': gst_report.worksheet_3b(outward, itc, filing['inputs']), 'filing': filing,
+    }
+
+@app.route('/admin/gst')
+@admin_required
+def admin_gst():
+    fy, q = _gst_period(request.args)
+    rep = build_gst_report(fy, q)
+    locked = gst_report.is_locked(rep['filing'])
+    drift = False
+    if locked:
+        snap = rep['filing']['snapshot']
+        now = gst_report.snapshot(rep)
+        drift = (snap.get('outward') != now['outward'] or snap.get('cash_total') != now['cash_total'])
+    y, qq = gst_tax.quarter_of(sales_stats.ist_today())
+    quarters = []
+    for _ in range(8):
+        f = GstFiling.query.filter_by(fy_year=y, quarter=qq).first()
+        status = gst_report.parse_filing(f.data if f else '')['status']
+        quarters.append({'fy': y, 'q': qq, 'label': gst_tax.quarter_label(y, qq), 'status': status})
+        y, qq = (y, qq - 1) if qq > 1 else (y - 1, 4)
+    tax_cfg = gst_product_tax()
+    products = [{'id': p.id, 'name': p.name, **gst_tax.tax_for(p.id, tax_cfg)} for p in Product.query.order_by(Product.id).all()]
+    return render_template('admin_gst.html', r=rep, filing=rep['filing'], locked=locked, drift=drift, quarters=quarters,
+                           products=products, shipping_rate=gst_shipping_rate(), today=sales_stats.ist_today(),
+                           seller_overrides={k: gst_get(k, '') for k in ('legal_name', 'trade_name', 'gstin', 'address')})
+
+@app.route('/admin/gst/inputs', methods=['POST'])
+@admin_required
+def admin_gst_inputs():
+    fy, q = _gst_period(request.form)
+    row, filing = _gst_filing(fy, q)
+    back = redirect(f'/admin/gst?fy={fy}&q={q}')
+    if gst_report.is_locked(filing):
+        flash("This quarter is marked as filed, so its figures are frozen. Reopen it first if you must amend.", "danger")
+        return back
+    inputs = {}
+    try:
+        for k in ('itc_igst', 'itc_cgst', 'itc_sgst', 'late_fee_cgst', 'late_fee_sgst',
+                  'interest_igst', 'interest_cgst', 'interest_sgst'):
+            v = _money_to_paise(request.form.get(k))
+            inputs[k] = '' if v is None else v
+    except ValueError as e:
+        flash(f"'{e}' is not a valid amount. Use numbers like 1250.50.", "danger")
+        return back
+    filing['inputs'] = inputs
+    filing['notes'] = (request.form.get('notes') or '')[:2000]
+    _gst_store_filing(fy, q, filing, row)
+    flash("Saved.", "success")
+    return back
+
+@app.route('/admin/gst/status', methods=['POST'])
+@admin_required
+def admin_gst_status():
+    fy, q = _gst_period(request.form)
+    row, filing = _gst_filing(fy, q)
+    action = request.form.get('action')
+    back = redirect(f'/admin/gst?fy={fy}&q={q}')
+    if action not in ('draft', 'review', 'reopen', 'filed'):
+        abort(400)
+    if gst_report.is_locked(filing) and action != 'reopen':
+        flash("This quarter is already filed and frozen. Use Reopen to amend.", "danger")
+        return back
+    if action in ('draft', 'review'):
+        filing['status'] = action
+    elif action == 'reopen':
+        if filing.get('snapshot'):
+            filing['history'].append({'frozen_on': filing.get('filed_at'), 'snapshot': filing['snapshot'],
+                                      'gstr1_arn': filing.get('gstr1_arn'), 'gstr3b_arn': filing.get('gstr3b_arn')})
+        filing.update(status='review', snapshot=None, filed_at='')
+    else:
+        for k in ('gstr1_date', 'gstr3b_date'):
+            v = (request.form.get(k) or '').strip()
+            if v:
+                try:
+                    datetime.strptime(v, '%Y-%m-%d')
+                except ValueError:
+                    flash("Dates must look like 2026-10-22.", "danger")
+                    return back
+            filing[k] = v
+        filing['gstr1_arn'] = (request.form.get('gstr1_arn') or '').strip()[:30]
+        filing['gstr3b_arn'] = (request.form.get('gstr3b_arn') or '').strip()[:30]
+        try:
+            paid = _money_to_paise(request.form.get('tax_paid'))
+        except ValueError:
+            flash("Tax paid must be an amount like 1250.50.", "danger")
+            return back
+        filing['tax_paid'] = '' if paid is None else paid
+        _gst_store_filing(fy, q, filing, row)               # the snapshot must use the figures as saved
+        filing['status'] = 'filed'
+        filing['snapshot'] = gst_report.snapshot(build_gst_report(fy, q))
+        filing['filed_at'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
+    _gst_store_filing(fy, q, filing)
+    flash({'draft': 'Marked as draft.', 'review': 'Marked as ready for review.', 'reopen': 'Reopened for amendment.',
+           'filed': 'Marked as filed. The figures are now frozen.'}[action], "success")
+    return back
+
+@app.route('/admin/gst/settings', methods=['POST'])
+@admin_required
+def admin_gst_settings():
+    fy, q = _gst_period(request.form)
+    back = redirect(f'/admin/gst?fy={fy}&q={q}#settings')
+    gstin = (request.form.get('gstin') or '').strip().upper()
+    if gstin and not GSTIN_RE.match(gstin):
+        flash("That GSTIN does not look right (15 characters, like 27ABCDE1234F1Z5).", "danger")
+        return back
+    cfg = {}
+    for p in Product.query.all():
+        try:
+            rate = float((request.form.get(f'rate_{p.id}') or '').strip())
+        except ValueError:
+            flash(f"The GST rate for {p.name} must be a number like 5 or 12.", "danger")
+            return back
+        if not 0 <= rate <= 40:
+            flash(f"The GST rate for {p.name} must be between 0 and 40.", "danger")
+            return back
+        hsn = ''.join(ch for ch in (request.form.get(f'hsn_{p.id}') or '') if ch.isalnum())[:8]
+        if not hsn:
+            flash(f"Enter an HSN code for {p.name}.", "danger")
+            return back
+        cfg[str(p.id)] = {'hsn': hsn, 'rate': int(rate) if rate == int(rate) else rate,
+                          'confirmed': request.form.get(f'confirmed_{p.id}') == 'on'}
+    try:
+        ship = float((request.form.get('shipping_rate') or '').strip())
+        if not 0 <= ship <= 40:
+            raise ValueError
+    except ValueError:
+        flash("The shipping GST rate must be a number between 0 and 40.", "danger")
+        return back
+    gst_set('product_tax', json.dumps(cfg))
+    gst_set('shipping_rate', int(ship) if ship == int(ship) else ship)
+    for k in ('legal_name', 'trade_name', 'address'):
+        gst_set(k, (request.form.get(k) or '').strip()[:200])
+    gst_set('gstin', gstin)
+    flash("Tax settings saved. They apply to invoices issued from now on; invoices already issued never change.", "success")
+    return back
+
+@app.route('/admin/gst/export.xlsx')
+@admin_required
+def admin_gst_export():
+    fy, q = _gst_period(request.args)
+    return send_file(io.BytesIO(gst_export.build_workbook(build_gst_report(fy, q))),
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=f"GST-FY{fy}-{(fy + 1) % 100:02d}-Q{q}.xlsx")
 
 # --- Admin: QR Codes for products (generate + download, view scan counts) ---
 @app.route('/admin/qr-codes')
@@ -3557,22 +3808,34 @@ def create_checkout_order():
         return jsonify({'error': str(e)}), 500
 
 # --- GST settings and invoice issuing ---
+def gst_get(key, default=''):
+    row = GstConfig.query.filter_by(key=key).first()
+    return row.value if row and row.value is not None else default
+
+def gst_set(key, value):
+    row = GstConfig.query.filter_by(key=key).first()
+    if row:
+        row.value = str(value)
+    else:
+        db.session.add(GstConfig(key=key, value=str(value)))
+    db.session.commit()
+
 def gst_seller():
     """Seller details exactly as registered for GST (overridable in Admin > GST)."""
     s = dict(gst_tax.SELLER)
     for k in ('legal_name', 'trade_name', 'gstin', 'address'):
-        v = (get_setting(f'gst_{k}', '') or '').strip()
+        v = (gst_get(k, '') or '').strip()
         if v:
             s[k] = v
     s['state_code'] = (s['gstin'][:2] if len(s['gstin']) >= 2 else gst_tax.SELLER['state_code'])
     return s
 
 def gst_product_tax():
-    return gst_tax.parse_product_tax(get_setting('gst_product_tax', ''))
+    return gst_tax.parse_product_tax(gst_get('product_tax', ''))
 
 def gst_shipping_rate():
     try:
-        return float(get_setting('gst_shipping_rate', gst_tax.DEFAULT_SHIPPING_RATE))
+        return float(gst_get('shipping_rate', gst_tax.DEFAULT_SHIPPING_RATE))
     except (TypeError, ValueError):
         return gst_tax.DEFAULT_SHIPPING_RATE
 

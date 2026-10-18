@@ -30,7 +30,7 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h1 class="h3 fw-bold text-success mb-0"><i class="fas fa-chart-line me-2"></i>Sales Dashboard</h1>
-      <div class="text-muted small">{{ start.strftime('%d %b %Y') }} to {{ end.strftime('%d %b %Y') }} &middot; Indian time &middot; <a href="/admin/dashboard" class="text-decoration-none">Back to admin</a></div>
+      <div class="text-muted small">{{ start.strftime('%d %b %Y') }} to {{ end.strftime('%d %b %Y') }} &middot; Indian time &middot; <a href="/admin/gst" class="text-decoration-none">GST filing</a> &middot; <a href="/admin/dashboard" class="text-decoration-none">Back to admin</a></div>
     </div>
     <div class="d-flex flex-wrap gap-2">
       <a class="ch-pill all {{ 'active' if channel == 'all' }}" href="?range={{ key }}&from={{ start }}&to={{ end }}&channel=all">All</a>

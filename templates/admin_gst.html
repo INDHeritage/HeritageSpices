@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}GST Filing | Heritage Spices{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+
+{% macro money(paise) %}{{ paise|inr }}{% endmacro %}
+
+{% block content %}
+{% set sh = r.shop %}
+{% set rows3 = [('Online (website orders)', r.outward.online), ('Shop (billing app, after returns)', r.outward.shop)] %}
+<style>
+  .g-card { background: #fff; border: 1px solid #efe6d2; border-radius: 14px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+  .g-card h2 { font-size: 1.05rem; font-weight: 700; color: #1b4332; margin-bottom: 12px; }
+  .g-note { background: #fff8e6; border: 1px solid #f1deaa; border-radius: 12px; padding: 12px 16px; font-size: .85rem; color: #6b5311; margin-bottom: 14px; }
+  .g-warn { background: #fdecea; border: 1px solid #f3b9b3; border-radius: 12px; padding: 12px 16px; font-size: .85rem; color: #7a1f17; margin-bottom: 14px; }
+  .g-ok { background: #e8f3ec; border: 1px solid #b9d9c4; border-radius: 12px; padding: 12px 16px; font-size: .85rem; color: #1b4332; margin-bottom: 14px; }
+  .table-sm td, .table-sm th { vertical-align: middle; }
+  .g-input { max-width: 150px; text-align: right; }
+  .g-in { background: #fff2b3; }
+  .pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-weight: 700; font-size: .8rem; }
+  .pill.draft { background: #eee; color: #555; } .pill.review { background: #fff2b3; color: #6b5311; } .pill.filed { background: #1b4332; color: #fff; }
+  details > summary { cursor: pointer; font-weight: 600; color: #1b4332; padding: 6px 0; }
+</style>
+
+<div class="container py-4" style="max-width: 1100px;">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h1 class="h3 fw-bold text-success mb-0"><i class="fas fa-file-invoice me-2"></i>GST Filing</h1>
+      <div class="text-muted small">{{ r.seller.legal_name }} &middot; GSTIN <span class="font-monospace">{{ r.seller.gstin }}</span> &middot; Quarterly (QRMP) &middot; <a href="/admin/sales" class="text-decoration-none">Sales dashboard</a> &middot; <a href="/admin/dashboard" class="text-decoration-none">Admin</a></div>
+    </div>
+    <a class="btn btn-success" href="/admin/gst/export.xlsx?fy={{ r.fy }}&q={{ r.q }}"><i class="fas fa-file-excel me-1"></i> Download Excel</a>
+  </div>
+
+  <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+    <div>
+      <label for="qsel" class="form-label small mb-1 text-muted">Quarter</label>
+      <select id="qsel" class="form-select form-select-sm" onchange="var v=this.value.split('-'); location.href='/admin/gst?fy='+v[0]+'&q='+v[1];">
+        {% for x in quarters %}<option value="{{ x.fy }}-{{ x.q }}" {{ 'selected' if x.fy == r.fy and x.q == r.q }}>{{ x.label }}{{ ' - ' + x.status if x.status != 'draft' }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><span class="pill {{ filing.status }}">{{ {'draft': 'Draft', 'review': 'Ready for review', 'filed': 'Filed'}[filing.status] }}</span></div>
+  </form>
+
+  {# ---- due dates ---- #}
+  <div class="row g-2 mb-3">
+    {% for key, label in (('gstr1', 'GSTR-1'), ('gstr3b', 'GSTR-3B')) %}
+      {% set due = r.due[key] %}{% set days = (due - today).days %}
+      <div class="col-md-6"><div class="{{ 'g-ok' if filing.status == 'filed' else ('g-warn' if days < 0 else 'g-note') }} mb-0">
+        <strong>{{ label }}</strong> due {{ due.strftime('%d %b %Y') }} (usual date, check the portal)
+        {% if filing.status == 'filed' %}&middot; marked as filed
+        {% elif days < 0 %}&middot; <strong>{{ -days }} day{{ 's' if days != -1 }} overdue</strong>: late fee applies per day until filed
+        {% elif days == 0 %}&middot; <strong>due today</strong>
+        {% else %}&middot; {{ days }} day{{ 's' if days != 1 }} left{% endif %}
+      </div></div>
+    {% endfor %}
+  </div>
+
+  {% for w in r.online.warnings %}<div class="g-warn">{{ w }}</div>{% endfor %}
+  {% if r.shop_note == 'not_connected' %}
+    <div class="g-note"><strong>Shop figures are not connected</strong>, so only the website's sales are included below. Add the four <code>BILLING_...</code> settings in Render, or enter the shop's figures yourself in the Excel file.</div>
+  {% elif r.shop_note %}
+    <div class="g-warn"><strong>Shop figures could not be loaded:</strong> {{ r.shop_note }} Only the website's sales are included until this is fixed, so do not file from these totals yet.</div>
+  {% endif %}
+
+  {# ---- filing tracker ---- #}
+  <div class="g-card">
+    <h2>Filing tracker</h2>
+    {% if locked %}
+      <div class="g-ok">
+        <strong>Filed and frozen</strong> on {{ filing.filed_at }}. GSTR-1 ARN: <span class="font-monospace">{{ filing.gstr1_arn or '-' }}</span>{% if filing.gstr1_date %} ({{ filing.gstr1_date }}){% endif %}
+        &middot; GSTR-3B ARN: <span class="font-monospace">{{ filing.gstr3b_arn or '-' }}</span>{% if filing.gstr3b_date %} ({{ filing.gstr3b_date }}){% endif %}
+        {% if filing.tax_paid != '' %}&middot; Tax paid {{ filing.tax_paid|inr }}{% endif %}
+      </div>
+      {% set sn = filing.snapshot %}
+      <table class="table table-sm mb-2" style="max-width: 560px;">
+        <tr><td>Taxable sales as filed</td><td class="text-end">{{ sn.outward.taxable|inr }}</td></tr>
+        <tr><td>Output tax as filed (IGST + CGST + SGST)</td><td class="text-end">{{ sn.outward.tax|inr }}</td></tr>
+        <tr><td>Input credit claimed as filed</td><td class="text-end">{{ (sn.itc_claim.igst + sn.itc_claim.cgst + sn.itc_claim.sgst)|inr }}</td></tr>
+        <tr class="fw-bold"><td>Cash payable as filed (incl. late fee, interest)</td><td class="text-end">{{ sn.cash_total|inr }}</td></tr>
+      </table>
+      {% if drift %}<div class="g-warn">Your records for this quarter have <strong>changed since filing</strong> (the figures shown further down are live). Tell your CA before amending anything.</div>{% endif %}
+      <form method="post" action="/admin/gst/status" onsubmit="return confirm('Reopen this quarter for an amendment? The frozen figures are kept in its history.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="fy" value="{{ r.fy }}"><input type="hidden" name="q" value="{{ r.q }}">
+        <button name="action" value="reopen" class="btn btn-outline-danger btn-sm">Reopen for an amendment</button>
+      </form>
+    {% else %}
+      <form method="post" action="/admin/gst/status">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="fy" value="{{ r.fy }}"><input type="hidden" name="q" value="{{ r.q }}">
+        <div class="row g-2 align-items-end">
+          <div class="col-6 col-md-3"><label class="form-label small mb-1 text-muted" for="a1">GSTR-1 ARN</label><input id="a1" name="gstr1_arn" class="form-control form-control-sm" value="{{ filing.gstr1_arn }}" maxlength="30"></div>
+          <div class="col-6 col-md-3"><label class="form-label small mb-1 text-muted" for="d1">GSTR-1 filed on</label><input id="d1" type="date" name="gstr1_date" class="form-control form-control-sm" value="{{ filing.gstr1_date }}"></div>
+          <div class="col-6 col-md-3"><label class="form-label small mb-1 text-muted" for="a3">GSTR-3B ARN</label><input id="a3" name="gstr3b_arn" class="form-control form-control-sm" value="{{ filing.gstr3b_arn }}" maxlength="30"></div>
+          <div class="col-6 col-md-3"><label class="form-label small mb-1 text-muted" for="d3">GSTR-3B filed on</label><input id="d3" type="date" name="gstr3b_date" class="form-control form-control-sm" value="{{ filing.gstr3b_date }}"></div>
+          <div class="col-6 col-md-3"><label class="form-label small mb-1 text-muted" for="tp">Tax actually paid (Rs)</label><input id="tp" name="tax_paid" class="form-control form-control-sm" inputmode="decimal" value="{{ (filing.tax_paid|rs) if filing.tax_paid != '' else '' }}"></div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button name="action" value="draft" class="btn btn-outline-secondary btn-sm">Draft</button>
+          <button name="action" value="review" class="btn btn-outline-warning btn-sm">Ready for review</button>
+          <button name="action" value="filed" class="btn btn-success btn-sm" onclick="return confirm('Mark this quarter as filed? The figures will be frozen so later changes cannot alter what you filed.');">Mark as filed and freeze</button>
+        </div>
+        <div class="small text-muted mt-2">Fill in the ARNs from the portal after filing, then freeze the quarter.</div>
+      </form>
+    {% endif %}
+    {% if filing.history %}<div class="small text-muted mt-3">Earlier filed versions kept: {{ filing.history|length }}.</div>{% endif %}
+  </div>
+
+  {# ---- GSTR-3B ---- #}
+  <div class="g-card">
+    <h2>GSTR-3B worksheet <span class="badge bg-secondary">estimate</span></h2>
+    <div class="table-responsive">
+      <table class="table table-sm mb-2">
+        <thead><tr><th>3.1(a) Outward taxable supplies</th><th class="text-end">Taxable value</th><th class="text-end">IGST</th><th class="text-end">CGST</th><th class="text-end">SGST</th></tr></thead>
+        <tbody>
+          {% for label, d in rows3 %}<tr><td>{{ label }}</td><td class="text-end">{{ d.taxable|inr }}</td><td class="text-end">{{ d.igst|inr }}</td><td class="text-end">{{ d.cgst|inr }}</td><td class="text-end">{{ d.sgst|inr }}</td></tr>{% endfor %}
+          <tr class="fw-bold border-top"><td>Total</td><td class="text-end">{{ r.outward.taxable|inr }}</td><td class="text-end">{{ r.outward.igst|inr }}</td><td class="text-end">{{ r.outward.cgst|inr }}</td><td class="text-end">{{ r.outward.sgst|inr }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="small text-muted mb-3">3.1(c) nil-rated / exempt (shop bills of supply): <strong>{{ r.outward.nil_exempt|inr }}</strong>. Shop figures are after sales returns. Cancelled online orders are not counted.</div>
+
+    <form method="post" action="/admin/gst/inputs">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="fy" value="{{ r.fy }}"><input type="hidden" name="q" value="{{ r.q }}">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-2">
+          <thead><tr><th>You can edit the shaded boxes</th><th class="text-end">IGST</th><th class="text-end">CGST</th><th class="text-end">SGST</th></tr></thead>
+          <tbody>
+            <tr><td>4A(5) Input tax credit to claim <div class="small text-muted">Starts from the purchases in the billing app. Check each against GSTR-2B first.</div></td>
+              {% for h in ('igst', 'cgst', 'sgst') %}<td class="text-end"><input name="itc_{{ h }}" class="form-control form-control-sm g-input g-in ms-auto" inputmode="decimal" value="{{ r.itc_claim[h]|rs }}" {{ 'disabled' if locked }}></td>{% endfor %}</tr>
+            <tr><td>Output tax on the sales above</td>{% for h in ('igst', 'cgst', 'sgst') %}<td class="text-end">{{ r.worksheet.liability[h]|inr }}</td>{% endfor %}</tr>
+            <tr class="fw-semibold"><td>Cash tax left to pay <span class="small text-muted fw-normal">(after the portal sets credit off: IGST credit may pay CGST/SGST; CGST and SGST credit never pay each other)</span></td>{% for h in ('igst', 'cgst', 'sgst') %}<td class="text-end">{{ r.worksheet.cash[h]|inr }}</td>{% endfor %}</tr>
+            <tr><td>Late fee <span class="small text-muted">(cash only; CGST and SGST halves)</span></td><td></td>
+              {% for h in ('cgst', 'sgst') %}<td class="text-end"><input name="late_fee_{{ h }}" class="form-control form-control-sm g-input g-in ms-auto" inputmode="decimal" value="{{ r.worksheet.late_fee[h]|rs }}" {{ 'disabled' if locked }}></td>{% endfor %}</tr>
+            <tr><td>Interest <span class="small text-muted">(cash only)</span></td>
+              {% for h in ('igst', 'cgst', 'sgst') %}<td class="text-end"><input name="interest_{{ h }}" class="form-control form-control-sm g-input g-in ms-auto" inputmode="decimal" value="{{ r.worksheet.interest[h]|rs }}" {{ 'disabled' if locked }}></td>{% endfor %}</tr>
+            <tr class="fw-bold border-top"><td>Total cash to pay (estimate)</td><td colspan="3" class="text-end fs-5">{{ r.worksheet.cash_total|inr }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <label class="form-label small text-muted mb-1" for="notes">Notes for this quarter (for you and your CA)</label>
+      <textarea id="notes" name="notes" rows="2" class="form-control form-control-sm mb-2" {{ 'disabled' if locked }}>{{ filing.notes }}</textarea>
+      {% if not locked %}<button class="btn btn-success btn-sm">Save these figures</button>{% endif %}
+    </form>
+    <div class="g-note mt-3 mb-0">This is prepared from your own records to make filing easier. The GST portal does the official calculation, and your CA should confirm every figure, the rates, and which purchase credits you may claim.</div>
+  </div>
+
+  {# ---- GSTR-1 ---- #}
+  <div class="g-card">
+    <h2>GSTR-1 tables</h2>
+    <details open><summary>Table 7: Sales to consumers (B2CS), by place of supply and rate</summary>
+      <div class="table-responsive"><table class="table table-sm mt-2">
+        <thead><tr><th>Place of supply</th><th class="text-end">Rate</th><th class="text-end">Taxable value</th><th class="text-end">IGST</th><th class="text-end">CGST</th><th class="text-end">SGST</th><th class="text-end text-muted">Online part</th><th class="text-end text-muted">Shop part</th></tr></thead>
+        <tbody>
+        {% for b in r.gstr1.b2cs %}<tr><td>{{ b.state }}</td><td class="text-end">{{ '%g'|format(b.rate) }}%</td><td class="text-end">{{ b.taxable|inr }}</td><td class="text-end">{{ b.igst|inr }}</td><td class="text-end">{{ b.cgst|inr }}</td><td class="text-end">{{ b.sgst|inr }}</td><td class="text-end text-muted">{{ b.online_taxable|inr }}</td><td class="text-end text-muted">{{ b.shop_taxable|inr }}</td></tr>
+        {% else %}<tr><td colspan="8" class="text-muted">No consumer sales in this quarter.</td></tr>{% endfor %}
+        </tbody></table></div>
+    </details>
+    <details><summary>Table 4: Sales to registered businesses (B2B){% if sh %} &middot; {{ r.gstr1.b2b|length }} invoice(s){% endif %}</summary>
+      {% if r.gstr1.b2b %}<div class="table-responsive"><table class="table table-sm mt-2">
+        <thead><tr><th>Invoice</th><th>Date</th><th>GSTIN</th><th>Customer</th><th class="text-end">Rate</th><th class="text-end">Taxable</th><th class="text-end">Tax</th><th class="text-end">Value</th></tr></thead><tbody>
+        {% for inv in r.gstr1.b2b %}{% for rt in inv.rates %}<tr><td>{{ inv.invoice_number }}</td><td>{{ inv.date }}</td><td class="font-monospace">{{ inv.gstin }}</td><td>{{ inv.customer }}</td><td class="text-end">{{ '%g'|format(rt.rate) }}%</td><td class="text-end">{{ rt.taxable|inr }}</td><td class="text-end">{{ (rt.igst + rt.cgst + rt.sgst)|inr }}</td><td class="text-end">{{ inv.value|inr }}</td></tr>{% endfor %}{% endfor %}
+        </tbody></table></div>{% else %}<div class="text-muted small mt-2">None{{ ' (shop figures not loaded)' if not sh }}.</div>{% endif %}
+    </details>
+    <details><summary>Table 12: HSN summary</summary>
+      <div class="table-responsive"><table class="table table-sm mt-2">
+        <thead><tr><th>Section</th><th>HSN</th><th class="text-end">Rate</th><th class="text-end">Qty</th><th class="text-end">Taxable</th><th class="text-end">IGST</th><th class="text-end">CGST</th><th class="text-end">SGST</th><th class="text-end">Value</th></tr></thead><tbody>
+        {% for h in r.gstr1.hsn %}<tr><td>{{ h.section }}</td><td>{{ h.hsn }}</td><td class="text-end">{{ '%g'|format(h.rate) }}%</td><td class="text-end">{{ h.qty }}</td><td class="text-end">{{ h.taxable|inr }}</td><td class="text-end">{{ h.igst|inr }}</td><td class="text-end">{{ h.cgst|inr }}</td><td class="text-end">{{ h.sgst|inr }}</td><td class="text-end">{{ h.value|inr }}</td></tr>
+        {% else %}<tr><td colspan="9" class="text-muted">Nothing to report.</td></tr>{% endfor %}
+        </tbody></table></div>
+    </details>
+    <details><summary>Table 9B: Credit notes (shop sales returns) &middot; Table 13: Documents issued</summary>
+      <div class="table-responsive"><table class="table table-sm mt-2">
+        <thead><tr><th>Credit note</th><th>Date</th><th>Customer</th><th class="text-end">Taxable</th><th class="text-end">Tax</th><th class="text-end">Value</th></tr></thead><tbody>
+        {% for n in r.gstr1.credit_notes %}<tr><td>{{ n.number }}</td><td>{{ n.date }}</td><td>{{ n.customer }}</td><td class="text-end">{{ n.taxable|inr }}</td><td class="text-end">{{ n.tax|inr }}</td><td class="text-end">{{ n.value|inr }}</td></tr>
+        {% else %}<tr><td colspan="6" class="text-muted">No credit notes.</td></tr>{% endfor %}</tbody></table></div>
+      <div class="table-responsive"><table class="table table-sm">
+        <thead><tr><th>Channel</th><th>Kind</th><th>From</th><th>To</th><th class="text-end">Issued</th><th class="text-end">Cancelled</th></tr></thead><tbody>
+        {% for d in r.gstr1.docs %}<tr><td>{{ d.channel }}</td><td>{{ d.kind }}</td><td>{{ d.from }}</td><td>{{ d.to }}</td><td class="text-end">{{ d.total }}</td><td class="text-end">{{ d.cancelled }}</td></tr>
+        {% else %}<tr><td colspan="6" class="text-muted">No documents.</td></tr>{% endfor %}</tbody></table></div>
+    </details>
+  </div>
+
+  {# ---- the website orders counted ---- #}
+  <div class="g-card">
+    <h2>Website orders in this quarter</h2>
+    {% if r.online.supplies %}
+    <div class="table-responsive"><table class="table table-sm mb-2">
+      <thead><tr><th>Order</th><th>Invoice</th><th>Date</th><th>Delivered to</th><th class="text-end">Taxable</th><th class="text-end">GST</th><th class="text-end">Value</th></tr></thead><tbody>
+      {% for s in r.online.supplies %}<tr><td>{{ s.order_number }}</td><td>{{ s.invoice_number or 'none issued' }}</td><td>{{ s.date.strftime('%d %b') }}</td><td>{{ s.state }}</td><td class="text-end">{{ s.totals.taxable|inr }}</td><td class="text-end">{{ s.totals.tax|inr }}</td><td class="text-end">{{ s.totals.invoice_value|inr }}</td></tr>{% endfor %}
+      <tr class="fw-bold border-top"><td colspan="4">Total</td><td class="text-end">{{ r.online.totals.taxable|inr }}</td><td class="text-end">{{ r.online.totals.tax|inr }}</td><td class="text-end">{{ r.online.totals.value|inr }}</td></tr>
+      </tbody></table></div>
+    {% else %}<div class="text-muted small mb-2">No paid website orders in this quarter.</div>{% endif %}
+    {% if r.online.cancelled %}<div class="small text-muted">Cancelled, not counted: {% for c in r.online.cancelled %}{{ c.order_number }} ({{ c.value|inr }}){{ ', ' if not loop.last }}{% endfor %}. If the customer was refunded there is nothing to report; if not, ask your CA.</div>{% endif %}
+    {% if r.online.returned %}<div class="small text-muted">Returned to you (RTO), not counted: {% for c in r.online.returned %}{{ c.order_number }} ({{ c.value|inr }}){{ ', ' if not loop.last }}{% endfor %}.</div>{% endif %}
+  </div>
+
+  {# ---- purchases / input credit ---- #}
+  <div class="g-card">
+    <h2>Purchases recorded in the billing app (input credit)</h2>
+    {% if sh and sh.purchases %}
+    <div class="table-responsive"><table class="table table-sm mb-2">
+      <thead><tr><th>Date</th><th>Supplier</th><th>GSTIN</th><th>Their invoice</th><th class="text-end">Taxable</th><th class="text-end">IGST</th><th class="text-end">CGST</th><th class="text-end">SGST</th></tr></thead><tbody>
+      {% for p in sh.purchases %}<tr><td>{{ p.date }}</td><td>{{ p.supplier }}</td><td class="font-monospace">{{ p.gstin or 'not saved' }}</td><td>{{ p.supplier_invoice or '-' }}</td><td class="text-end">{{ p.taxable|inr }}</td><td class="text-end">{{ p.igst|inr }}</td><td class="text-end">{{ p.cgst|inr }}</td><td class="text-end">{{ p.sgst|inr }}</td></tr>{% endfor %}
+      <tr class="fw-bold border-top"><td colspan="4">Total</td><td class="text-end">{{ sh.purchase_totals.taxable|inr }}</td><td class="text-end">{{ sh.purchase_totals.igst|inr }}</td><td class="text-end">{{ sh.purchase_totals.cgst|inr }}</td><td class="text-end">{{ sh.purchase_totals.sgst|inr }}</td></tr>
+      </tbody></table></div>
+    {% else %}<div class="text-muted small mb-2">{{ 'No purchases recorded for this quarter.' if sh else 'Shop figures are not loaded.' }}</div>{% endif %}
+    <div class="g-note mb-0">Claim input credit only for purchases that appear in GSTR-2B, are for the business, and are eligible. Keep every supplier invoice and payment proof. A supplier GSTIN that is "not saved" means the split between CGST/SGST and IGST was assumed to be same-state.</div>
+  </div>
+
+  {# ---- tax settings ---- #}
+  <div class="g-card" id="settings">
+    <h2>Tax settings (HSN, GST rate, seller details)</h2>
+    <div class="g-note">Confirm each product's HSN code and GST rate with your CA, then tick "confirmed". Until then invoices use the defaults (HSN 0910, 5%) and this page keeps warning you. Changing a rate only affects invoices issued from now on: invoices already issued never change.</div>
+    <form method="post" action="/admin/gst/settings">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="fy" value="{{ r.fy }}"><input type="hidden" name="q" value="{{ r.q }}">
+      <div class="table-responsive"><table class="table table-sm align-middle">
+        <thead><tr><th>Product</th><th style="width:130px">HSN code</th><th style="width:110px">GST rate %</th><th style="width:110px">Confirmed by CA</th></tr></thead><tbody>
+        {% for p in products %}<tr><td>{{ p.name }}</td>
+          <td><input name="hsn_{{ p.id }}" class="form-control form-control-sm" value="{{ p.hsn }}" maxlength="8" aria-label="HSN code for {{ p.name }}"></td>
+          <td><input name="rate_{{ p.id }}" class="form-control form-control-sm" value="{{ '%g'|format(p.rate) }}" inputmode="decimal" aria-label="GST rate for {{ p.name }}"></td>
+          <td><input type="checkbox" class="form-check-input" name="confirmed_{{ p.id }}" {{ 'checked' if p.confirmed }} aria-label="Confirmed for {{ p.name }}"></td></tr>{% endfor %}
+        <tr><td>Shipping / delivery charges</td><td>-</td><td><input name="shipping_rate" class="form-control form-control-sm" value="{{ '%g'|format(shipping_rate) }}" inputmode="decimal" aria-label="Shipping GST rate"></td><td class="small text-muted">same rate as the goods is usual</td></tr>
+        </tbody></table></div>
+      <details class="mb-3"><summary>Seller details on invoices (leave blank to use the registered ones)</summary>
+        <div class="row g-2 mt-1">
+          <div class="col-md-6"><label class="form-label small mb-1 text-muted" for="s_legal">Legal name</label><input id="s_legal" name="legal_name" class="form-control form-control-sm" value="{{ seller_overrides.legal_name }}" placeholder="{{ r.seller.legal_name }}"></div>
+          <div class="col-md-6"><label class="form-label small mb-1 text-muted" for="s_trade">Trade name</label><input id="s_trade" name="trade_name" class="form-control form-control-sm" value="{{ seller_overrides.trade_name }}" placeholder="{{ r.seller.trade_name }}"></div>
+          <div class="col-md-4"><label class="form-label small mb-1 text-muted" for="s_gstin">GSTIN</label><input id="s_gstin" name="gstin" class="form-control form-control-sm font-monospace" value="{{ seller_overrides.gstin }}" placeholder="{{ r.seller.gstin }}" maxlength="15"></div>
+          <div class="col-md-8"><label class="form-label small mb-1 text-muted" for="s_addr">Registered address</label><input id="s_addr" name="address" class="form-control form-control-sm" value="{{ seller_overrides.address }}" placeholder="{{ r.seller.address }}"></div>
+        </div>
+        <div class="small text-muted mt-1">Please check the address against your GST registration certificate: this one is a placeholder until you confirm it.</div>
+      </details>
+      <button class="btn btn-success btn-sm">Save tax settings</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

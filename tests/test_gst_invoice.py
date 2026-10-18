@@ -114,16 +114,16 @@ def test_an_issued_invoice_does_not_change_when_settings_change_later(make_order
     order, product = make_order()
     _pay(order)
     before = appmod.GstInvoice.query.one().data
-    appmod.set_setting('gst_product_tax', json.dumps({str(product.id): {'hsn': '2103', 'rate': 12, 'confirmed': True}}))
-    appmod.set_setting('gst_shipping_rate', '18')
-    appmod.set_setting('gst_address', 'Somewhere else')
+    appmod.gst_set('product_tax', json.dumps({str(product.id): {'hsn': '2103', 'rate': 12, 'confirmed': True}}))
+    appmod.gst_set('shipping_rate', '18')
+    appmod.gst_set('address', 'Somewhere else')
     assert appmod.GstInvoice.query.one().data == before
     assert appmod.ensure_gst_invoice(order).data == before
 
 
 def test_invoice_uses_each_products_own_rate_when_set(make_order):
     order, product = make_order()
-    appmod.set_setting('gst_product_tax', json.dumps({str(product.id): {'hsn': '2103', 'rate': 12, 'confirmed': True}}))
+    appmod.gst_set('product_tax', json.dumps({str(product.id): {'hsn': '2103', 'rate': 12, 'confirmed': True}}))
     _pay(order)
     lines = appmod.GstInvoice.query.one().doc['breakup']['lines']
     assert lines[0]['hsn'] == '2103' and lines[0]['rate'] == 12 and lines[0]['confirmed'] is True
