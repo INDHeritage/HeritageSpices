@@ -91,8 +91,9 @@
       <div class="card bg-dark text-white h-100 shadow-sm border-0">
         <div class="card-body text-center d-flex flex-column justify-content-center">
           <i class="fas fa-shopping-bag fa-2x mb-2"></i>
-          <h5 class="card-title">Spice Orders</h5>
+          <h5 class="card-title">Paid Orders</h5>
           <h2 class="display-6 fw-bold mb-0">{{ total_spice_orders }}</h2>
+          {% if unpaid_checkouts %}<div class="small opacity-75 mt-1">+ {{ unpaid_checkouts }} started, not paid</div>{% endif %}
         </div>
       </div>
     </div>

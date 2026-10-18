@@ -1609,7 +1609,10 @@ def admin_dashboard():
     total_messages = ContactMessage.query.count()
     total_wholesale_inquiries = WholesaleInquiry.query.count()
 
-    total_spice_orders = order_q.count()
+    # "Orders" means orders that were actually paid; checkouts started but never paid are shown separately
+    # so the count can never contradict the revenue figure next to it.
+    total_spice_orders = order_q.filter_by(payment_status='paid').count()
+    unpaid_checkouts = order_q.filter(SpiceOrder.payment_status != 'paid').count()
     total_revenue = (order_q.filter_by(payment_status='paid')
                       .with_entities(db.func.sum(SpiceOrder.total_amount)).scalar() or 0) // 100
     pending_shipments = SpiceOrder.query.filter_by(payment_status='paid', shipping_status='processing').count()
@@ -1688,7 +1691,7 @@ def admin_dashboard():
                            total_messages=total_messages,
                            total_wholesale_inquiries=total_wholesale_inquiries,
                            recent_activity=recent_activity,
-                           total_spice_orders=total_spice_orders,
+                           total_spice_orders=total_spice_orders, unpaid_checkouts=unpaid_checkouts,
                            total_revenue=total_revenue,
                            pending_shipments=pending_shipments,
                            low_stock_products=low_stock_products,
@@ -2355,7 +2358,7 @@ def admin_sales():
     lo = datetime.combine(start - timedelta(days=1), datetime.min.time())
     hi = datetime.combine(end + timedelta(days=2), datetime.min.time())
     orders = (SpiceOrder.query.options(joinedload(SpiceOrder.items))
-              .filter(SpiceOrder.payment_status == 'paid', SpiceOrder.created_at >= lo, SpiceOrder.created_at < hi)
+              .filter(SpiceOrder.created_at >= lo, SpiceOrder.created_at < hi)
               .all())
     start_utc = datetime.combine(start, datetime.min.time()) - sales_stats.IST
     earlier = {e for (e,) in db.session.query(SpiceOrder.user_email)

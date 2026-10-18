@@ -149,6 +149,7 @@
         </table>
         <div class="hint mt-2">Orders {{ s.orders }} &middot; shipping collected {{ s.shipping|inr }} &middot; coupons given {{ s.coupon_discount|inr }} &middot; points used {{ s.points_discount|inr }}</div>
         <div class="hint">Customers: {{ s.customers }} ({{ s.returning_customers }} came back)</div>
+        <div class="hint mt-1">Checkouts started but <strong>not paid</strong>: {{ s.unpaid_orders }} ({{ s.unpaid_value|inr }}){% if s.checkout_completion is not none %} &middot; {{ s.checkout_completion }}% of checkouts completed{% endif %}</div>
       </div>
     </div>
     <div class="col-lg-6">

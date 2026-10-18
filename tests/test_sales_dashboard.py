@@ -262,3 +262,48 @@ def test_razorpay_payments_are_paged_and_only_captured_ones_kept(monkeypatch):
     got = appmod.fetch_razorpay_payments(date(2026, 10, 1), date(2026, 10, 2))
     assert calls == [0, 100] and len(got) == 101 and 'pz' not in got
     assert got['pq'] == {'method': 'card', 'amount': 500, 'fee': 12, 'tax': 2, 'refunded': 100}
+
+
+# ---------- checkouts started but not paid ----------
+
+def test_unpaid_checkouts_are_counted_separately_and_never_in_net_sales():
+    orders = [_order(1), _order(2, pay='pending', total=28400), _order(3, pay='failed', total=13800),
+              _order(4, pay='pending', day=13)]                          # outside the period
+    r = ss.summarize_online(orders, None, S, E)
+    assert r['net'] == 11000 and r['orders'] == 1
+    assert r['unpaid_orders'] == 2 and r['unpaid_value'] == 28400 + 13800
+    assert r['checkout_completion'] == 33                                # 1 paid out of 3 started
+
+
+def test_completion_rate_is_none_when_nobody_started_a_checkout():
+    r = ss.summarize_online([], None, S, E)
+    assert r['unpaid_orders'] == 0 and r['checkout_completion'] is None
+
+
+def test_cancelled_paid_orders_still_count_as_completed_checkouts():
+    r = ss.summarize_online([_order(1, ship='cancelled'), _order(2, pay='pending')], None, S, E)
+    assert r['checkout_completion'] == 50 and r['net'] == 0
+
+
+def test_page_shows_the_unpaid_checkouts_line(paid_orders):
+    now = datetime.utcnow()
+    o = appmod.SpiceOrder(order_number='HS-UNPAID', user_email='x@example.com', full_name='B', phone='9' * 10, address='a',
+                          city='Nagpur', state='Maharashtra', pincode='440001', subtotal=24900, shipping_cost=3500,
+                          total_amount=28400, payment_status='pending', shipping_status='processing', created_at=now)
+    appmod.db.session.add(o)
+    appmod.db.session.commit()
+    _login(paid_orders, ADMIN)
+    html = paid_orders.get('/admin/sales?range=today&channel=online').get_data(as_text=True)
+    assert 'not paid' in html and '₹284.00' in html and '% of checkouts completed' in html
+    assert '₹110.00' in html and 'HS-UNPAID' not in html              # net sales unchanged by the unpaid order
+
+
+def test_old_dashboard_counts_paid_orders_and_mentions_unpaid_ones(paid_orders):
+    o = appmod.SpiceOrder(order_number='HS-STARTED', user_email='y@example.com', full_name='B', phone='9' * 10, address='a',
+                          city='Nagpur', state='Maharashtra', pincode='440001', subtotal=24900, shipping_cost=3500,
+                          total_amount=28400, payment_status='pending', shipping_status='processing', created_at=datetime.utcnow())
+    appmod.db.session.add(o)
+    appmod.db.session.commit()
+    _login(paid_orders, ADMIN)
+    html = paid_orders.get('/admin/dashboard').get_data(as_text=True)
+    assert 'Paid Orders' in html and '+ 1 started, not paid' in html

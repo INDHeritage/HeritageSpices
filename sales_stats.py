@@ -93,7 +93,7 @@ def _bucket(order):
 def summarize_online(orders, payments, start, end, earlier_customers=(), rate=DEFAULT_GST_RATE):
     """Everything the online half of the dashboard shows, for paid orders dated start..end (IST).
 
-    orders:    dicts with id, created_at (UTC datetime), user_email, state, city, subtotal, shipping_cost,
+    orders:    paid and unpaid orders as dicts with id, created_at (UTC datetime), user_email, state, city, subtotal, shipping_cost,
                total_amount, discount_amount, points_discount_amount, payment_status, shipping_status,
                razorpay_payment_id, items=[{name, qty, unit_price}]   (all amounts in paise)
     payments:  {razorpay_payment_id: {method, amount, fee, tax, refunded}} from Razorpay, or None if unavailable
@@ -102,6 +102,11 @@ def summarize_online(orders, payments, start, end, earlier_customers=(), rate=DE
     earlier = set(earlier_customers)
     in_range = [o for o in orders
                 if o.get('payment_status') == 'paid' and start <= to_ist_date(o['created_at']) <= end]
+
+    # Checkouts that reached payment but were never paid (abandoned, failed, or a test the owner did not finish)
+    unpaid = [o for o in orders
+              if o.get('payment_status') != 'paid' and start <= to_ist_date(o['created_at']) <= end]
+    started = len(in_range) + len(unpaid)
 
     gross = sum(o['total_amount'] for o in in_range)
     cancelled = [o for o in in_range if _bucket(o) == 'cancelled']
@@ -175,6 +180,8 @@ def summarize_online(orders, payments, start, end, earlier_customers=(), rate=DE
 
     return {
         'start': start.isoformat(), 'end': end.isoformat(),
+        'unpaid_orders': len(unpaid), 'unpaid_value': sum(o['total_amount'] for o in unpaid),
+        'checkout_completion': round(100 * len(in_range) / started) if started else None,
         'gross': gross, 'cancelled': sum(o['total_amount'] for o in cancelled), 'cancelled_orders': len(cancelled),
         'rto': sum(o['total_amount'] for o in rto), 'rto_orders': len(rto),
         'net': net, 'orders': len(net_orders), 'avg_order': (net // len(net_orders)) if net_orders else 0,
