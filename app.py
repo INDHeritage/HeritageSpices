@@ -30,6 +30,7 @@ import nimbus_api
 import notifications
 import receipts
 import sales_stats
+import billing_client
 import io
 import qrcode
 from flask import send_file
@@ -2362,8 +2363,26 @@ def admin_sales():
 
     summary = sales_stats.summarize_online(_sales_order_rows(orders), fetch_razorpay_payments(start, end),
                                            start, end, earlier)
-    return render_template('admin_sales.html', s=summary, key=key, channel=channel, start=start, end=end,
+
+    # The shop half: read-only, optional. Any problem becomes a plain-English note, never an error page.
+    offline, offline_note = None, None
+    if channel != 'online':
+        if not billing_client.configured():
+            offline_note = 'not_connected'
+        else:
+            try:
+                offline = sales_stats.normalize_offline(billing_client.get_summary(start, end))
+            except billing_client.BillingUnavailable as e:
+                offline_note = str(e)
+    both = sales_stats.combine(summary, offline, start, end)
+    return render_template('admin_sales.html', s=summary, off=offline, offline_note=offline_note, both=both,
+                           key=key, channel=channel, start=start, end=end,
                            ranges=sales_stats.RANGE_LABELS, gst_rate=sales_stats.DEFAULT_GST_RATE)
+
+@app.route('/admin/billing')
+@admin_required
+def admin_billing_redirect():
+    return redirect('/admin/sales' + ('?' + request.query_string.decode() if request.query_string else ''))
 
 # --- Admin: QR Codes for products (generate + download, view scan counts) ---
 @app.route('/admin/qr-codes')

@@ -4,6 +4,9 @@
 
 {% block content %}
 {% set METHOD_NAMES = {'upi': 'UPI', 'card': 'Card', 'netbanking': 'Netbanking', 'wallet': 'Wallet', 'emi': 'EMI', 'paylater': 'Pay later', 'unknown': 'Not found in Razorpay'} %}
+{% set show_online = channel in ('all', 'online') %}
+{% set show_shop = channel in ('all', 'offline') and off is not none %}
+{% set combined = channel == 'all' and off is not none %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   .ch-online { --ch: #1b4332; } .ch-offline { --ch: #d97706; }
@@ -13,9 +16,13 @@
   .stat-card { background: #fff; border: 1px solid #efe6d2; border-radius: 14px; padding: 16px 18px; height: 100%; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
   .stat-card .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #8a7a5a; font-weight: 600; }
   .stat-card .value { font-size: 1.6rem; font-weight: 800; color: #1b4332; line-height: 1.2; }
+  .stat-card .value.shop { color: #b45309; }
   .stat-card .hint { font-size: .78rem; color: #7a6a60; margin-top: 2px; }
   .badge-online { background: #1b4332; } .badge-offline { background: #d97706; }
   .soft-note { background: #fff8e6; border: 1px solid #f1deaa; border-radius: 12px; padding: 12px 16px; font-size: .85rem; color: #6b5311; }
+  .section-title { font-weight: 700; font-size: 1.05rem; margin: 28px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .split-bar { display: flex; height: 14px; border-radius: 8px; overflow: hidden; background: #eee; margin-top: 8px; }
+  .split-bar .on { background: #1b4332; } .split-bar .off { background: #d97706; }
   .table-sm td, .table-sm th { vertical-align: middle; }
 </style>
 
@@ -28,7 +35,7 @@
     <div class="d-flex flex-wrap gap-2">
       <a class="ch-pill all {{ 'active' if channel == 'all' }}" href="?range={{ key }}&from={{ start }}&to={{ end }}&channel=all">All</a>
       <a class="ch-pill ch-online {{ 'active' if channel == 'online' }}" href="?range={{ key }}&from={{ start }}&to={{ end }}&channel=online">Online</a>
-      <a class="ch-pill ch-offline {{ 'active' if channel == 'offline' }}" href="?range={{ key }}&from={{ start }}&to={{ end }}&channel=offline">Offline <small>(soon)</small></a>
+      <a class="ch-pill ch-offline {{ 'active' if channel == 'offline' }}" href="?range={{ key }}&from={{ start }}&to={{ end }}&channel=offline">Offline (shop)</a>
     </div>
   </div>
 
@@ -47,27 +54,91 @@
     </div>
   </form>
 
-  {% if channel == 'offline' %}
-    <div class="soft-note"><strong>Shop (offline) sales are not connected yet.</strong> This page will show them here, side by side with online, once the billing app is linked. Until then, choose <em>Online</em> or <em>All</em>.</div>
-  {% else %}
-
-  {% if channel == 'all' %}
-    <div class="soft-note mb-3"><span class="badge badge-offline me-1">Offline</span> Shop sales are not connected yet, so the numbers below are <strong>online (website) only</strong>.</div>
+  {# ---- is the shop connected? ---- #}
+  {% if channel != 'online' and off is none %}
+    <div class="soft-note mb-3">
+      <span class="badge badge-offline me-1">Offline</span>
+      {% if offline_note == 'not_connected' %}
+        <strong>Shop sales are not connected yet.</strong>
+        {% if channel == 'all' %}The numbers below are <strong>online (website) only</strong>.{% else %}Choose <em>Online</em> or <em>All</em> for now.{% endif %}
+        To connect them, add the four <code>BILLING_...</code> settings in Render.
+      {% else %}
+        <strong>Shop sales could not be loaded:</strong> {{ offline_note }}
+        {% if channel == 'all' %}Showing <strong>online (website) only</strong> for now.{% endif %}
+      {% endif %}
+    </div>
   {% endif %}
 
-  <!-- Headline numbers -->
+  {% if channel == 'offline' and off is none %}
+  {% else %}
+
+  {# ================= headline numbers ================= #}
+  {% if channel == 'all' and off is not none %}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Total net sales</div><div class="value">{{ both.net|inr }}</div><div class="hint">Online + shop, after cancellations and returns</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label"><span class="badge badge-online">Online</span> Net sales</div><div class="value">{{ both.online_net|inr }}</div><div class="hint">{{ s.orders }} orders &middot; {{ both.online_share }}% of total</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label"><span class="badge badge-offline">Shop</span> Net sales</div><div class="value shop">{{ both.offline_net|inr }}</div><div class="hint">{{ off.bills }} bills &middot; {{ both.offline_share }}% of total</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Orders + bills</div><div class="value">{{ both.orders }}</div><div class="hint">Online orders and shop bills together</div></div></div>
+  </div>
+  <div class="split-bar mb-4" title="Online vs shop share of net sales"><div class="on" style="width: {{ both.online_share }}%"></div><div class="off" style="width: {{ both.offline_share }}%"></div></div>
+  {% elif channel == 'offline' %}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label"><span class="badge badge-offline">Shop</span> Net sales</div><div class="value shop">{{ off.net|inr }}</div><div class="hint">Bills minus sales returns</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Bills</div><div class="value">{{ off.bills }}</div><div class="hint">Average {{ off.avg_bill|inr }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Bills total</div><div class="value">{{ off.sales|inr }}</div><div class="hint">Before returns</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Sales returns</div><div class="value">{{ off.returns|inr }}</div><div class="hint">Credit notes in this period</div></div></div>
+  </div>
+  {% else %}
   <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3"><div class="stat-card"><div class="label"><span class="badge badge-online">Online</span> Net sales</div><div class="value">{{ s.net|inr }}</div><div class="hint">Paid orders, minus cancelled and returned</div></div></div>
     <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Orders</div><div class="value">{{ s.orders }}</div><div class="hint">Average {{ s.avg_order|inr }}</div></div></div>
     <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Product sales</div><div class="value">{{ s.products_incl|inr }}</div><div class="hint">After discounts, without shipping</div></div></div>
     <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Shipping collected</div><div class="value">{{ s.shipping|inr }}</div><div class="hint">Shown separately from products</div></div></div>
   </div>
+  {% endif %}
 
-  <div class="row g-3 mb-4">
-    <div class="col-lg-8">
-      <div class="stat-card"><div class="label mb-2">Daily sales</div><div style="height: 260px;"><canvas id="dailyChart"></canvas></div></div>
+  {# ================= daily chart ================= #}
+  <div class="stat-card mb-4">
+    <div class="label mb-2">Daily sales</div>
+    <div style="height: 260px;"><canvas id="dailyChart"></canvas></div>
+    {% if show_shop %}<div class="hint mt-2">Shop bars show bills for the day before returns; online bars are net of cancellations.</div>{% endif %}
+  </div>
+
+  {# ================= both channels: products and GST ================= #}
+  {% if channel == 'all' and off is not none %}
+  <div class="stat-card mb-4">
+    <div class="label mb-2">Top products, online and shop together</div>
+    {% if both.products %}
+    <div class="table-responsive"><table class="table table-sm mb-0">
+      <thead><tr><th>Product</th><th class="text-end"><span class="badge badge-online">Online</span> packs</th><th class="text-end"><span class="badge badge-offline">Shop</span> packs</th><th class="text-end">Total packs</th><th class="text-end">Total sales</th></tr></thead>
+      <tbody>{% for p in both.products %}<tr><td>{{ p.name }}</td><td class="text-end">{{ p.on_qty }}</td><td class="text-end">{{ p.off_qty }}</td><td class="text-end fw-semibold">{{ p.qty }}</td><td class="text-end">{{ p.sales|inr }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="hint mt-2">Products are matched by name, ignoring spaces and dashes (so "Garam Masala - 100g" and "Garam Masala 100g" count as one). Online sales are before coupon discounts; shop sales are as billed.</div>
+    {% else %}<div class="text-muted small">No sales in this period.</div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if channel == 'all' and off is not none %}
+  <div class="stat-card mb-4">
+    <div class="label mb-2">GST included in sales</div>
+    <div class="row g-3">
+      <div class="col-md-7">
+        <table class="table table-sm mb-0">
+          <thead><tr><th></th><th class="text-end"><span class="badge badge-online">Online</span> <span class="badge bg-secondary">estimate</span></th><th class="text-end"><span class="badge badge-offline">Shop</span></th><th class="text-end">Total</th></tr></thead>
+          <tr><td>Sales without GST</td><td class="text-end">{{ s.gst.taxable|inr }}</td><td class="text-end">{{ off.taxable|inr }}</td><td class="text-end">{{ (s.gst.taxable + off.taxable)|inr }}</td></tr>
+          <tr class="fw-bold"><td>GST</td><td class="text-end">{{ s.gst.gst|inr }}</td><td class="text-end">{{ off.gst|inr }}</td><td class="text-end">{{ both.gst_total|inr }}</td></tr>
+        </table>
+      </div>
+      <div class="col-md-5"><div class="soft-note h-100">Shop GST comes straight from your bills. Online GST is worked out from prices that already include {{ gst_rate }}%, so it is an estimate. Shop figures are before sales returns. This is for planning and your accountant, <strong>not a GST return</strong>.</div></div>
     </div>
-    <div class="col-lg-4">
+  </div>
+  {% endif %}
+
+  {# ================= ONLINE (website) sections ================= #}
+  {% if show_online %}
+  {% if channel == 'all' %}<div class="section-title"><span class="badge badge-online">Online</span> Website orders</div>{% endif %}
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
       <div class="stat-card">
         <div class="label mb-2">Order status</div>
         <table class="table table-sm mb-0">
@@ -76,15 +147,24 @@
           <tr><td>Returned to us, RTO <span class="text-muted">({{ s.rto_orders }})</span></td><td class="text-end text-danger">- {{ s.rto|inr }}</td></tr>
           <tr class="fw-bold"><td>Net sales</td><td class="text-end">{{ s.net|inr }}</td></tr>
         </table>
-        <div class="hint mt-2">Coupons given: {{ s.coupon_discount|inr }} &middot; Points used: {{ s.points_discount|inr }}</div>
+        <div class="hint mt-2">Orders {{ s.orders }} &middot; shipping collected {{ s.shipping|inr }} &middot; coupons given {{ s.coupon_discount|inr }} &middot; points used {{ s.points_discount|inr }}</div>
         <div class="hint">Customers: {{ s.customers }} ({{ s.returning_customers }} came back)</div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="stat-card"><div class="label mb-2">Delivery progress (paid orders in this period)</div>
+        <div class="d-flex flex-wrap gap-3">
+          {% for name in ['processing', 'shipped', 'out for delivery', 'delivered', 'rto', 'cancelled'] %}
+            <div><span class="fw-bold fs-5">{{ s.status_counts.get(name, 0) }}</span> <span class="text-muted small text-capitalize">{{ 'RTO' if name == 'rto' else name }}</span></div>
+          {% endfor %}
+        </div>
+        {% if s.states %}<div class="hint mt-3">Top states: {% for r in s.states[:4] %}{{ r.state }} ({{ r.orders }}){{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
       </div>
     </div>
   </div>
 
-  <!-- Money: payment methods and fees -->
   <div class="stat-card mb-4">
-    <div class="label mb-2">How customers paid, and what Razorpay kept</div>
+    <div class="label mb-2">How online customers paid, and what Razorpay kept</div>
     {% if s.payment_methods is none %}
       <div class="soft-note">Razorpay could not be reached just now, so payment methods and fees are not shown. Everything else on this page is unaffected. Refresh in a few minutes.</div>
     {% elif not s.payment_methods %}
@@ -105,7 +185,7 @@
     {% endif %}
   </div>
 
-  <!-- GST -->
+  {% if not combined %}
   <div class="stat-card mb-4">
     <div class="label mb-2">GST on online sales <span class="badge bg-secondary">estimate</span></div>
     <div class="row g-3">
@@ -144,28 +224,96 @@
       </div>
     </div>
   </div>
+  {% endif %}
+  {% endif %}
 
-  <div class="stat-card mb-4">
-    <div class="label mb-2">Delivery progress (paid orders in this period)</div>
-    <div class="d-flex flex-wrap gap-3">
-      {% for name in ['processing', 'shipped', 'out for delivery', 'delivered', 'rto', 'cancelled'] %}
-        <div><span class="fw-bold fs-5">{{ s.status_counts.get(name, 0) }}</span> <span class="text-muted small text-capitalize">{{ name }}</span></div>
-      {% endfor %}
+  {# ================= SHOP (offline) sections ================= #}
+  {% if show_shop %}
+  {% if channel == 'all' %}<div class="section-title"><span class="badge badge-offline">Shop</span> Counter and wholesale billing</div>{% endif %}
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="stat-card">
+        <div class="label mb-2">How shop customers paid</div>
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Mode</th><th class="text-end">Amount</th><th class="text-end">Share</th></tr></thead>
+          {% for label, amt in [('Cash', off.cash), ('UPI', off.upi), ('Card', off.card), ('Udhaar (credit given)', off.udhaar_given)] %}
+          <tr><td>{{ label }}</td><td class="text-end">{{ amt|inr }}</td><td class="text-end text-muted">{{ ((100 * amt / off.sales)|round|int) if off.sales else 0 }}%</td></tr>
+          {% endfor %}
+          <tr class="fw-bold border-top"><td>Bills total</td><td class="text-end">{{ off.sales|inr }}</td><td></td></tr>
+        </table>
+        <div class="hint mt-2">Returns in this period: {{ off.returns|inr }} &middot; Net sales: {{ off.net|inr }}</div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="stat-card">
+        <div class="label mb-2">Udhaar and expenses</div>
+        <table class="table table-sm mb-0">
+          <tr><td>Udhaar outstanding now <span class="text-muted">({{ off.customers_with_due }} customers)</span></td><td class="text-end fw-bold">{{ off.udhaar_outstanding|inr }}</td></tr>
+          <tr><td>Udhaar given in this period</td><td class="text-end">{{ off.udhaar_given|inr }}</td></tr>
+          <tr><td>Udhaar collected in this period</td><td class="text-end">{{ off.udhaar_collected|inr }}</td></tr>
+          <tr><td>Expenses in this period</td><td class="text-end">{{ off.expenses|inr }}</td></tr>
+        </table>
+        <div class="hint mt-2">"Outstanding now" is as of today, whatever period you picked.</div>
+      </div>
     </div>
   </div>
 
+  {% if channel == 'offline' %}
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="stat-card"><div class="label mb-2">Top products</div>
+        {% if off.top_products %}
+        <table class="table table-sm mb-0"><thead><tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Sales</th></tr></thead><tbody>
+          {% for p in off.top_products %}<tr><td>{{ p.name }}</td><td class="text-end">{{ p.qty }}</td><td class="text-end">{{ p.sales|inr }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<div class="text-muted small">No bills in this period.</div>{% endif %}
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="stat-card"><div class="label mb-2">GST on shop bills</div>
+        <table class="table table-sm mb-0">
+          <tr><td>Sales without GST</td><td class="text-end">{{ off.taxable|inr }}</td></tr>
+          <tr class="fw-bold"><td>GST</td><td class="text-end">{{ off.gst|inr }}</td></tr>
+        </table>
+        <div class="hint mt-2">Straight from your bills, before sales returns. For planning and your accountant, not a GST return.</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="stat-card"><div class="label mb-2">Sales by salesperson</div>
+        {% if off.by_salesperson %}
+        <table class="table table-sm mb-0"><thead><tr><th>Name</th><th class="text-end">Bills</th><th class="text-end">Sales</th></tr></thead><tbody>
+          {% for p in off.by_salesperson %}<tr><td>{{ p.name }}</td><td class="text-end">{{ p.bills }}</td><td class="text-end">{{ p.sales|inr }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<div class="text-muted small">No bills in this period.</div>{% endif %}
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="stat-card"><div class="label mb-2">Low stock at the shop</div>
+        {% if off.low_stock %}
+        <table class="table table-sm mb-0"><thead><tr><th>Product</th><th class="text-end">In stock</th><th class="text-end">Reorder at</th></tr></thead><tbody>
+          {% for p in off.low_stock %}<tr><td>{{ p.product }} {{ p.size }}</td><td class="text-end {{ 'text-danger fw-bold' if p.qty == 0 }}">{{ p.qty }}</td><td class="text-end text-muted">{{ p.reorder }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<div class="text-muted small">Nothing is below its reorder level.</div>{% endif %}
+        <div class="hint mt-2">As of now, across all locations.</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <script>
     (function () {
-      var rows = {{ s.daily|tojson }};
+      var rows = {{ both.daily|tojson }};
+      var useOnline = {{ 'true' if show_online else 'false' }}, useShop = {{ 'true' if show_shop else 'false' }};
+      var datasets = [];
+      if (useOnline) datasets.push({ label: 'Online', data: rows.map(function (r) { return r.online / 100; }), backgroundColor: '#1b4332', stack: 's' });
+      if (useShop) datasets.push({ label: 'Shop', data: rows.map(function (r) { return r.offline / 100; }), backgroundColor: '#d97706', stack: 's' });
       new Chart(document.getElementById('dailyChart'), {
         type: 'bar',
-        data: {
-          labels: rows.map(function (r) { return r.date.slice(5); }),
-          datasets: [
-            { label: 'Online', data: rows.map(function (r) { return r.net / 100; }), backgroundColor: '#1b4332', stack: 's' },
-            { label: 'Offline (not connected yet)', data: rows.map(function () { return 0; }), backgroundColor: '#d97706', stack: 's' }
-          ]
-        },
+        data: { labels: rows.map(function (r) { return r.date.slice(5); }), datasets: datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
           scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: function (v) { return '₹' + v; } } } },

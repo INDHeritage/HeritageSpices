@@ -1,5 +1,6 @@
 """Maths for the admin sales dashboard: Indian-time date ranges, the GST that is already inside our
 prices, and the online-channel summary. Pure functions on plain dicts so every rule is easy to test."""
+import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
@@ -188,4 +189,80 @@ def summarize_online(orders, payments, start, end, earlier_customers=(), rate=DE
         'payment_methods': methods, 'payments_available': payments is not None,
         'fee_total': fee_total, 'fee_tax_total': fee_tax_total, 'refunded_total': refunded_total,
         'received_total': (net - refunded_total - fee_total - fee_tax_total) if payments is not None else None,
+    }
+
+
+# ---------- the shop (offline) half, and both together ----------
+
+def _i(v):
+    try:
+        return int(round(float(v or 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def product_key(name):
+    """'Garam Masala - 100g' (website) and 'Garam Masala 100g' (billing app) must count as one product."""
+    return re.sub(r'[^a-z0-9]', '', str(name or '').lower())
+
+
+def normalize_offline(raw):
+    """The billing app's dashboard_summary reply, as plain ints (paise) with friendlier names."""
+    sales, returns = _i(raw.get('salesPaise')), _i(raw.get('returnsPaise'))
+    bills = _i(raw.get('bills'))
+    net = _i(raw.get('netSalesPaise')) if raw.get('netSalesPaise') is not None else sales - returns
+    return {
+        'sales': sales, 'returns': returns, 'net': net, 'bills': bills,
+        'avg_bill': sales // bills if bills else 0,
+        'taxable': _i(raw.get('taxablePaise')), 'gst': _i(raw.get('gstPaise')),
+        'cash': _i(raw.get('cashPaise')), 'upi': _i(raw.get('upiPaise')), 'card': _i(raw.get('cardPaise')),
+        'udhaar_given': _i(raw.get('udhaarGivenPaise')), 'udhaar_collected': _i(raw.get('udhaarCollectedPaise')),
+        'expenses': _i(raw.get('expensesPaise')),
+        'udhaar_outstanding': _i(raw.get('udhaarOutstandingPaise')), 'customers_with_due': _i(raw.get('customersWithDue')),
+        'daily': {str(r.get('date')): {'sales': _i(r.get('salesPaise')), 'bills': _i(r.get('bills'))}
+                  for r in (raw.get('daily') or [])},
+        'top_products': [{'name': r.get('product') or '-', 'qty': _i(r.get('qty')), 'sales': _i(r.get('salesPaise'))}
+                         for r in (raw.get('topProducts') or [])],
+        'by_salesperson': [{'name': r.get('name') or '-', 'sales': _i(r.get('salesPaise')), 'bills': _i(r.get('bills'))}
+                           for r in (raw.get('bySalesperson') or [])],
+        'low_stock': [{'product': r.get('product') or '-', 'size': r.get('size') or '', 'qty': _i(r.get('qty')),
+                       'reorder': _i(r.get('reorderLevel'))} for r in (raw.get('lowStock') or [])],
+    }
+
+
+def combine(online, offline, start, end):
+    """Online (website) and offline (shop) side by side. `offline` may be None when the shop data is
+    not connected, in which case only the online figures are filled in."""
+    off = offline or {}
+    daily, d = [], start
+    while d <= end:
+        iso = d.isoformat()
+        on_row = next((r for r in online['daily'] if r['date'] == iso), None)
+        daily.append({'date': iso, 'online': on_row['net'] if on_row else 0,
+                      'offline': off.get('daily', {}).get(iso, {}).get('sales', 0)})
+        d += timedelta(days=1)
+
+    on_net, off_net = online['net'], off.get('net', 0)
+    total = on_net + off_net
+
+    merged = {}
+    for p in online['top_products']:
+        m = merged.setdefault(product_key(p['name']), {'name': p['name'], 'on_qty': 0, 'off_qty': 0, 'on_sales': 0, 'off_sales': 0})
+        m['on_qty'] += p['qty']
+        m['on_sales'] += p['revenue']
+    for p in off.get('top_products', []):
+        m = merged.setdefault(product_key(p['name']), {'name': p['name'], 'on_qty': 0, 'off_qty': 0, 'on_sales': 0, 'off_sales': 0})
+        m['off_qty'] += p['qty']
+        m['off_sales'] += p['sales']
+    products = sorted(merged.values(), key=lambda m: -(m['on_sales'] + m['off_sales']))
+    for m in products:
+        m['qty'], m['sales'] = m['on_qty'] + m['off_qty'], m['on_sales'] + m['off_sales']
+
+    return {
+        'daily': daily, 'net': total, 'online_net': on_net, 'offline_net': off_net,
+        'online_share': round(100 * on_net / total) if total else 0,
+        'offline_share': (100 - round(100 * on_net / total)) if total else 0,
+        'orders': online['orders'] + off.get('bills', 0),
+        'gst_total': online['gst']['gst'] + off.get('gst', 0),
+        'products': products[:10],
     }
