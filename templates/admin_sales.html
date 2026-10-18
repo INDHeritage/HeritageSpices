@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Sales Dashboard | Heritage Spices{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+
+{% block content %}
+{% set METHOD_NAMES = {'upi': 'UPI', 'card': 'Card', 'netbanking': 'Netbanking', 'wallet': 'Wallet', 'emi': 'EMI', 'paylater': 'Pay later', 'unknown': 'Not found in Razorpay'} %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  .ch-online { --ch: #1b4332; } .ch-offline { --ch: #d97706; }
+  .ch-pill { border: 2px solid var(--ch); color: var(--ch); background: #fff; border-radius: 999px; padding: 6px 18px; font-weight: 600; text-decoration: none; display: inline-block; }
+  .ch-pill.active { background: var(--ch); color: #fff; }
+  .ch-pill.all { --ch: #6b1d14; }
+  .stat-card { background: #fff; border: 1px solid #efe6d2; border-radius: 14px; padding: 16px 18px; height: 100%; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+  .stat-card .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #8a7a5a; font-weight: 600; }
+  .stat-card .value { font-size: 1.6rem; font-weight: 800; color: #1b4332; line-height: 1.2; }
+  .stat-card .hint { font-size: .78rem; color: #7a6a60; margin-top: 2px; }
+  .badge-online { background: #1b4332; } .badge-offline { background: #d97706; }
+  .soft-note { background: #fff8e6; border: 1px solid #f1deaa; border-radius: 12px; padding: 12px 16px; font-size: .85rem; color: #6b5311; }
+  .table-sm td, .table-sm th { vertical-align: middle; }
+</style>
+
+<div class="container py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h1 class="h3 fw-bold text-success mb-0"><i class="fas fa-chart-line me-2"></i>Sales Dashboard</h1>
+      <div class="text-muted small">{{ start.strftime('%d %b %Y') }} to {{ end.strftime('%d %b %Y') }} &middot; Indian time &middot; <a href="/admin/dashboard" class="text-decoration-none">Back to admin</a></div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="ch-pill all {{ 'active' if channel == 'all' }}" href="?range={{ key }}&from={{ start }}&to={{ end }}&channel=all">All</a>
+      <a class="ch-pill ch-online {{ 'active' if channel == 'online' }}" href="?range={{ key }}&from={{ start }}&to={{ end }}&channel=online">Online</a>
+      <a class="ch-pill ch-offline {{ 'active' if channel == 'offline' }}" href="?range={{ key }}&from={{ start }}&to={{ end }}&channel=offline">Offline <small>(soon)</small></a>
+    </div>
+  </div>
+
+  <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-4">
+    <input type="hidden" name="channel" value="{{ channel }}">
+    <div>
+      <label for="range" class="form-label small mb-1 text-muted">Period</label>
+      <select name="range" id="range" class="form-select form-select-sm" onchange="document.getElementById('custom-dates').style.display = this.value === 'custom' ? 'flex' : 'none'; if (this.value !== 'custom') this.form.submit();">
+        {% for k, label in ranges %}<option value="{{ k }}" {{ 'selected' if k == key }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div id="custom-dates" class="gap-2 align-items-end" style="display: {{ 'flex' if key == 'custom' else 'none' }};">
+      <div><label for="from" class="form-label small mb-1 text-muted">From</label><input type="date" id="from" name="from" value="{{ start }}" class="form-control form-control-sm"></div>
+      <div><label for="to" class="form-label small mb-1 text-muted">To</label><input type="date" id="to" name="to" value="{{ end }}" class="form-control form-control-sm"></div>
+      <button class="btn btn-success btn-sm" type="submit">Show</button>
+    </div>
+  </form>
+
+  {% if channel == 'offline' %}
+    <div class="soft-note"><strong>Shop (offline) sales are not connected yet.</strong> This page will show them here, side by side with online, once the billing app is linked. Until then, choose <em>Online</em> or <em>All</em>.</div>
+  {% else %}
+
+  {% if channel == 'all' %}
+    <div class="soft-note mb-3"><span class="badge badge-offline me-1">Offline</span> Shop sales are not connected yet, so the numbers below are <strong>online (website) only</strong>.</div>
+  {% endif %}
+
+  <!-- Headline numbers -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label"><span class="badge badge-online">Online</span> Net sales</div><div class="value">{{ s.net|inr }}</div><div class="hint">Paid orders, minus cancelled and returned</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Orders</div><div class="value">{{ s.orders }}</div><div class="hint">Average {{ s.avg_order|inr }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Product sales</div><div class="value">{{ s.products_incl|inr }}</div><div class="hint">After discounts, without shipping</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="label">Shipping collected</div><div class="value">{{ s.shipping|inr }}</div><div class="hint">Shown separately from products</div></div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-8">
+      <div class="stat-card"><div class="label mb-2">Daily sales</div><div style="height: 260px;"><canvas id="dailyChart"></canvas></div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="stat-card">
+        <div class="label mb-2">Order status</div>
+        <table class="table table-sm mb-0">
+          <tr><td>Gross (all paid orders)</td><td class="text-end">{{ s.gross|inr }}</td></tr>
+          <tr><td>Cancelled <span class="text-muted">({{ s.cancelled_orders }})</span></td><td class="text-end text-danger">- {{ s.cancelled|inr }}</td></tr>
+          <tr><td>Returned to us, RTO <span class="text-muted">({{ s.rto_orders }})</span></td><td class="text-end text-danger">- {{ s.rto|inr }}</td></tr>
+          <tr class="fw-bold"><td>Net sales</td><td class="text-end">{{ s.net|inr }}</td></tr>
+        </table>
+        <div class="hint mt-2">Coupons given: {{ s.coupon_discount|inr }} &middot; Points used: {{ s.points_discount|inr }}</div>
+        <div class="hint">Customers: {{ s.customers }} ({{ s.returning_customers }} came back)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Money: payment methods and fees -->
+  <div class="stat-card mb-4">
+    <div class="label mb-2">How customers paid, and what Razorpay kept</div>
+    {% if s.payment_methods is none %}
+      <div class="soft-note">Razorpay could not be reached just now, so payment methods and fees are not shown. Everything else on this page is unaffected. Refresh in a few minutes.</div>
+    {% elif not s.payment_methods %}
+      <div class="text-muted small">No paid orders in this period.</div>
+    {% else %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Method</th><th class="text-end">Orders</th><th class="text-end">Paid by customers</th><th class="text-end">Razorpay fee</th><th class="text-end">GST on fee</th><th class="text-end">Refunded</th><th class="text-end">You receive</th></tr></thead>
+        <tbody>
+        {% for m in s.payment_methods %}
+          <tr><td>{{ METHOD_NAMES.get(m.method, m.method|title) }}</td><td class="text-end">{{ m.orders }}</td><td class="text-end">{{ m.amount|inr }}</td><td class="text-end">{{ m.fee|inr }}</td><td class="text-end">{{ m.fee_tax|inr }}</td><td class="text-end">{{ m.refunded|inr }}</td><td class="text-end fw-semibold">{{ m.received|inr }}</td></tr>
+        {% endfor %}
+        <tr class="fw-bold border-top"><td>Total</td><td class="text-end">{{ s.orders }}</td><td class="text-end">{{ s.net|inr }}</td><td class="text-end">{{ s.fee_total|inr }}</td><td class="text-end">{{ s.fee_tax_total|inr }}</td><td class="text-end">{{ s.refunded_total|inr }}</td><td class="text-end">{{ s.received_total|inr }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="hint mt-2">Customers pay the same price on every method. Razorpay takes its fee out of your settlement, so "You receive" is what reaches the bank. Fees appear once Razorpay has processed the payment.</div>
+    {% endif %}
+  </div>
+
+  <!-- GST -->
+  <div class="stat-card mb-4">
+    <div class="label mb-2">GST on online sales <span class="badge bg-secondary">estimate</span></div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <table class="table table-sm mb-0">
+          <tr><td>Sales without GST (taxable value)</td><td class="text-end">{{ s.gst.taxable|inr }}</td></tr>
+          <tr><td>CGST (Maharashtra orders)</td><td class="text-end">{{ s.gst.cgst|inr }}</td></tr>
+          <tr><td>SGST (Maharashtra orders)</td><td class="text-end">{{ s.gst.sgst|inr }}</td></tr>
+          <tr><td>IGST (orders to other states)</td><td class="text-end">{{ s.gst.igst|inr }}</td></tr>
+          <tr class="fw-bold"><td>GST included in sales</td><td class="text-end">{{ s.gst.gst|inr }}</td></tr>
+        </table>
+      </div>
+      <div class="col-md-6"><div class="soft-note h-100">Your prices already include GST, so nothing was added for customers. This works the {{ gst_rate }}% back out of each order total (price &divide; {{ (100 + gst_rate) / 100 }}), splitting CGST and SGST for Maharashtra and using IGST for other states. It is a planning estimate to hand to your accountant, <strong>not a GST return</strong>. Shipping is assumed to carry the same {{ gst_rate }}%; please confirm that with your accountant.</div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="stat-card"><div class="label mb-2">Top products</div>
+        {% if s.top_products %}
+        <table class="table table-sm mb-0"><thead><tr><th>Product</th><th class="text-end">Packs</th><th class="text-end">Sales</th></tr></thead><tbody>
+          {% for p in s.top_products %}<tr><td>{{ p.name }}</td><td class="text-end">{{ p.qty }}</td><td class="text-end">{{ p.revenue|inr }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<div class="text-muted small">No sales in this period.</div>{% endif %}
+        <div class="hint mt-2">Before coupon and points discounts, without shipping.</div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="stat-card"><div class="label mb-2">Where orders go</div>
+        {% if s.states %}
+        <table class="table table-sm mb-0"><thead><tr><th>State</th><th class="text-end">Orders</th><th class="text-end">Sales</th></tr></thead><tbody>
+          {% for r in s.states[:8] %}<tr><td>{{ r.state }}</td><td class="text-end">{{ r.orders }}</td><td class="text-end">{{ r.net|inr }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<div class="text-muted small">No orders in this period.</div>{% endif %}
+        {% if s.cities %}<div class="hint mt-2">Top cities: {% for c in s.cities[:5] %}{{ c.city }} ({{ c.orders }}){{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card mb-4">
+    <div class="label mb-2">Delivery progress (paid orders in this period)</div>
+    <div class="d-flex flex-wrap gap-3">
+      {% for name in ['processing', 'shipped', 'out for delivery', 'delivered', 'rto', 'cancelled'] %}
+        <div><span class="fw-bold fs-5">{{ s.status_counts.get(name, 0) }}</span> <span class="text-muted small text-capitalize">{{ name }}</span></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var rows = {{ s.daily|tojson }};
+      new Chart(document.getElementById('dailyChart'), {
+        type: 'bar',
+        data: {
+          labels: rows.map(function (r) { return r.date.slice(5); }),
+          datasets: [
+            { label: 'Online', data: rows.map(function (r) { return r.net / 100; }), backgroundColor: '#1b4332', stack: 's' },
+            { label: 'Offline (not connected yet)', data: rows.map(function () { return 0; }), backgroundColor: '#d97706', stack: 's' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: function (v) { return '₹' + v; } } } },
+          plugins: { tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ₹' + c.parsed.y.toLocaleString('en-IN'); } } } }
+        }
+      });
+    })();
+  </script>
+  {% endif %}
+</div>
+{% endblock %}

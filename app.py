@@ -29,6 +29,7 @@ import hashlib
 import nimbus_api
 import notifications
 import receipts
+import sales_stats
 import io
 import qrcode
 from flask import send_file
@@ -2273,6 +2274,96 @@ def scan_product(product_id):
                            price=product_price_rupees(product), reviews=product.approved_reviews,
                            recent_blogs=get_recipe_blogs(3), user=session.get('user'),
                            page_url=f"{site}/product/{product.id}")
+
+# --- Admin: sales dashboard (online orders now; the shop's offline sales plug in next) ---
+@app.template_filter('inr')
+def inr_filter(paise):
+    """Paise -> '₹1,23,456.78' with Indian digit grouping."""
+    try:
+        paise = int(paise or 0)
+    except (TypeError, ValueError):
+        return '₹0.00'
+    sign, paise = ('-' if paise < 0 else ''), abs(paise)
+    rupees, p = divmod(paise, 100)
+    s = str(rupees)
+    if len(s) > 3:
+        head, tail = s[:-3], s[-3:]
+        parts = []
+        while len(head) > 2:
+            parts.insert(0, head[-2:])
+            head = head[:-2]
+        if head:
+            parts.insert(0, head)
+        s = ','.join(parts + [tail])
+    return f"{sign}₹{s}.{p:02d}"
+
+_rzp_payments_cache = {}
+
+def fetch_razorpay_payments(start, end):
+    """What Razorpay recorded for payments around start..end: method, fee, tax on the fee and refunds.
+    Read-only, cached for 10 minutes. Returns None when Razorpay can't be reached (the page then simply
+    omits the fee figures instead of failing)."""
+    if not razorpay_client:
+        return None
+    hit = _rzp_payments_cache.get((start, end))
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    epoch = datetime(1970, 1, 1)
+    frm = int((datetime.combine(start - timedelta(days=1), datetime.min.time()) - sales_stats.IST - epoch).total_seconds())
+    to = int((datetime.combine(end + timedelta(days=2), datetime.min.time()) - sales_stats.IST - epoch).total_seconds())
+    out = {}
+    try:
+        skip = 0
+        for _ in range(30):
+            items = razorpay_client.payment.all({'from': frm, 'to': to, 'count': 100, 'skip': skip}).get('items', [])
+            for p in items:
+                if p.get('status') in ('captured', 'refunded'):
+                    out[p['id']] = {'method': p.get('method'), 'amount': p.get('amount') or 0,
+                                    'fee': p.get('fee') or 0, 'tax': p.get('tax') or 0,
+                                    'refunded': p.get('amount_refunded') or 0}
+            if len(items) < 100:
+                break
+            skip += 100
+    except Exception as e:
+        print("Razorpay payments fetch error:", e)
+        return None
+    _rzp_payments_cache[(start, end)] = (time.time(), out)
+    return out
+
+def _sales_order_rows(orders):
+    return [{
+        'id': o.id, 'created_at': o.created_at, 'user_email': o.user_email, 'state': o.state, 'city': o.city,
+        'subtotal': o.subtotal, 'shipping_cost': o.shipping_cost or 0, 'total_amount': o.total_amount,
+        'discount_amount': o.discount_amount or 0, 'points_discount_amount': o.points_discount_amount or 0,
+        'payment_status': o.payment_status, 'shipping_status': o.shipping_status,
+        'razorpay_payment_id': o.razorpay_payment_id,
+        'items': [{'name': i.product_name or f'Product {i.product_id}', 'qty': i.quantity, 'unit_price': i.unit_price}
+                  for i in o.items],
+    } for o in orders]
+
+@app.route('/admin/sales')
+@admin_required
+def admin_sales():
+    today = sales_stats.ist_today()
+    start, end, key = sales_stats.resolve_range(request.args.get('range', 'month'), today,
+                                                request.args.get('from'), request.args.get('to'))
+    channel = request.args.get('channel', 'all')
+    if channel not in ('all', 'online', 'offline'):
+        channel = 'all'
+
+    lo = datetime.combine(start - timedelta(days=1), datetime.min.time())
+    hi = datetime.combine(end + timedelta(days=2), datetime.min.time())
+    orders = (SpiceOrder.query.options(joinedload(SpiceOrder.items))
+              .filter(SpiceOrder.payment_status == 'paid', SpiceOrder.created_at >= lo, SpiceOrder.created_at < hi)
+              .all())
+    start_utc = datetime.combine(start, datetime.min.time()) - sales_stats.IST
+    earlier = {e for (e,) in db.session.query(SpiceOrder.user_email)
+               .filter(SpiceOrder.payment_status == 'paid', SpiceOrder.created_at < start_utc).distinct()}
+
+    summary = sales_stats.summarize_online(_sales_order_rows(orders), fetch_razorpay_payments(start, end),
+                                           start, end, earlier)
+    return render_template('admin_sales.html', s=summary, key=key, channel=channel, start=start, end=end,
+                           ranges=sales_stats.RANGE_LABELS, gst_rate=sales_stats.DEFAULT_GST_RATE)
 
 # --- Admin: QR Codes for products (generate + download, view scan counts) ---
 @app.route('/admin/qr-codes')
