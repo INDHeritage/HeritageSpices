@@ -11,9 +11,12 @@
         <a href="/orders" class="btn btn-outline-secondary rounded-pill px-4">
           <i class="fas fa-arrow-left me-2"></i> Back to My Orders
         </a>
-        <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" onclick="window.print()">
-          <i class="fas fa-download me-2"></i> Download / Print Receipt
-        </button>
+        <div class="d-flex gap-2">
+          {% if invoice %}<a href="/orders/{{ order.id }}/invoice.pdf" class="btn btn-outline-success rounded-pill px-4"><i class="fas fa-file-pdf me-2"></i> Tax invoice (PDF)</a>{% endif %}
+          <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" onclick="window.print()">
+            <i class="fas fa-download me-2"></i> Print
+          </button>
+        </div>
       </div>
 
       <div class="card border-0 shadow-sm rounded-4 receipt-container">
@@ -22,12 +25,23 @@
           <div class="d-flex flex-wrap justify-content-between align-items-start mb-4 pb-4 border-bottom">
             <div>
               <img src="{{ url_for('static', filename='images/logo.png') }}" height="48" alt="Heritage Spices Logo" class="mb-2">
+              {% if invoice %}
+              {% set seller = invoice.doc.seller %}
+              <p class="mb-0 small fw-semibold">{{ seller.legal_name }}</p>
+              <p class="mb-0 small text-muted">Trading as {{ seller.trade_name }}</p>
+              <p class="mb-0 small text-muted">{{ seller.address }}</p>
+              <p class="mb-0 small text-muted">GSTIN: <span class="font-monospace">{{ seller.gstin }}</span></p>
+              {% else %}
               <p class="mb-0 small text-muted">Heritage Spices Pvt. Ltd.</p>
               <p class="mb-0 small text-muted">Sindewahi, Maharashtra - 441222</p>
               <p class="mb-0 small text-muted">heritage.spices.pvtltd@gmail.com</p>
+              {% endif %}
             </div>
             <div class="text-md-end mt-3 mt-md-0">
-              <h4 class="fw-bold text-success mb-1">Receipt</h4>
+              <h4 class="fw-bold text-success mb-1">{{ 'Tax Invoice' if invoice else 'Receipt' }}</h4>
+              {% if invoice %}<p class="mb-0 font-monospace fw-semibold">{{ invoice.invoice_number }}</p>
+              <p class="mb-0 small text-muted">Invoice date {{ invoice.invoice_date.strftime('%d %b %Y') }}</p>
+              <p class="mb-0 small text-muted">Order</p>{% endif %}
               <p class="mb-0 font-monospace">{{ order.order_number }}</p>
               <p class="mb-0 small text-muted">{{ order.created_at.strftime('%d %b %Y, %I:%M %p') }}</p>
             </div>
@@ -101,6 +115,24 @@
               </div>
             </div>
           </div>
+
+          {% if invoice %}
+          {% set br = invoice.doc.breakup %}
+          <div class="table-responsive mt-4">
+            <table class="table table-sm small mb-1">
+              <thead><tr class="text-muted text-uppercase"><th>Item</th><th>HSN</th><th class="text-end">Taxable</th><th class="text-center">GST</th>{% if br.intra %}<th class="text-end">CGST</th><th class="text-end">SGST</th>{% else %}<th class="text-end">IGST</th>{% endif %}<th class="text-end">Total</th></tr></thead>
+              <tbody>
+              {% for ln in br.lines %}
+                <tr><td>{{ ln.description }}</td><td>{{ ln.hsn }}</td><td class="text-end">{{ ln.taxable|inr }}</td><td class="text-center">{{ '%g'|format(ln.rate) }}%</td>{% if br.intra %}<td class="text-end">{{ ln.cgst|inr }}</td><td class="text-end">{{ ln.sgst|inr }}</td>{% else %}<td class="text-end">{{ ln.igst|inr }}</td>{% endif %}<td class="text-end">{{ ln.paid|inr }}</td></tr>
+              {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold border-top"><td colspan="2">Total</td><td class="text-end">{{ br.totals.taxable|inr }}</td><td></td>{% if br.intra %}<td class="text-end">{{ br.totals.cgst|inr }}</td><td class="text-end">{{ br.totals.sgst|inr }}</td>{% else %}<td class="text-end">{{ br.totals.igst|inr }}</td>{% endif %}<td class="text-end">{{ br.totals.invoice_value|inr }}</td></tr>
+              </tfoot>
+            </table>
+          </div>
+          <p class="text-muted small mb-0">Place of supply: {{ invoice.doc.buyer.state }}. Prices include GST: the tax shown is the GST contained in what you paid, so nothing extra was charged.</p>
+          {% endif %}
 
           <p class="text-center text-muted small mt-5 mb-0">Thank you for shopping with Heritage Spices!</p>
         </div>

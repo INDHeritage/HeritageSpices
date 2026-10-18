@@ -45,7 +45,7 @@ def test_paying_sends_one_confirmation_email(make_order, outbox):
     assert to == 'buyer@example.com'
     assert 'HS-TEST0001' in subject and '₹147' in text and 'Garam Masala' in html
     filename, content, mimetype = attachment
-    assert filename == 'HS-TEST0001-receipt.pdf' and mimetype == 'application/pdf'
+    assert filename == f"HSW-{appmod.gst_tax.fy_label(appmod.sales_stats.ist_today())}-0001.pdf" and mimetype == 'application/pdf'     # the GST tax invoice
     assert content.startswith(b'%PDF')
 
 
@@ -101,11 +101,11 @@ def test_receipt_pdf_is_a_real_pdf_with_a_reasonable_size(make_order):
     assert len(pdf_bytes) > 1000
 
 
-def test_confirmation_email_attaches_the_receipt(make_order, outbox):
+def test_confirmation_email_attaches_the_tax_invoice(make_order, outbox):
     make_order(email='buyer@example.com')
     appmod.finalize_paid_order('order_TEST1', 'pay_1')
     filename, content, mimetype = outbox[0][4]
-    assert filename == 'HS-TEST0001-receipt.pdf'
+    assert filename == f"HSW-{appmod.gst_tax.fy_label(appmod.sales_stats.ist_today())}-0001.pdf"
     assert mimetype == 'application/pdf'
     assert content.startswith(b'%PDF')
 

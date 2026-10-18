@@ -71,9 +71,9 @@ def _get_token(url, key, email, password, force=False):
     return _login(url, key, email, password)
 
 
-def _rpc(url, key, token, start, end):
+def _rpc(url, key, token, start, end, fn='dashboard_summary'):
     try:
-        return requests.post(f'{url}/rest/v1/rpc/dashboard_summary',
+        return requests.post(f'{url}/rest/v1/rpc/{fn}',
                              headers={'apikey': key, 'Authorization': f'Bearer {token}',
                                       'Content-Type': 'application/json'},
                              json={'p_from': start.isoformat(), 'p_to': end.isoformat()}, timeout=TIMEOUT)
@@ -81,26 +81,27 @@ def _rpc(url, key, token, start, end):
         raise BillingUnavailable('The shop database could not be reached. Try again in a few minutes.')
 
 
-def get_summary(start, end):
-    """The shop's totals for start..end (dates, inclusive) as a dict, cached for 5 minutes.
-    Raises BillingUnavailable with a safe message when anything goes wrong."""
+def _fetch(fn, required_key, start, end):
+    """Call one of the billing database's read-only functions for start..end (dates, inclusive); cached for
+    5 minutes. Raises BillingUnavailable with a safe message when anything goes wrong."""
     url, key, email, password = _cfg()
     if not all((url, key, email, password)):
         raise BillingUnavailable('The shop database is not connected yet.')
-    ck = (start, end)
+    ck = (fn, start, end)
     hit = _cache.get(ck)
     if hit and time.time() - hit[0] < CACHE_SECONDS:
         return hit[1]
 
     with _lock:
         token = _get_token(url, key, email, password)
-        r = _rpc(url, key, token, start, end)
+        r = _rpc(url, key, token, start, end, fn)
         if r.status_code == 401:                       # token expired or revoked: sign in again, once
             token = _get_token(url, key, email, password, force=True)
-            r = _rpc(url, key, token, start, end)
+            r = _rpc(url, key, token, start, end, fn)
     if r.status_code == 404:
-        raise BillingUnavailable('The shop database is missing its dashboard function. '
-                                 'Run dashboard_api.sql in the billing Supabase SQL Editor.')
+        sql_file = {'dashboard_summary': 'dashboard_api.sql', 'gst_summary': 'gst_api.sql'}.get(fn, 'the matching SQL file')
+        raise BillingUnavailable(f'The shop database is missing its {fn} function. '
+                                 f'Run {sql_file} in the billing Supabase SQL Editor.')
     if r.status_code in (401, 403):
         raise BillingUnavailable('The shop database did not allow the dashboard user to read. '
                                  'Check that the user is Active with the Accountant role in the billing app.')
@@ -110,7 +111,17 @@ def get_summary(start, end):
         data = r.json()
     except ValueError:
         data = None
-    if not isinstance(data, dict) or 'salesPaise' not in data:
+    if not isinstance(data, dict) or required_key not in data:
         raise BillingUnavailable('The shop database gave an unexpected reply.')
     _cache[ck] = (time.time(), data)
     return data
+
+
+def get_summary(start, end):
+    """The shop's sales dashboard totals (dashboard_summary)."""
+    return _fetch('dashboard_summary', 'salesPaise', start, end)
+
+
+def get_gst_summary(start, end):
+    """The shop's GST figures: B2B/B2C, HSN, credit notes, documents issued and purchase GST (gst_summary)."""
+    return _fetch('gst_summary', 'totals', start, end)

@@ -30,6 +30,7 @@ def app():
     with appmod.app.app_context():
         appmod.db.drop_all()
         appmod.db.create_all()
+        appmod._settings_cache['data'] = None      # settings are cached for a minute; never carry them over between tests
         yield appmod.app
         appmod.db.session.remove()
 

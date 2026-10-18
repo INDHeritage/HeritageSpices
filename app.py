@@ -31,11 +31,13 @@ import notifications
 import receipts
 import sales_stats
 import billing_client
+import gst_tax
 import io
 import qrcode
 from flask import send_file
 import bleach
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 
 # -------------------------
 # 🔐 Load environment
@@ -426,6 +428,26 @@ class OrderItem(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Integer, nullable=False)  # in paise
 
+# --- GST tax invoice for a paid online order (own number series; a number is never reused) ---
+class GstInvoice(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('spice_order.id'), unique=True, nullable=False)
+    fy = db.Column(db.String(5), nullable=False)               # '26-27'
+    seq = db.Column(db.Integer, nullable=False)
+    invoice_number = db.Column(db.String(24), unique=True, nullable=False)   # 'HSW/26-27/0001'
+    invoice_date = db.Column(db.Date, nullable=False)           # Indian date of issue
+    data = db.Column(db.Text, nullable=False)                   # JSON snapshot: seller, buyer, tax lines at issue time
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    order = db.relationship('SpiceOrder', backref=db.backref('gst_invoice', uselist=False))
+    __table_args__ = (db.UniqueConstraint('fy', 'seq', name='uq_gst_invoice_fy_seq'),)
+
+    @property
+    def doc(self):
+        try:
+            return json.loads(self.data)
+        except ValueError:
+            return {}
+
 # --- Blacklisted Pincodes (admin managed) ---
 class BlacklistedPincode(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -482,8 +504,10 @@ def notify_customer(kind, order):
         if kind == 'confirmed':
             subject, text, html = notifications.order_confirmed(order)
             try:
-                pdf_bytes = receipts.build_receipt_pdf(order)
-                attachment = (f"{order.order_number}-receipt.pdf", pdf_bytes, 'application/pdf')
+                inv = GstInvoice.query.filter_by(order_id=order.id).first()
+                pdf_bytes = receipts.build_receipt_pdf(order, inv)
+                name = (inv.invoice_number.replace('/', '-') + '.pdf') if inv else f"{order.order_number}-receipt.pdf"
+                attachment = (name, pdf_bytes, 'application/pdf')
             except Exception as e:
                 print(f"Receipt PDF generation failed for {order.order_number}:", e)
         elif kind == 'shipped':
@@ -3532,6 +3556,64 @@ def create_checkout_order():
             db.session.commit()
         return jsonify({'error': str(e)}), 500
 
+# --- GST settings and invoice issuing ---
+def gst_seller():
+    """Seller details exactly as registered for GST (overridable in Admin > GST)."""
+    s = dict(gst_tax.SELLER)
+    for k in ('legal_name', 'trade_name', 'gstin', 'address'):
+        v = (get_setting(f'gst_{k}', '') or '').strip()
+        if v:
+            s[k] = v
+    s['state_code'] = (s['gstin'][:2] if len(s['gstin']) >= 2 else gst_tax.SELLER['state_code'])
+    return s
+
+def gst_product_tax():
+    return gst_tax.parse_product_tax(get_setting('gst_product_tax', ''))
+
+def gst_shipping_rate():
+    try:
+        return float(get_setting('gst_shipping_rate', gst_tax.DEFAULT_SHIPPING_RATE))
+    except (TypeError, ValueError):
+        return gst_tax.DEFAULT_SHIPPING_RATE
+
+def gst_order_dict(order):
+    """A SpiceOrder as the plain dict gst_tax works on."""
+    return {'state': order.state, 'shipping_cost': order.shipping_cost or 0, 'total_amount': order.total_amount,
+            'discount_amount': order.discount_amount or 0, 'points_discount_amount': order.points_discount_amount or 0,
+            'items': [{'product_id': i.product_id, 'name': i.product_name, 'qty': i.quantity, 'unit_price': i.unit_price}
+                      for i in order.items]}
+
+def ensure_gst_invoice(order):
+    """The GST invoice for a paid order: returns the existing one or issues the next number in the
+    HSW/<fy>/NNNN series. Safe to call twice (the order can only ever have one) and safe under two
+    simultaneous payments (the (year, number) pair is unique, so a clash is retried with the next number)."""
+    existing = GstInvoice.query.filter_by(order_id=order.id).first()
+    if existing:
+        return existing
+    today = sales_stats.ist_today()
+    fy = gst_tax.fy_label(today)
+    seller = gst_seller()
+    snapshot = json.dumps({
+        'seller': seller, 'order_number': order.order_number,
+        'buyer': {'name': order.full_name, 'address': order.address, 'city': order.city, 'state': order.state,
+                  'pincode': order.pincode, 'phone': order.phone},
+        'breakup': gst_tax.order_breakup(gst_order_dict(order), gst_product_tax(), gst_shipping_rate()),
+    })
+    for _ in range(6):
+        seq = (db.session.query(db.func.max(GstInvoice.seq)).filter_by(fy=fy).scalar() or 0) + 1
+        inv = GstInvoice(order_id=order.id, fy=fy, seq=seq, invoice_date=today, data=snapshot,
+                         invoice_number=gst_tax.invoice_number(gst_tax.ONLINE_INVOICE_PREFIX, fy, seq))
+        db.session.add(inv)
+        try:
+            db.session.commit()
+            return inv
+        except IntegrityError:
+            db.session.rollback()
+            again = GstInvoice.query.filter_by(order_id=order.id).first()
+            if again:
+                return again
+    raise RuntimeError('could not allocate a GST invoice number')
+
 def finalize_paid_order(razorpay_order_id, razorpay_payment_id):
     """Mark an order paid and apply its side effects -- safe to call more than once.
 
@@ -3599,6 +3681,12 @@ def finalize_paid_order(razorpay_order_id, razorpay_payment_id):
         send_telegram_notification(msg)
     except Exception as e:
         print("Telegram notification error (order still paid successfully):", e)
+
+    try:
+        ensure_gst_invoice(order)
+    except Exception as e:
+        db.session.rollback()
+        print("GST invoice issue error (order still paid successfully):", e)
 
     notify_customer('confirmed', order)
     return order, True
@@ -3797,7 +3885,24 @@ def order_receipt(order_id):
     else:
         order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
 
-    return render_template('order_receipt.html', order=order, user=user, is_logged_in=True)
+    return render_template('order_receipt.html', order=order, user=user, is_logged_in=True,
+                           invoice=GstInvoice.query.filter_by(order_id=order.id).first())
+
+@app.route('/orders/<int:order_id>/invoice.pdf')
+def order_invoice_pdf(order_id):
+    """The GST tax invoice as a PDF: the customer who placed the order, or an admin."""
+    user = session.get('user')
+    if not user:
+        session['post_login_next'] = '/orders'
+        flash("Please login to view your invoice.", "warning")
+        return redirect('/login')
+    if is_admin_user(user):
+        order = SpiceOrder.query.filter_by(id=order_id).first_or_404()
+    else:
+        order = SpiceOrder.query.filter_by(id=order_id, user_email=user['email']).first_or_404()
+    inv = GstInvoice.query.filter_by(order_id=order.id).first_or_404()
+    return send_file(io.BytesIO(receipts.build_receipt_pdf(order, inv)), mimetype='application/pdf',
+                     download_name=inv.invoice_number.replace('/', '-') + '.pdf')
 
 @app.route('/orders/<int:order_id>/reorder', methods=['POST'])
 def reorder(order_id):
@@ -4362,10 +4467,35 @@ def delete_review(review_id):
 # -------------------------
 # 🚀 Run App
 # -------------------------
-# --- TEMP: Create DB tables if missing ---
+def ensure_row_level_security():
+    """Supabase exposes every table in the public schema to its web API, so a brand-new table (created by
+    create_all) is open to anyone holding the project's public key until row-level security is switched on.
+    Turning it on with no policies shuts that API out, while this app -- which connects as the table owner and
+    bypasses it -- keeps working exactly as before. Postgres only; never allowed to stop the app starting."""
+    try:
+        if db.engine.dialect.name != 'postgresql':
+            return []
+        rows = db.session.execute(db.text(
+            "select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace "
+            "where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity")).fetchall()
+        fixed = []
+        for (name,) in rows:
+            db.session.execute(db.text('ALTER TABLE public."%s" ENABLE ROW LEVEL SECURITY' % name.replace('"', '""')))
+            fixed.append(name)
+        db.session.commit()
+        if fixed:
+            print("Row-level security switched on for:", ", ".join(fixed))
+        return fixed
+    except Exception as e:
+        db.session.rollback()
+        print("Row-level security check skipped:", e)
+        return []
+
+# --- Create DB tables if missing ---
 with app.app_context():
     db.create_all()
     print("Database tables created/verified!")
+    ensure_row_level_security()
 
 if __name__ == '__main__':
     app.run(debug=True)
